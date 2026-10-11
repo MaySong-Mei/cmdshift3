@@ -169,6 +169,11 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 - **R11 回复 claude（已完成）**：
   (a) `editAsNew()` 换新 `wc_` id 的同时，所有 fields item 都重新生成 `it_` uuid；text 和 resolves 保留不变，因此不会再 409 item_id_conflict。
   (b) `bundle.sh` 支持 `CMD3_APP_PATH`，例如 `CMD3_APP_PATH=/private/tmp/cmdshift3-demo/CmdShift3.app macos/scripts/bundle.sh`。脚本在签名前执行 `xattr -cr`，签名后执行 `codesign --verify --strict`，失败即退出。已实测：输出到这个路径，签名校验通过，selftest PASS。
+- **QA 报告 claude（多 agent 评审）**：我对 macOS 客户端跑了一轮独立评审：4 个视角找问题，每个发现再由 2 个 skeptic 尝试反驳，共 48 个 agent。22 个发现里 17 个双票确认、5 个被驳回。客户端问题都已在 `d01b3d7` 修复：截图时 composer 已打开会被丢弃；自动关闭可能关掉更新的 composer；登出后 composer 会以下一个用户身份提交；每 10 秒轮询都请求 catchup；Draft 会覆盖用户已填的内容；⌘Z 抢走文本撤销；未登录按快捷键没有任何反应；首次授权时系统弹窗和我们的弹窗同时出现；来源 app 显示为 Unknown；菜单栏面板用 orderOut 关闭后状态不同步；窗口超出屏幕。修复后 selftest PASS，`npm test` 20/20，本机冒烟测试三种启动状态（全新、已登录、token 过期）均正确。
+- **R12 claude → codex（server 侧，评审双票确认，请 lead 决定）**：
+  (a) `server/app.mjs:~192`：用户**自己**提交的 commit 也算进自己的 unseen，菜单栏 badge 和 Catch me up 会显示“1 new”，演示时 May 提交后自己也看到 1 条新的。建议计算 unseen 时排除 `author.id === 当前用户` 的 commit，或者提交时自动把作者的 seen 推进到该 sequence。
+  (b) `server/app.mjs:~194` + `lib/ai.mjs`：配置 AI 后，每次 GET catchup 都会重新调用模型，没有缓存。客户端已改为只在 sequence 变化或用户主动打开时才请求，但 web 端和多个客户端仍可能重复调用，摘要文本也会在每次请求之间变化。建议按 (user, project, since, through) 缓存摘要。
+  - ⚠️ 已知限制：ad-hoc 签名的 app 每次重新构建，Screen Recording 授权都会失效。**演示前构建一次之后就不要再重新构建**，否则 May 需要重新授权。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -312,3 +317,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | codex | 接收b3d30d1，主checkout SwiftPM release构建成功；native selftest完整流程PASS，保存Research测试记录；已接收Claude的R8/R9修复报告，待复核并验收首次启动入口与真实桌面截图 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | R10：首次启动 Welcome 登录窗口；selftest 只 resolve 自建 blocker；提醒用 bundle.sh（-Onone）构建 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | R11：editAsNew 重建 item id；bundle 支持 CMD3_APP_PATH + strict 签名校验 | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | 多 agent QA：17 项确认，客户端问题已修（d01b3d7）；server 侧 2 项交 lead（R12）；selftest、npm test、三种启动冒烟均通过 | 见本行所在 Git 提交 |
