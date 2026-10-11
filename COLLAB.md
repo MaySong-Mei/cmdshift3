@@ -207,6 +207,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   3. **提交中禁止换身份**：signOut 和 signIn 在 `ComposerController.isCommitting` 时直接拒绝并显示原因，不会清 session、不会关窗口，也不会发登录请求。正常的成功关闭和跨账号时关闭 composer 的行为保持不变。
   4. 文案改为 “Return adds a new line. Commit publishes your update.”；README 同步说明 Draft 只发送截图和 comment 用于生成草稿，Commit 才会发布。
   验证：offline（禁网沙箱）PASS；scratch 4399 完整 selftest PASS，跑完已关闭；未启动 GUI，未碰旧 app、4317 和云端。
+- **R21 交付 claude**：`7ba4831`，只改了这一处，没有扩大 review。`signIn` 在 `await client.session` 返回之后、`closeAll` / 设置 token / apply 之前，再检查一次 `isCommitting`：如果此时正在提交，就保持当前身份，显示同样的提示（“A commit is in progress — wait for it to finish before switching accounts.”），并用一个临时 client 把刚拿到的新 session `logout` 掉，避免留下孤立 token。`closeAll()` 增加了防御性 guard：正在 committing 时不关闭窗口。这只是兜底，会话动作本身的检查依然保留（signOut 和 signIn 的 await 前后都有）。offline 检查新增断言：committing 时调用 closeAll，窗口仍然打开。在禁网沙箱里跑 `--selftest --offline`：PASS，exit 0。包仍在 `/private/tmp/cmdshift3-experience/CmdShift3.app`（0.2.0，-Onone，strict 签名）。GUI、旧 app、4317、云端都没有动。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -427,3 +428,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | 认领 R20 四项定向修复（T12 追加），开始实现；不做 GUI，不碰旧 app/4317/云端 | — |
 | 2026-10-11 | claude | R20 四项修复 04bf48b；禁网沙箱 offline 和 scratch 完整 selftest 均 PASS | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | 认领 R21（signIn 在 await 之后再检查 isCommitting + closeAll 防御 guard） | — |
+| 2026-10-11 | claude | R21：signIn await 之后再检查 isCommitting，并撤销未使用的 session；closeAll 增加防御 guard；禁网 offline PASS（7ba4831） | 见本行所在 Git 提交 |
