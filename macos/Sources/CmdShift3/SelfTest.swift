@@ -120,6 +120,38 @@ enum SelfTest {
         let pv = ComposerModel(image: NSImage(size: NSSize(width: 4, height: 4)), png: Data(),
                                source: Source(appName: "t", windowTitle: "", captureKind: "upload"), projectId: "p", isPreview: true)
         guard pv.isPreview else { return "preview flag" }
+
+        // Isolation: selftest/preview never use the saved account or endpoint.
+        let app = AppState.shared
+        guard AppState.isIsolatedLaunch, app.client.token == nil, app.endpoint == "http://preview.invalid",
+              app.projectId == nil, !app.hasSavedSession else { return "isolated launch must not load the saved session" }
+
+        // Window identity: an older composer's delayed finish must not close a newer one.
+        let controller = ComposerController.shared
+        func offscreenWindow() -> NSWindow {
+            let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 10, height: 10), styleMask: [.titled, .closable],
+                             backing: .buffered, defer: true)
+            w.isReleasedWhenClosed = false
+            return w
+        }
+        let older = offscreenWindow(), newer = offscreenWindow()
+        let olderModel = ComposerModel(image: NSImage(size: NSSize(width: 4, height: 4)), png: Data(),
+                                       source: Source(appName: "t", windowTitle: "", captureKind: "region"), projectId: "p")
+        let newerModel = ComposerModel(image: NSImage(size: NSSize(width: 4, height: 4)), png: Data(),
+                                       source: Source(appName: "t", windowTitle: "", captureKind: "region"), projectId: "p")
+        controller.adopt(older, model: olderModel)
+        controller.forceClose(older)                      // user pressed Done on the old one
+        guard !controller.isOpen else { return "closing the current window must clear it" }
+        controller.adopt(newer, model: newerModel)        // a new capture opens
+        newerModel.comment = "unsent work"
+        controller.forceClose(older)                      // old 1.6s auto-finish fires late
+        guard controller.isOpen else { return "a stale finish closed the newer composer" }
+        guard controller.windowShouldClose(older) else { return "a stale window must not be guarded as current" }
+        newerModel.committing = true
+        guard controller.isCommitting, !controller.windowShouldClose(newer) else { return "close must be blocked while committing" }
+        newerModel.committing = false
+        controller.forceClose(newer)
+        guard !controller.isOpen else { return "forceClose(current) must close it" }
         return nil
     }
 

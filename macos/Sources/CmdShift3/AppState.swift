@@ -20,16 +20,22 @@ final class AppState: ObservableObject {
 
     /// `--preview-capture <png>`: open the editor on a fixture for layout review,
     /// with no network, no hotkey and no UserDefaults writes.
+    static let previewRequested = CommandLine.arguments.contains("--preview-capture")
     static let previewCapturePath: String? = {
         let a = CommandLine.arguments
-        guard let i = a.firstIndex(of: "--preview-capture"), i + 1 < a.count else { return nil }
+        guard let i = a.firstIndex(of: "--preview-capture"), i + 1 < a.count, !a[i + 1].hasPrefix("--") else { return nil }
         return a[i + 1]
     }()
-    var isPreview: Bool { Self.previewCapturePath != nil }
+    /// Preview and selftest launches run on an in-memory AppState: they never
+    /// read the saved account, restore a session, poll, or write UserDefaults.
+    static let isIsolatedLaunch = previewRequested || CommandLine.arguments.contains("--selftest")
+    var isPreview: Bool { Self.previewRequested }
+    private var persists: Bool { !Self.isIsolatedLaunch }
+    private static let isolatedEndpoint = "http://preview.invalid"
 
     @Published var endpoint: String {
         didSet {
-            UserDefaults.standard.set(endpoint, forKey: "endpoint")
+            if persists { UserDefaults.standard.set(endpoint, forKey: "endpoint") }
             client.baseURL = URL(string: endpoint) ?? client.baseURL
         }
     }
@@ -37,7 +43,7 @@ final class AppState: ObservableObject {
     @Published var projects: [Project] = []
     @Published var projectId: String? {
         didSet {
-            UserDefaults.standard.set(projectId, forKey: "projectId")
+            if persists { UserDefaults.standard.set(projectId, forKey: "projectId") }
             if oldValue != projectId {
                 commits = []; state = nil; catchup = nil
                 Task { await refresh() }
@@ -59,13 +65,15 @@ final class AppState: ObservableObject {
     private var imageCache: [String: NSImage] = [:]
 
     init() {
-        let endpoint = UserDefaults.standard.string(forKey: "endpoint") ?? Self.defaultEndpoint
+        let isolated = Self.isIsolatedLaunch
+        let endpoint = isolated ? Self.isolatedEndpoint
+            : (UserDefaults.standard.string(forKey: "endpoint") ?? Self.defaultEndpoint)
         self.endpoint = endpoint
-        self.projectId = UserDefaults.standard.string(forKey: "projectId")
+        self.projectId = isolated ? nil : UserDefaults.standard.string(forKey: "projectId")
         // Demo login token: kept in UserDefaults rather than Keychain because the
         // ad-hoc signed build changes signature every rebuild (Keychain would prompt).
         self.client = APIClient(baseURL: URL(string: endpoint) ?? URL(string: Self.defaultEndpoint)!,
-                                token: UserDefaults.standard.string(forKey: "token"))
+                                token: isolated ? nil : UserDefaults.standard.string(forKey: "token"))
 
         NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
@@ -79,7 +87,7 @@ final class AppState: ObservableObject {
         if let front = NSWorkspace.shared.frontmostApplication, front.processIdentifier != getpid() {
             lastExternalApp = front
         }
-        if client.token != nil && Self.previewCapturePath == nil { Task { await restore() } }
+        if client.token != nil && !isolated { Task { await restore() } }
     }
 
     /// Opens the composer on a fixture PNG (see `previewCapturePath`).
@@ -104,6 +112,15 @@ final class AppState: ObservableObject {
     // MARK: Session
 
     func signIn(code: String) async {
+        guard persists else {
+            lastError = "Preview mode — sign-in is disabled."
+            return
+        }
+        // Switching identity mid-commit would orphan or misattribute the request.
+        guard !ComposerController.shared.isCommitting else {
+            lastError = "A commit is in progress — wait for it to finish before switching accounts."
+            return
+        }
         signingIn = true
         defer { signingIn = false }
         do {
@@ -135,6 +152,10 @@ final class AppState: ObservableObject {
     }
 
     func signOut() async {
+        guard !ComposerController.shared.isCommitting else {
+            lastError = "A commit is in progress — wait for it to finish before signing out."
+            return
+        }
         ComposerController.shared.closeAll()
         await client.logout()
         clearSession()
@@ -156,7 +177,7 @@ final class AppState: ObservableObject {
         // user keeps the work); signIn closes it if a different user signs in.
         if let id = user?.id { lastUserId = id }
         client.token = nil
-        UserDefaults.standard.removeObject(forKey: "token")
+        if persists { UserDefaults.standard.removeObject(forKey: "token") }
         user = nil; projects = []; commits = []; state = nil; catchup = nil
         timer?.invalidate(); timer = nil
     }
@@ -178,7 +199,7 @@ final class AppState: ObservableObject {
     /// server) only when the project's sequence moved, or when forced.
     /// Calls arriving mid-flight are coalesced into one follow-up refresh.
     func refresh(forceCatchup: Bool = false) async {
-        guard isSignedIn, projectId != nil else { return }
+        guard persists, isSignedIn, projectId != nil else { return }
         if refreshing {
             pendingRefresh = (pendingRefresh.force || forceCatchup, true)
             return
@@ -224,7 +245,7 @@ final class AppState: ObservableObject {
     }
 
     func markSeen() async {
-        guard let pid = projectId, let through = catchup?.throughSequence else { return }
+        guard persists, let pid = projectId, let through = catchup?.throughSequence else { return }
         do {
             _ = try await client.seen(project: pid, through: through)
             await refresh(forceCatchup: true)
@@ -234,6 +255,7 @@ final class AppState: ObservableObject {
     }
 
     func image(path: String) async -> NSImage? {
+        guard persists else { return nil }
         if let cached = imageCache[path] { return cached }
         guard let data = try? await client.imageData(path: path), let img = NSImage(data: data) else { return nil }
         imageCache[path] = img

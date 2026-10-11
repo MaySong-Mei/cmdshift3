@@ -30,7 +30,7 @@ open build/CmdShift3.app
 
 - After capture the screenshot fades/scales in (~250 ms) with one accent border pulse. Reduce Motion turns both off. The effect is view-only; the evidence PNG is untouched.
 - Header: “Captured · Add a mark or tell your team what changed.” and the target project, always visible.
-- Tools: Box / Arrow / Highlight / Text, 5 colors, Undo, Clear (all with accessibility labels and help). The comment box is focused on open; Return adds a line; nothing is sent until **Commit**.
+- Tools: Box / Arrow / Highlight / Text, 5 colors, Undo, Clear (all with accessibility labels and help). The comment box is focused on open. Return adds a new line. **Draft with AI** sends the screenshot and comment for a draft only; **Commit** publishes your update.
 - AI fields stay folded under **Review details** until you Draft. AI states are labeled honestly: *no AI connected*, *AI unavailable — review by hand*, or the provider name.
 - Closing with unsaved marks/comment asks **Keep Editing / Discard**. Cancel and close are disabled while a commit is in flight. A failed commit keeps everything for an exact retry.
 - The hotkey while a composer is open (even minimized) brings that same draft back.
@@ -42,7 +42,7 @@ open build/CmdShift3.app
 build/CmdShift3.app/Contents/MacOS/CmdShift3 --preview-capture fixtures/preview-capture.png
 ```
 
-Opens the same editor on a neutral fixture with a visible *Preview* badge. Draft and Commit are disabled, nothing is sent, nothing is written to UserDefaults, and no hotkey is registered (a running real app keeps ⌃⇧⌘2). This is for layout review only. It is not a real capture.
+Opens the same editor on a neutral fixture with a visible *Preview* badge. The app runs on an in-memory state: it does not read the saved account or endpoint, makes no network requests, writes nothing to UserDefaults, and registers no hotkey (a running real app keeps ⌃⇧⌘2). Draft, Commit and sign-in are disabled. A missing path or unreadable file exits with code 2. This is for layout review only. It is not a real capture.
 
 ## Headless acceptance test
 
@@ -53,7 +53,7 @@ build/CmdShift3.app/Contents/MacOS/CmdShift3 --selftest --endpoint http://127.0.
 # optional: --project proj_cmdshift3 --image some.png
 ```
 
-Prints `PASS` and exits 0 on success. Note that it writes a real Work Commit to the chosen project, so use a scratch server. Without `--endpoint` it targets the local `127.0.0.1:4317`, never the public service. `--selftest --offline` runs only the network-free model checks.
+Prints `PASS` and exits 0 on success. Note that it writes a real Work Commit to the chosen project, so use a scratch server. Without `--endpoint` it targets the local `127.0.0.1:4317`, never the public service. `--selftest --offline` runs only the network-free model checks (including the composer window-identity and close guards); selftest launches never restore the saved session.
 
 ## Notes
 

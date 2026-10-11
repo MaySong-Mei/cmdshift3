@@ -33,8 +33,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { await SelfTest.run() }
             return
         }
-        if let path = AppState.previewCapturePath {
+        if AppState.previewRequested {
             // Layout review only: no hotkey, so a running real app keeps ⌃⇧⌘2.
+            guard let path = AppState.previewCapturePath else {
+                print("usage: CmdShift3 --preview-capture <path-to-png>")
+                exit(2)
+            }
             AppState.shared.openPreview(path: path)
             return
         }

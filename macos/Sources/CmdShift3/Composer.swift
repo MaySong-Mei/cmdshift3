@@ -174,24 +174,34 @@ final class ComposerController: NSObject, NSWindowDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    /// Used on sign-out so a draft cannot be committed under the next user.
-    func closeAll() { forceClose() }
+    /// A commit request is in flight: closing or switching identity must wait.
+    var isCommitting: Bool { model?.committing == true }
 
-    /// Cancel / Esc / ✕ all go through windowShouldClose (dirty check).
-    func requestClose() { window?.performClose(nil) }
+    /// Sign-out / account switch: closes the composer so a draft cannot be
+    /// committed under the next user. Callers must check `isCommitting` first.
+    func closeAll() {
+        guard let window else { return }
+        forceClose(window)
+    }
 
-    func forceClose() {
-        allowClose = true
-        window?.close()
+    /// Closes exactly `target` without the discard prompt. A stale caller (an
+    /// older composer's delayed finish) can never close a newer window: only
+    /// `target` itself is closed, and the guard flag is scoped to it.
+    func forceClose(_ target: NSWindow) {
+        if target === window { allowClose = true }
+        target.close()
     }
 
     func open(image: NSImage, png: Data, source: Source, app: AppState, preview: Bool = false) {
         guard !isOpen else { bringToFront(); return }
         guard let pid = preview ? (app.projectId ?? "preview") : app.projectId else { return }
         let model = ComposerModel(image: image, png: png, source: source, projectId: pid, isPreview: preview)
+        // Each composer's buttons act on its own window only, never `self.window`
+        // at call time (which may already be a newer capture).
+        weak var own: NSWindow?
         let view = ComposerView(model: model,
-                                requestClose: { [weak self] in self?.requestClose() },
-                                finish: { [weak self] in self?.forceClose() })
+                                requestClose: { own?.performClose(nil) },
+                                finish: { [weak self] in if let own { self?.forceClose(own) } })
             .environmentObject(app)
         let visible = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         let size = NSSize(width: min(1280, visible.width - 40), height: min(820, visible.height - 40))
@@ -210,6 +220,13 @@ final class ComposerController: NSObject, NSWindowDelegate {
         w.center()
         w.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        own = w
+        adopt(w, model: model)
+    }
+
+    /// Makes `w` the current composer window (also used by the offline guard checks).
+    func adopt(_ w: NSWindow, model: ComposerModel) {
+        w.delegate = self
         allowClose = false
         self.model = model
         window = w
@@ -228,8 +245,13 @@ final class ComposerController: NSObject, NSWindowDelegate {
         alert.addButton(withTitle: "Keep Editing")
         alert.addButton(withTitle: "Discard")
         alert.buttons[1].hasDestructiveAction = true
+        // Discard applies only if this same window/model is still current.
+        let target = sender
+        let targetModel = model
         alert.beginSheetModal(for: sender) { [weak self] response in
-            if response == .alertSecondButtonReturn { self?.forceClose() }
+            guard response == .alertSecondButtonReturn, let self,
+                  self.window === target, self.model === targetModel else { return }
+            self.forceClose(target)
         }
         return false
     }
@@ -424,7 +446,7 @@ struct ComposerView: View {
                 Spacer()
                 organizerBadge
             }
-            Text("Return adds a new line. Nothing is sent until you press Commit.")
+            Text("Return adds a new line. Commit publishes your update.")
                 .font(.caption2).foregroundStyle(.secondary)
             ForEach(model.warnings, id: \.self) { w in
                 Label(w, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange)
