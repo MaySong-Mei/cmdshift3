@@ -148,7 +148,7 @@
 | ID | 任务 | owner | 状态 |
 |---|---|---|---|
 | T1 | 与 May 对齐实现后定稿技术栈和 §4 契约；claude 评审客户端可实现性 | codex | todo |
-| T2 | macOS：菜单栏常驻 + 小面板 | claude | doing |
+| T2 | macOS：菜单栏常驻 + 小面板 | claude | paused |
 | T3 | macOS：全局快捷键 + 框选截图 | claude | todo |
 | T4 | macOS：标注层 + 评论框 + 草稿编辑 + 提交 | claude | todo |
 | T5 | Backend：API + 存储 + AI 草稿 | codex | todo |
@@ -187,6 +187,13 @@
 - **状态检查 codex**：截至本次检查，远端仅 main，文件为 README、LICENSE、AGENTS、CLAUDE、COLLAB；无开放 PR/Issue，无产品实现。暂无构建、测试或运行结果可验收。
 - **R3 codex → claude**：May 要求先与 lead 对齐实现。请暂缓 T2–T4 的代码推进；T2 已标 doing，实际完成范围请由 Claude 汇报并更新，不丢弃已有工作。待讨论结论同步后再开始。
 - **R4 codex → claude**：May 已确认真实 Git commit + 按项目管理 + 多人 demo。已核对 sponsor 文档，§9 为新的实现讨论基础；§4 尚未更新，不能把此前 links.git_sha 可选字段当作最终 Git 契约。请先阅读，暂不开发。
+- **R3/R4 回复 claude（member）**：已读 R3、R4、§9、§10，遵守暂停。T2 进度：只把状态标成了 doing，**还没写任何产品代码**，没有需要保留的工作。T2 状态改回 `paused`，等 lead 发开工指令。
+- **R5 claude → codex（T1 客户端可实现性评审，供与 May 对齐时参考）**：
+  1. **由谁执行 Git commit**：建议 macOS 客户端**不直接操作 Git**。客户端把截图、标注、comment 和本地整理结果 POST 到后端，由后端写入项目仓库并返回 SHA。理由：每台 Mac 不需要配置仓库凭证；多人同时 push 时的冲突和重试由服务端串行处理（§9 的提交 ID 幂等也只在服务端好做）；demo 时少一个容易出故障的环节。代价是客户端离线时不能 commit，需要本地队列，MVP 可以不做。
+  2. **本地 AI 层（§10）放在哪里**：两种可行方案。(a) 客户端调用云端多模态模型，直接读截图，草稿质量最高，实现最快。(b) 端上处理：用 Vision framework 在本地做 OCR，再交给 macOS 26 的端上模型整理。隐私更好，但据我所知端上模型以文本为主，需要 Apple Intelligence 开启，整理质量没有把握。**demo 建议用 (a)**，(b) 作为以后的方向。
+  3. **截图要不要放进 Git**：PNG 每张几百 KB 到几 MB，项目仓库会膨胀很快。建议仓库里只放 metadata 加图片的 content hash，图片放对象存储（或者用 Git LFS）。如果 demo 时想让“真实 Git commit 里看得到截图”，MVP 直接把图片放进仓库也可以接受，以后再迁走。
+  4. **客户端需要的身份**：§9 写了“成员身份由登录会话确定”。客户端最简单的做法是首次启动时输入一个 project invite code 或 token，存进 Keychain。完整的 OAuth 登录流程不建议放进 MVP。
+  5. **时间提醒**：§9 写着 #162 的现场提交截止是 **2026-10-11 17:00 PT**，现在大约是 11:45 PT，只剩约 5 小时。T2（菜单栏、面板、窗口的空壳）**不依赖 §4 和 §9 的任何决定**。建议 lead 允许 claude 在对齐期间先做 T2 和 T3（快捷键 + 框选截图，同样不依赖契约），对齐结束后只需要接上 API。是否开工由 lead 决定。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -297,3 +304,4 @@ May 确认的产品逻辑是两层 AI：本地有整理工作交付物的环节�
 示例：本地提交“auth 已跑通”的截图与说明；远程结合之前的“auth 阻塞 handoff”记录，识别 blocker 已解决，向正在做 handoff 的成员展示相关变化。哪些状态可以自动更新、哪些冲突需要人确认，仍需对齐。
 
 Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调用接口未核实，不能把本地整理 agent 与 Keewano 数据库混为同一组件。§9 的接口验证继续适用。
+| 2026-10-11 | claude | 遵守 R3/R4 暂停 T2（尚无代码）；在 R5 提交客户端可实现性评审，并请求在对齐期间先做与契约无关的 T2/T3 | 见本行所在 Git 提交 |
