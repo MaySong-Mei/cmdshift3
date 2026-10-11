@@ -127,7 +127,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T18 | Prepare public video demo actors, project and private off-camera sign-in handoff | codex | done |
 | T19 | Task progress tree with distinct member-colored contribution lines | codex | doing |
 | T20 | Recover public off-camera sign-in and frozen-app recording setup after R31 handoff | codex | doing |
-| T21 | Recording post-production toolkit, English captions and offline export verification | claude | doing |
+| T21 | Recording post-production toolkit, English captions and offline export verification | claude | ready（工具+离线验证完成，等真实 clip） |
 
 ---
 
@@ -235,6 +235,11 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   4. **已验证**：VS Code 宿主已经有 Screen Recording，`screencapture -v` 录制和 SIGINT 提前停止都能正常生成文件；Accessibility 已有；Chrome 扩展连的是 Browser 1。
   5. **可复用工具**（都在本会话 scratchpad：`/private/tmp/claude-501/-Users-maymaymei-coding-cmdshift3/9b1495de-4ff6-4179-8eb6-b801b0117ee7/scratchpad/video/`）：`demo1`（clip 1 驱动：⌃⇧⌘2 → 拟人拖拽框选 → 等 0.3 卡片 → 等 AX 主按钮变成 “Commit” → 在 Context 里输入 → ⌘↩ Update draft → 再等 Commit → ⌘↩ Commit → 等卡片关闭；用法 `demo1 <pid> <x> <y> <w> <h> "<context>"`）；`clipcat`（把多段 .mov 拼成 1920 宽的 H.264 MP4，并导出 poster PNG；用法 `clipcat out.mp4 poster.png <sec> clip1.mov …`）。对应的 `.swift` 源码在同一目录。
   请 lead 决定由谁、在哪个环境完成录制。如果需要本会话继续做非 GUI 部分（例如拼接、验证报告、API 核对 SHA），请在这里分配。
+- **T21 ready claude（R34）**：工具都在 `/private/tmp/claude-501/-Users-maymaymei-coding-cmdshift3/9b1495de-4ff6-4179-8eb6-b801b0117ee7/scratchpad/video/t21/`，原有 clipcat/demo1 没有改。说明和测试报告见该目录 `README.md`。
+  - `assemble`：开工前先逐个校验 clip（文件存在、可播放、有视频轨、时长 >0.05s、尺寸合理），不合格就明确报错退出，不会静默跳过；应用每个 clip 的 preferredTransform，并按第一个 clip 的方向 letterbox 到统一画幅（≤1920 宽，偶数尺寸）；保留源音频（没有音频的 clip 段落为静音）；输出 H.264 MP4；不覆盖已有的 mp4/poster，输出必须是 .mp4；poster 时间点会被夹到视频时长以内。`inspect`：输出时长、尺寸、codec、fps、transform、音轨信息，并按比例导出帧。`synth`：生成带 SYNTHETIC 标签的测试 clip。`mksrt.py`：把 cues 转成 SRT，校验顺序/重叠/长度，不覆盖已有文件。
+  - **离线导出验证（只用合成 clip）**：A 2560×1600 有音频 + B 1280×720 无音频 + C 旋转 90° 有音频 → 7.00s，1920×1200，avc1 30fps，1 条 AAC 音轨。逐帧检查：B 正确 letterbox；C 与 AVFoundation 自己按 transform 渲染出的源帧一致。缺失文件、非视频文件、输出已存在、poster 越界被夹紧、扩展名错误、全无音频输入、SRT 的错误输入，全部按预期处理。测试中修了三个问题：synth 写入死锁、asset 提前释放导致 -12780、AAC priming 偏移。
+  - `captions-outline.md`：英文 90–180s 分镜、旁白、可直接输入的注释和剪辑规则。按公开版 take 写，任务树作为可选的结尾镜头，需 lead 确认发布后再用；不提 Keewano/agent，不写 tests passed。
+  - 真实成片要等真实录好的 clip。继续不碰 GUI，等 lead 交接录制或拼接。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -553,3 +558,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | **video paused**：0.3 的 Screen Recording 未生效，公开版凭据又只能由人输入；按 May 指示交还录制给 lead（R31），释放 GUI，并交出驱动和拼接工具 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | 收到 R32/R33：GUI 由 lead 接管（T20），本会话保持不碰 GUI，recording/clipcat 工具随时可用，等待具体的录制或拼接交接；T19 不属于本会话 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | 认领 T21（R34）：只在 scratchpad/video/t21/ 工作，原 clipcat 不动；不碰 GUI/TCC/冻结包/4317/云端 | — |
+| 2026-10-11 | claude | T21 ready：assemble/inspect/synth/mksrt + 英文 captions 大纲；合成 clip 离线导出和全部失败用例 PASS | 见本行所在 Git 提交 |
