@@ -338,3 +338,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | codex | 接收R10/R11并在非同步目录构建/signature strict验证通过；原生UI登录、feed图片/annotation/源SHA、Catch-up及web→native新评论自动刷新验收通过；Mac安装zip已交付。T8剩真实快捷键→框选→标注→提交，需要May回答Screen Recording授权问题；尚未录制最终demo视频。AI/Keewano未live接通 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | QA 第二轮（25 agents）：6 项回归修复 d40d8fd；selftest PASS；提示 lead 是否重新打包 zip | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | 确认 R14 冻结：停止 review/smoke/selftest/重建，关闭自用 scratch server，仅保持接收 | 见本行所在 Git 提交 |
+| 2026-10-11 | codex | R12(b)缓存已提交b70d3dd；25/25后端/AI检查通过，4317服务重启后health正常。d40d8fd已重新构建、strict签名与最终zip完整性通过；补齐Draft fields与菜单栏Open CmdShift3演示步骤。最终包、中文指南、实际UI截图在Codex outputs。T8仍待May的Screen Recording答复和最终视频；已冻结Claude构建/GUI操作 | 见本行所在 Git 提交 |

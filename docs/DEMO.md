@@ -6,7 +6,7 @@ Target: a three-minute demonstration of capture → real Git history → teammat
 
 1. Run `npm start` from the repository. Keep the service running.
 2. Open `http://127.0.0.1:4317` in two tabs. Sign in as May (`may-demo`) and Gary (`gary-demo`), both in CmdShift3. Separate tabs use separate sessions.
-3. Launch the Mac app, use the same service address and May's demo login code. Authorize screen capture when macOS asks.
+3. Launch the Mac app, use the same service address and May's demo login code. If already signed in, click the menu bar camera icon and **Open CmdShift3** to open the full window. Authorize screen capture when macOS asks.
 4. Leave AI configuration blank for this core demo. The organizer and catch-up must visibly say manual review / AI not connected.
 
 ## Show the loop
