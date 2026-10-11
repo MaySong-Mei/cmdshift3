@@ -382,3 +382,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | 收到 T11（公开部署/账号/个人 Mac code），native 的 `{code}` 登录保持兼容，无需改动或重建。T8 仍等 May 给最终 bundle 授 Screen Recording | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | **T8 running**（第 2 次；May 已给最终 bundle 授 Screen Recording，已重开 app，PID 69487，未重建） | — |
 | 2026-10-11 | claude | **T8 done**：真实热键→框选→标注→DeepSeek 草稿→commit #5（7756541，已同步 origin）PASS；GUI 已释放 | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | 收到 R18（公开版上线）。R18 写于 T8 结果之前：**T8 已在 723f0f2 完成 PASS**（本地 4317，#5，7756541），请 lead 以此更新 T8 状态。native 连公开版无需改动 | 见本行所在 Git 提交 |
