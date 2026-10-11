@@ -103,6 +103,7 @@ test('Anthropic repairs one invalid schema with the same 25-second deadline and 
   assert.deepEqual(deadlines, [25000]);
   assert.equal(requests[0].signal, requests[1].signal);
   assert.equal(requests[0].body.system, requests[1].body.system);
+  assert.deepEqual(requests[0].body.output_config, requests[1].body.output_config);
   assert.deepEqual(requests[1].body.messages[0], requests[0].body.messages[0]);
   assert.equal(requests[1].body.messages.length, 2);
   const correction = requests[1].body.messages[1].content[0].text;
@@ -232,6 +233,7 @@ test('Anthropic workspace ID is optional, trimmed and never forwarded to other p
     assert.deepEqual(result.organizer, { provider, status: 'completed' });
     assert.ok(!JSON.stringify(result).includes('wrkspc_test_only'));
     assert.equal(Object.hasOwn(requests.at(-1).headers, 'anthropic-workspace-id'), false);
+    assert.equal(Object.hasOwn(requests.at(-1).body, 'output_config'), false);
   }
   assert.equal(requests.length, 5);
   for (const request of requests) {
@@ -321,4 +323,64 @@ test('Anthropic mixed reasoning never permits tools, unknown blocks, refusal, tr
     assert.equal(charged, 1);
     assertNoReasoning(result);
   }
+});
+
+function assertStrictObjects(schema) {
+  if (schema.type === 'object') {
+    assert.equal(schema.additionalProperties, false);
+    assert.deepEqual([...schema.required].sort(), Object.keys(schema.properties).sort());
+    for (const child of Object.values(schema.properties)) assertStrictObjects(child);
+  }
+  if (schema.type === 'array') assertStrictObjects(schema.items);
+}
+
+test('Anthropic supplies native strict JSON schemas for deliverable, catch-up and project question', async t => {
+  const source = commit();
+  const requests = fakeProvider(t, (_request, count) => message(count === 1 ? draft() : count === 2 ? { summary: 'May reviewed login.' } : { answer: 'May reviewed login.', source_commit_ids: [source.id] }));
+  const organized = await organizeDeliverable({ comment: 'Reviewed login' });
+  const summary = await summarizeProject({ commits: [source] });
+  const answer = await answerProjectQuestion({ question: 'What changed?', commits: [source] });
+  assert.equal(organized.organizer.status, 'completed');
+  assert.equal(summary.analyzer.status, 'completed');
+  assert.equal(answer.analyzer.status, 'completed');
+  assert.equal(requests.length, 3);
+  const required = [['summary', 'fields', 'warnings'], ['summary'], ['answer', 'source_commit_ids']];
+  for (const [index, request] of requests.entries()) {
+    assert.equal(request.body.output_config.format.type, 'json_schema');
+    const schema = request.body.output_config.format.schema;
+    assert.deepEqual(schema.required, required[index]);
+    assertStrictObjects(schema);
+    const systemSchema = request.body.system.split('including every required field and no extra fields: ').at(-1);
+    assert.deepEqual(JSON.parse(systemSchema), schema);
+    assert.equal(Object.hasOwn(request.body.output_config, 'effort'), false);
+    assert.equal(Object.hasOwn(request.body, 'thinking'), false);
+  }
+  const draftFields = requests[0].body.output_config.format.schema.properties.fields;
+  assert.deepEqual(draftFields.required, names);
+  for (const name of names) {
+    assert.deepEqual(draftFields.properties[name].items.required, ['text', 'resolves']);
+    assert.equal(draftFields.properties[name].items.properties.text.type, 'string');
+    assert.equal(draftFields.properties[name].items.properties.resolves.type, 'array');
+  }
+  assert.equal(requests[2].body.output_config.format.schema.properties.source_commit_ids.items.type, 'string');
+});
+
+test('Anthropic configures low effort and between-tools thinking only for the exact supported Sonnet model', async t => {
+  const requests = fakeProvider(t);
+  for (const model of ['test-only-model', 'claude-sonnet-5-5', 'test-only-other-model', 'claude-sonnet-5-5-other']) {
+    process.env.CMD3_AI_MODEL = model;
+    const result = await organizeDeliverable({ comment: 'Reviewed login' });
+    assert.equal(result.organizer.status, 'completed');
+    const body = requests.at(-1).body;
+    assert.equal(body.model, model);
+    assert.equal(body.output_config.format.type, 'json_schema');
+    if (model === 'claude-sonnet-5-5') {
+      assert.equal(body.output_config.effort, 'low');
+      assert.deepEqual(body.thinking, { type: 'between_tools' });
+    } else {
+      assert.equal(Object.hasOwn(body.output_config, 'effort'), false);
+      assert.equal(Object.hasOwn(body, 'thinking'), false);
+    }
+  }
+  assert.equal(requests.length, 4);
 });

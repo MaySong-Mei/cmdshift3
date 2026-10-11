@@ -127,6 +127,10 @@ async function modelResponse({ instruction, content, schema, name, config, valid
   // https://platform.claude.com/docs/en/build-with-claude/vision
   const body = anthropic ? {
     model: config.model, stream: false, max_tokens: 4096,
+    output_config: { format: { type: 'json_schema', schema }, ...(config.model === 'claude-sonnet-5-5' ? { effort: 'low' } : {}) },
+    // Sonnet 5.5 documents between_tools as its supported low-latency mode;
+    // disabled is rejected. Do not apply its model-specific flag to other models.
+    ...(config.model === 'claude-sonnet-5-5' ? { thinking: { type: 'between_tools' } } : {}),
     system: `${instruction}\nReturn only a valid JSON object matching this JSON schema, including every required field and no extra fields: ${JSON.stringify(schema)}`,
     messages: [{ role: 'user', content: content.map(item => {
       if (item.type === 'input_text') return { type: 'text', text: item.text };

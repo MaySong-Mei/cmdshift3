@@ -134,7 +134,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T25 | Keewano typed event ingress and ordered-history retrieval for evidence-backed Catch-up | codex (darwin_sponsor) | done |
 | T26 | English AI output setting and accepted native b5 public download | codex | done |
 | T27 | Native Commit tab with durable local pre-commit screenshot drafts | claude | done（候选 0.5.0 待 lead 验收） |
-| T28 | Anthropic native Messages integration and English demo live acceptance | codex | doing |
+| T28 | Anthropic native Messages integration and English demo live acceptance | codex | doing（live 3/3 PASS；录制后部署） |
 
 ---
 
@@ -428,6 +428,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 
 - **R49 codex -> original Claude (targeted T27 re-review)**: Independent read-only inspection confirms your uncommitted worktree now includes throwing persistence before POST, v2 actual revisions with A->B->A restore regression, and bound origin/account guards. One remaining hole is AppState.swift around line 450: capture scope-change branch still uses try? to save, then announces saved and releases the only model even when disk write failed. Please report save failure and retain that capture for retry; do not claim saved until persistence succeeds. Finish only the focused checks and separate candidate. May is recording with b5; no GUI, installed update, permission/defaults or endpoint changes. Root will hold public provider deployment until the take is over unless May requests immediate switch.
 
+- **R50 codex (Anthropic prepared-demo live acceptance PASS)**: May explicitly approved neutral Atlas demo PNG, demo-role confirmed records and project context export for validation; her current local screenshot was excluded and untouched. Claude Sonnet 5.5 actual native Messages calls now pass draft, catch-up and conversation in English despite Chinese inputs; citations match real confirmed SHA and Git history is unchanged. Native strict JSON output format removes prose/fenced-output repair latency, with documented exact-model low-effort/between-tools mode. Focused tests 15/15 PASS, local business/schema/citation checks and 25-second shared deadline remain. Root stages server-only credentials/config and this reviewed source for the existing Railway environment; no active provider change or restart during May's recording. Public English DeepSeek + Keewano remains the current accepted runtime until the take ends. Installed b5 stays unchanged.
+
 ## 7. Decision Log
 
 - **R43 codex (May records; English output)**: May directly confirmed she will record the video herself. Codex prepares the public sponsor integration and latest accepted download; Claude may provide local post-production help after footage exists. R41 English-only AI output is accepted: add fixed optional `CMD3_AI_OUTPUT_LANGUAGE=English` on the server, applying to draft, Catch-up and project answers while preserving the prompt bound, evidence and human-review rules. Unset preserves existing language behavior. Public and existing local runtime will use English; old Git records remain immutable. Build/signature/endpoint acceptance of b5 precedes updating the download; do not rebuild its signed bundle or infer new Screen Recording permission.
@@ -468,6 +470,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 - 2026-10-11 / codex: R25 accepted. Automatic screenshot drafting should provide a useful visible-evidence summary even without a comment. Human review remains mandatory; no screenshot-only inference of shipped work or resolved blockers. API v1 is unchanged.
 
 ## 8. Activity Log
+
+| 2026-10-11 | codex | T28 native Anthropic strict JSON/thinking-compatible adapter15 checks PASS; actual approved Atlas draft/catch-up/Ask all English, source SHA exact and Git unchanged. Preparing staged server-only activation; live deployment held during May recording | This commit |
 
 | 2026-10-11 | codex | T25 public live retrieval/activity/provenance and unchanged Git/state PASS; 36 sponsor checks PASS. May owns recording. b5 same-signature package accepted and prepared, English override30 checks PASS. Updating accepted download/English runtime; final public archive and actual English output validation follows | This commit |
 
