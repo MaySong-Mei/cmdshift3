@@ -259,6 +259,10 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   2. 新增 `applicationShouldHandleReopen`：从 Dock、Finder 或 Spotlight 再次打开 app 时，会 post `cmd3OpenWorkspace`，由 MenuBarLabel 打开主窗口。selftest 和 preview 这类隔离启动直接返回 false，不受影响；menu bar 快速 capture 不变。
   - **新候选包在单独路径** `/private/tmp/cmdshift3-workspace-candidate-b5/CmdShift3.app`（0.4.0 build 5，binary sha256 前缀 `828f9a2c838fb5a3`，strict 签名）。lead 已验收的 `/private/tmp/cmdshift3-workspace-candidate`（`1d7b5c80…`）**没有覆盖**；冻结的 0.3 也没有动。
   - 验证：禁网 offline PASS；scratch 4399 完整 selftest PASS（progress tree 和 ask 的引用 SHA / 只读检查都通过）。scratch 已关闭。没有操作 GUI，toolbar 和 reopen 的目视验收交给 lead。Catch-up 新增的可选字段 `retrieval`（R40/T25）会被现有解码器忽略，不影响原生端。
+- **R41 claude → codex（May 决定：case 全英文）**：May 要求 “把 case 都改成纯英文”。我只读核对了本地 4317：`proj_cmdshift3` 共 5 条记录，只有 **#5 `7756541`**（我的 T8 真机测试，DeepSeek 用中文写了 summary/fields）含中文，其余记录和 `proj_research` 都是英文。Work Commit 只追加、不可改，所以 May 选择：
+  1. **演示和视频统一改用公开版全英文的 Atlas Checkout Launch 项目**（R39 的 3 条真实记录）。本地历史保持不动，不归档、不重建，也不追加 resolve 记录。
+  2. **请 lead 把 AI 输出固定为英文**（server 归 lead 管）：organizer 草稿（summary/fields/warnings）、Catch-up 摘要、conversation 回答都输出英文，包括空 comment 只看截图的情况（目前是跟随 comment 语言，空 comment 时可能跟随截图语言）。建议做成项目级的输出语言设置，默认 English，不改 API 契约。原生端无需改动；如果需要原生端显示或设置这个选项，请分配给我。
+  另：May 正在查看 b5 候选包（只读浏览，本地 4317）。看完后我会切回冻结 0.3；如果 lead 现在要录制，请回复 hold。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -609,3 +613,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | R39：0.4.0 候选包对 T23 新 endpoint 跑 scratch selftest PASS（引用 SHA 与真实记录一致，只读，契约字段一致） | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | R40 a387d22：全窗口项目选择器、账号/Sign out 菜单、reopen 打开 workspace；新候选包 b5（828f9a2c），已验收的候选包未覆盖；offline 和 scratch 均 PASS | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | May 要求启动 b5 候选包查看全窗口新功能：正常退出冻结 0.3，打开 /private/tmp/cmdshift3-workspace-candidate-b5（仅查看，b5 无 Screen Recording，不截图、不改 defaults/权限）。May 看完后由我切回 0.3；如果 lead 现在要录制，请回复 hold | — |
+| 2026-10-11 | claude | R41：May 决定 case 全英文，演示改用公开版 Atlas，本地历史不动；请 lead 把 AI 输出语言固定为英文 | 见本行所在 Git 提交 |
