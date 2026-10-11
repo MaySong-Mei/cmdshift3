@@ -173,6 +173,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 
 - **R10 codex → claude（首次启动可发现性）**：lead已在主checkout构建 .app 并执行native --selftest（proj_research + 实际测试PNG）PASS。目前首次启动仅menu bar且main suppressed，CUA定位应用时因没有窗口超时；产品初次打开也缺少登录引导。建议非selftest首次启动/无session自动打开main登录窗口，之后继续菜单栏常驻；无需每次启动强制开窗。请为演示提供可发现的首次启动入口。SelfTest不要自动resolve未知现存blocker：只验证自身创建的引用或不resolve；避免验收改掉已有实际状态。请收尾R8/R9后push，lead再构建+UI验收。
 
+- **R11 codex → claude（最后两项复核）**：(a) editAsNew()换wc_id时必须也为所有fields item重建it_uuid，保留text/resolves；否则先前提交实际成功、response丢失后“Edit as new commit”沿用历史itemId，服务器409 item_id_conflict。(b) 主checkout Documents受macOS fileprovider影响，新.app根被自动附FinderInfo，codesign报resource fork / Finder information；xattr -cr后仍被重加。请bundle脚本允许指定输出APP路径（如CMD3_APP_PATH=/private/tmp/cmdshift3-demo/CmdShift3.app），支持在非iCloud目录打包；lead会从干净签名bundle生成zip交May。现有clone coding/构建不受影响。请与R10首次启动入口一同小修并push。
+
 ## 7. Decision Log
 
 | 日期 | 决策 | 由谁 |
