@@ -155,6 +155,7 @@
 | T8 | 端到端验收 + demo 脚本；claude 配合修复客户端 | codex | todo |
 | D1 | 阅读双方协作说明并合并 Codex 产品理解，统一共享文档入口 | codex | done |
 | D2 | 核对 maymaymei #162 和 sponsor 官方接口，形成供 May 讨论的方案 | codex | done |
+| D3 | 核对 agent 归档整理能否直接交给 KeewanoDB | codex | done |
 
 ---
 
@@ -215,6 +216,7 @@
 | 2026-10-11 | codex | 检查 main、分支和 PR/Issue；确认分工、给出 T2 首个交付要求、裁决 Q5 并启动 T1 设计 | 见本行所在 Git 提交 |
 | 2026-10-11 | codex | 根据 May 最新要求转入实现对齐阶段，T1 回到 todo，在 R3 通知 Claude 暂缓代码推进并保留已做工作 | 见本行所在 Git 提交 |
 | 2026-10-11 | codex | 根据 May 确认记录真实 Git 提交、项目和多人 demo 需求；核对 #162 与五家 sponsor 官方资料，追加 §9 讨论方案；未写产品代码 | 见本行所在 Git 提交 |
+| 2026-10-11 | codex | 核对 Keewano Ask、Agent Builder 和 DB Cloud，补充 agent 外包边界；未接入账号或做 API 实测 | 见本行所在 Git 提交 |
 
 ## 9. Git 项目协作与 sponsor 实现讨论
 
@@ -265,3 +267,18 @@ Keewano 官方 SpeedHacks 要求：至少一次现场 live query，结果改变�
 7. 验证两个用户同时提交及网络重试不会丢失记录或产生重复提交。
 
 #162 记录的现场提交截止为 2026-10-11 17:00 PT（项目资料与 demo 视频）。公开活动页的 21:00 是活动结束时间，未独立确认提交截止；排期前向 May 确认现场截止是否仍有效。
+
+### Agent 归档整理外包给 Keewano 的补充讨论
+
+May 提出系统本身使用 agent 归档整理，希望尽可能交给 KeewanoDB。这里区分服务层：KeewanoDB 保存并查询有序事件，Keewano Ask 提供 AI 分析，Analytics Agent Builder 可持续评估事件并按条件触发 webhook。
+
+官方 [Keewano Ask](https://docs.keewano.com/analytics/keewano-ask.md) 明确提供可复用的自定义分析 agent，并说明由 Keewano contact 协助搭建。[Analytics Agent Builder](https://www.keewano.com/analytics) 支持持续分析与 webhook；[DB Cloud](https://www.keewano.com/db-cloud) 托管数据库基础设施。它们不是仅存储和查 SQL 的服务，但尚未核实我们能直接调用托管 agent 的 JSON API、结构化输出协议及具体现场账户可用功能。
+
+建议让 Keewano 承担更深的历史查询、事件关联、条件分析与 catch-up 推理；应用保留薄的归档入口，理解截图和 comment、形成明确事件、关联 Git SHA。真正写入 Git、提交幂等、权限与即时同步仍由应用控制。未找到直接处理任意截图/长 comment 并生成 Git commit 的公开能力证据，不将其写成支持或不支持的定论。
+
+可先验证两个方向：
+
+1. 若托管 custom agent 可通过接口调用并输出项目摘要，使用其作为归档分析服务。
+2. 若仅能在 Keewano UI 内调用 custom agent，则我们的后台 agent 使用 Keewano MCP 查询项目历史、按返回的 SHA 读 Git 证据并输出摘要。此模式外包历史查询和数据库侧计算，模型推理仍由我们运行。
+
+最小接口验证应覆盖：一个项目两次 Work Commit，第二次显式解决第一次 blocker；要求返回当前 blocker 和来源 SHA。正确处理并可由 App 调用后，才确定外包范围。约五分钟查询等待是官方 SpeedHacks ingress 路径的接入指导，不当作全部 DB 部署的普遍延迟保证。
