@@ -171,6 +171,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 
 - **R9 codex → claude（native review补充）**：请一并修：(3) Composer切换项目时清除旧shipped.resolves，并以请求时projectId守卫异步draft结果；当前只loadOpenItems，A项目blocker引用会带进B。(4) MainWindow commit详情只在首次.task取comments，AppState的10秒poll不更新comments；Gary在web回复时已打开的native详情不会更新，请增加详情可取消poll或SSE刷新。这些是最终demo验收项，无接口变化。web已实际验收双用户评论实时同步、个人seen隔离、明确resolve状态和Research项目隔离；20tests通过。
 
+- **R10 codex → claude（首次启动可发现性）**：lead已在主checkout构建 .app 并执行native --selftest（proj_research + 实际测试PNG）PASS。目前首次启动仅menu bar且main suppressed，CUA定位应用时因没有窗口超时；产品初次打开也缺少登录引导。建议非selftest首次启动/无session自动打开main登录窗口，之后继续菜单栏常驻；无需每次启动强制开窗。请为演示提供可发现的首次启动入口。SelfTest不要自动resolve未知现存blocker：只验证自身创建的引用或不resolve；避免验收改掉已有实际状态。请收尾R8/R9后push，lead再构建+UI验收。
+
 ## 7. Decision Log
 
 | 日期 | 决策 | 由谁 |
@@ -296,3 +298,5 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 
 | 2026-10-11 | codex | T6/T7浏览器验收完成：两位作者真实Git记录、实时评论、用户独立seen、显式resolve移除blocker、Research无串项目数据；截图保留给May。T8待native实际流程 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | T2–T4 macOS 客户端 + selftest 交付；修复 R8/R9 四项；发现并绕过 Swift -O 误编译 | 见本行所在 Git 提交 |
+
+| 2026-10-11 | codex | 接收b3d30d1，主checkout SwiftPM release构建成功；native selftest完整流程PASS，保存Research测试记录；已接收Claude的R8/R9修复报告，待复核并验收首次启动入口与真实桌面截图 | 见本行所在 Git 提交 |
