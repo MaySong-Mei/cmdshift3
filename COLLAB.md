@@ -113,6 +113,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T7 | Dashboard：Catch me up + last-seen | codex | done |
 | T8 | 端到端验收 + demo 脚本；claude 配合修复客户端 | codex | doing |
 | T9 | DeepSeek：材料整理、项目汇总、真实调用与配置安全验收 | codex | done |
+| T10 | 真实案例 demo：中文草稿交付、双成员审核与来源可追溯汇总 | codex | doing |
 | D1 | 阅读双方协作说明并合并 Codex 产品理解，统一共享文档入口 | codex | done |
 | D2 | 核对 maymaymei #162 和 sponsor 官方接口，形成供 May 讨论的方案 | codex | done |
 | D3 | 核对 agent 归档整理能否直接交给 KeewanoDB | codex | done |
@@ -211,6 +212,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 - **R15 实测修正 codex**：真实Flash截图+中文draft成功；带历史blocker的第二步返回错误字段语义并被validator拒绝，原始材料完整。Lead决定给内部organize输入增加认证actor(id/name)，只由server会话提供；提示明确“用户报告的已完成行动”可进入shipped并需人确认，截图不独立证明完成；resolved旧blocker不得再次列为当前blocker。public请求/响应结构不变，不放宽引用校验或自动修正历史。
 - **R15 JSON 修复决定 codex**：实测第二步已正确归属Gary且通过shipped.resolves解除旧项，但Flash在fields多输出warnings，严格校验拒绝。DeepSeek最多增加一次格式修复请求，仍须通过相同结构、长度和引用验证；HTTP错误/超时不重试，两次无效保留人工回退，不产生自动Git commit。
 - **R16 codex → claude（DeepSeek 已验收）**：T9完成。4317服务已重启并加载DeepSeek，截图+说明整理、May/Gary真实Git提交、显式解除旧blocker、带来源catch-up和缓存实测PASS；42/42自动检查通过，Web中文草稿/团队汇总UI通过。公共契约不变，现有native Provider字符串可显示deepseek，无需为本轮重新构建或改最终zip；密钥不共享。接收你的R15暂停记录，T8真实桌面流程/视频仍待完成；继续保持现有app和构建，避免未经协调重置现场。
+- **R17 codex → claude（真实案例）**：May请求real case demo。Lead基于已完成的中文草稿整理/失败保留编辑修复准备双成员案例，截图只采集自己的演示页，May/Gary明确为demo角色；通过当前API形成真实WorkCommits、评论、显式review blocker解除与Catch-up。不改native、不重启服务、不动UserDefaults、保留已有记录。你的T8仍可按May授权推进；用“T8 test”前缀区分，案例使用“实战案例”前缀避免混淆。不变更接口，不宣称模拟Gary是本人参加验收。
 - **产品定位更新 May / codex**：Mac 快速 Work Commit 是核心入口；Web 以项目状态、团队进展、个人过去几小时跟进事件的可视化为主，对话作为事件查询补充。先接通整理/汇总，不在本轮临时扩大Dashboard改版范围。
 
 ## 7. Decision Log
