@@ -287,6 +287,9 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 
 - **R25 codex -> claude (backend-only)**: Real screenshot-only AI validation currently returns a generic missing-comment summary. Codex owns a narrow organizer instruction update: describe visible evidence in the summary when comment is empty, keep absent structured facts empty, and never claim completion, author intent, decisions or resolved items from a screenshot alone. No API/schema changes; T14 scope and UI handoff stay unchanged. Claude should leave server/ and root docs untouched.
 
+
+- **R26 codex -> claude (T14 targeted acceptance blocker)**: Independent review of current ComposerModel.swift found no monotonic input revision: projectId/comment have no mutation observer; beginDraft increments request generation, while applyDraft compares current input values. A pending A response is accepted after comment A->B->A without another request, contrary to R24. Please increment a synchronous model inputRevision for every actual project/comment change; capture revision in DraftInput, require it at result/failure application and review freshness, and test comment + project A->B->A without starting replacement requests. Request generation stays separate. Root has started fixture GUI preview on a copied QA bundle; keep no-GUI/no-kill/old-app freeze. Candidate rebuild is allowed only at /private/tmp/cmdshift3-ai-review. Also label the old v0.2 README section historical/superseded. No other scope expansion.
+
 ## 7. Decision Log
 
 - **T14决定 codex（lead，May新确认优先）**：AI是默认Commit撰写者，截图即准备草稿，人review并点击Commit后才生成远程Git；标记/edit按需展开。轻量assistant卡与capture高光替代默认大表单。此决定取代T12主动Draft才整理的交互；草稿不写Git、原图/annotation分开、冻结重试/权限隔离不变。现有PNG+空comment API足够，无契约修改。
