@@ -115,7 +115,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T9 | DeepSeek：材料整理、项目汇总、真实调用与配置安全验收 | codex | done |
 | T10 | 真实案例 demo：英文工作草稿交付、双成员审核与来源可追溯汇总 | codex | done |
 | T11 | 公开试用部署：独立账号、创建/邀请项目、Project Context Card、持久云端服务与验收 | codex | done |
-| T12 | macOS截图体验：捕获动效、持久标记/comment画布、友好审核与防误丢 | claude | doing（R20 修复中） |
+| T12 | macOS截图体验：捕获动效、持久标记/comment画布、友好审核与防误丢 | claude | done（R20 已修，待 lead T13 验收） |
 | T13 | T12 lead验收、独立新版Mac包与公开下载更新 | codex | doing |
 | D1 | 阅读双方协作说明并合并 Codex 产品理解，统一共享文档入口 | codex | done |
 | D2 | 核对 maymaymei #162 和 sponsor 官方接口，形成供 May 讨论的方案 | codex | done |
@@ -201,6 +201,12 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   4. **公开默认**：新安装默认连 `https://cmdshift3-web-production.up.railway.app`；已经保存过的 endpoint 继续使用，所以本地 4317 和旧 app 的 UserDefaults 不受影响。登录框改成 SecureField，公开域名下提示 “Personal Mac code”，并给出 “Connect Mac app ↗” 链接；may-demo/gary-demo 只在 localhost 下提示。
   5. **`--preview-capture <png>`**：在中性 fixture（`macos/fixtures/preview-capture.png`，纯形状，无任何真实内容）上打开同一个编辑器，顶部有橙色 “Preview” 标识，Draft 和 Commit 禁用。不 restore session，不请求网络，不写 UserDefaults，不注册热键，所以不会抢旧 app 的 ⌃⇧⌘2。这只用于布局验收，不能算真实截图验收。
   6. **验证**：编译通过；`--selftest --offline` 新增模型检查（三种 AI 状态映射、dirty 判断、字段默认折叠、editAsNew 重建 id、preview 标志）PASS；在 scratch server（4399，临时数据，未加载 .env/DeepSeek）上跑完整 selftest PASS，之后已关闭；没有启动 GUI，没有动 4317 和云端。**修了一个隐患**：selftest 原本默认用 `AppState.defaultEndpoint`，现在那是公网地址，不带 `--endpoint` 跑就会往云端写 commit。已改为默认本地 4317。
+- **R20 交付 claude**：`04bf48b`，只改了 `macos/`，四项都已修复。包仍输出到 `/private/tmp/cmdshift3-experience/CmdShift3.app`（0.2.0，-Onone，strict 签名通过）。
+  1. **按窗口绑定关闭**：Composer 的 Cancel/Done/自动 finish 只作用于该 composer 自己的 window（创建时用 weak 捕获），不再使用 controller 当前的 `window`。`forceClose(target)` 只关闭 target，`allowClose` 只在 target 是当前窗口时设置。discard sheet 的回调会重新确认 `self.window === target && self.model === targetModel`，不一致就不处理。**证据**：offline 检查用两个从未显示的 NSWindow 模拟“旧窗口 Done → 新 capture 打开（带 comment）→ 旧窗口的 1.6s finish 迟到”，断言新窗口仍然打开、旧窗口不再被当作当前窗口守护、提交进行中 `windowShouldClose(newer)` 返回 false、forceClose(当前窗口) 能关闭。
+  2. **preview/selftest 隔离**：`--preview-capture` 和 `--selftest` 都使用内存态 AppState：endpoint 固定为 `http://preview.invalid`，token 和 projectId 为空，不 restore、不轮询、不请求图片；endpoint/projectId/token 的 UserDefaults 写入都受 `persists` 守卫；signIn 直接拒绝（“Preview mode — sign-in is disabled.”），refresh 和 markSeen 不执行。只给 `--preview-capture` 不带路径、或带的文件无法读取时，`exit 2` 并打印 usage，不注册热键，也不会继续正常启动。**证据**：在 `sandbox-exec (deny network*)` 中运行 `--selftest --offline`，结果 PASS、exit 0。作为对照，同样的沙箱里跑完整 selftest 会报 “Operation not permitted” 失败，说明沙箱确实禁网；offline 检查还断言了 token 为空、endpoint 为 invalid、hasSavedSession 为 false。
+  3. **提交中禁止换身份**：signOut 和 signIn 在 `ComposerController.isCommitting` 时直接拒绝并显示原因，不会清 session、不会关窗口，也不会发登录请求。正常的成功关闭和跨账号时关闭 composer 的行为保持不变。
+  4. 文案改为 “Return adds a new line. Commit publishes your update.”；README 同步说明 Draft 只发送截图和 comment 用于生成草稿，Commit 才会发布。
+  验证：offline（禁网沙箱）PASS；scratch 4399 完整 selftest PASS，跑完已关闭；未启动 GUI，未碰旧 app、4317 和云端。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -417,3 +423,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | 收到 R18（公开版上线）。R18 写于 T8 结果之前：**T8 已在 723f0f2 完成 PASS**（本地 4317，#5，7756541），请 lead 以此更新 T8 状态。native 连公开版无需改动 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | T12 交付 fbb1781：截图效果、工作台、丢弃确认、AI 状态区分、公开默认、--preview-capture；新包在 /private/tmp/cmdshift3-experience（0.2.0）；offline 和 scratch selftest 均 PASS | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | 认领 R20 四项定向修复（T12 追加），开始实现；不做 GUI，不碰旧 app/4317/云端 | — |
+| 2026-10-11 | claude | R20 四项修复 04bf48b；禁网沙箱 offline 和 scratch 完整 selftest 均 PASS | 见本行所在 Git 提交 |
