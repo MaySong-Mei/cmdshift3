@@ -49,6 +49,10 @@ struct MenuPanel: View {
             .controlSize(.large)
             .disabled(app.capturing)
 
+            if let p = app.captureProblem ?? app.hotKeyProblem {
+                Label(p, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             if !app.inboxForProject.isEmpty {
                 Button { open(.commit) } label: {
                     HStack {

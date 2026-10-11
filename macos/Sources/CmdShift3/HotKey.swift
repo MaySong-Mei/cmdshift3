@@ -7,6 +7,10 @@ final class HotKey {
     nonisolated(unsafe) private static var action: (() -> Void)?
     private var hotKeyRef: EventHotKeyRef?
     private var handlerRef: EventHandlerRef?
+    /// Carbon results, recorded instead of assumed (noErr = registered).
+    private(set) var handlerStatus: OSStatus = noErr
+    private(set) var registerStatus: OSStatus = noErr
+    var isRegistered: Bool { handlerStatus == noErr && registerStatus == noErr && hotKeyRef != nil }
 
     static let displayString = "⌃⇧⌘2"
 
@@ -15,12 +19,12 @@ final class HotKey {
          action: @escaping () -> Void) {
         HotKey.action = action
         var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
-        InstallEventHandler(GetApplicationEventTarget(), { _, _, _ in
+        handlerStatus = InstallEventHandler(GetApplicationEventTarget(), { _, _, _ in
             DispatchQueue.main.async { HotKey.action?() }
             return noErr
         }, 1, &spec, nil, &handlerRef)
         let id = EventHotKeyID(signature: OSType(0x434D_5333), id: 1) // "CMS3"
-        RegisterEventHotKey(keyCode, modifiers, id, GetApplicationEventTarget(), 0, &hotKeyRef)
+        registerStatus = RegisterEventHotKey(keyCode, modifiers, id, GetApplicationEventTarget(), 0, &hotKeyRef)
     }
 
     deinit {

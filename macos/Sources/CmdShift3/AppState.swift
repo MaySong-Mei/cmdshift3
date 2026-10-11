@@ -65,6 +65,10 @@ final class AppState: ObservableObject {
     /// Durable pre-commit captures. Isolated launches (selftest/preview) never touch the real folder.
     let draftStore: DraftStore? = AppState.isIsolatedLaunch ? nil : DraftStore.live()
     @Published var inbox: [StoredDraft] = []
+    /// Set when the global shortcut failed to register (shown at the capture entry).
+    @Published var hotKeyProblem: String?
+    /// Last capture-entry failure (permission, screenshot error), shown where capture starts.
+    @Published var captureProblem: String?
     var inboxForProject: [StoredDraft] { inbox.filter { $0.projectId == projectId } }
 
     func reloadInbox() {
@@ -390,6 +394,7 @@ final class AppState: ObservableObject {
                     showScreenRecordingAlert()
                 } else {
                     lastError = "Allow Screen Recording for CmdShift3 in System Settings, then quit and reopen it. Press \(HotKey.displayString) again for help."
+                    captureProblem = "Screen Recording is off for this CmdShift3 (\(Bundle.main.bundlePath)). Turn it on in System Settings, then reopen the app."
                 }
                 return
             }
@@ -398,6 +403,7 @@ final class AppState: ObservableObject {
         let app = (front?.processIdentifier == getpid()) ? (lastExternalApp ?? Capture.topmostOtherApp()) : front
         let source = Capture.source(for: app)
         guard ComposerController.shared.stashCurrent() else { return }
+        captureProblem = nil
         capturing = true
         closeMenuBarPanel()
         Task {
@@ -484,6 +490,7 @@ final class AppState: ObservableObject {
 
     private func showScreenRecordingAlert() {
         lastError = "Screen Recording permission is off for CmdShift3."
+        captureProblem = "Screen Recording is off for this CmdShift3 (\(Bundle.main.bundlePath)). Turn it on in System Settings, then reopen the app."
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
         alert.messageText = "Allow Screen Recording"

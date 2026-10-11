@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 
 /// Headless end-to-end check of the client against a running server, without
 /// the screenshot UI. Used for acceptance by the lead:
@@ -497,6 +498,18 @@ enum SelfTest {
         guard ctrl.stashCurrent(), !ctrl.isOpen,
               store.list(endpoint: ep, userId: user).first(where: { $0.id == c.draftId })?.comment == "stash me"
         else { return "stash must save and close" }
+
+        // Any retained in-flight commit blocks capture/switching, even with no open composer.
+        ComposerModel.committingDrafts.insert("dr_inflight_check")
+        let blocked = ctrl.isCommitting && !ctrl.isOpen
+        ComposerModel.committingDrafts.remove("dr_inflight_check")
+        guard blocked, !ctrl.isCommitting else { return "global in-flight registry not consulted" }
+
+        // Hotkey registration status is recorded, not assumed (unused combo, released at once).
+        do {
+            let probe = HotKey(keyCode: UInt32(kVK_F19), modifiers: UInt32(controlKey | optionKey | shiftKey | cmdKey)) {}
+            guard probe.isRegistered, probe.registerStatus == noErr else { return "hotkey status not recorded (\(probe.registerStatus))" }
+        }
 
         // Removal.
         store.remove(da)

@@ -42,7 +42,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             AppState.shared.openPreview(path: path)
             return
         }
-        hotKey = HotKey { AppState.shared.startCapture() }
+        let hk = HotKey { AppState.shared.startCapture() }
+        hotKey = hk
+        // Report the real registration result (e.g. another app already owns ⌃⇧⌘2).
+        AppState.shared.hotKeyProblem = hk.isRegistered ? nil
+            : "The \(HotKey.displayString) shortcut couldn't be registered (OSStatus \(hk.registerStatus != noErr ? hk.registerStatus : hk.handlerStatus)). Use New capture instead."
+        NSLog("CmdShift3 hotkey %@: handler=%d register=%d", HotKey.displayString, hk.handlerStatus, hk.registerStatus)
     }
 
     /// Opening the app again (Dock, Finder, Spotlight) shows the full workspace;

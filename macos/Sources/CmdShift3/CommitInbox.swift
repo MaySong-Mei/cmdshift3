@@ -24,6 +24,22 @@ struct CommitInboxView: View {
                         .buttonStyle(.borderedProminent)
                         .help("Capture a region (\(HotKey.displayString))")
                 }
+                ForEach([app.captureProblem, app.hotKeyProblem].compactMap { $0 }, id: \.self) { problem in
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                        Text(problem).fixedSize(horizontal: false, vertical: true)
+                        Spacer()
+                        if problem.contains("Screen Recording") {
+                            Button("Open System Settings") {
+                                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
+                                    NSWorkspace.shared.open(url)
+                                }
+                            }
+                        }
+                    }
+                    .padding(10)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.orange.opacity(0.12)))
+                }
                 if drafts.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("No captures waiting.").font(.headline)

@@ -311,13 +311,18 @@ final class ComposerModel: ObservableObject {
 
     /// Writes the reviewed Work Commit. Refused unless the draft is reviewed
     /// (current AI draft or explicit manual review) or this is a frozen retry.
+    /// Every draft with a commit request in flight, open or not. Session and
+    /// capture switches consult this, not just the currently shown composer.
+    static var committingDrafts: Set<String> = []
+
     @discardableResult
     func commit(_ client: APIClient) async -> Bool {
         guard !isPreview, !committing, result == nil else { return false }
         guard isLocked || reviewReady else { return false }
         committing = true
+        Self.committingDrafts.insert(draftId)
         error = nil
-        defer { committing = false }
+        defer { committing = false; Self.committingDrafts.remove(draftId) }
         let req = freeze()
         do {
             result = try await client.commit(req)
@@ -423,7 +428,7 @@ final class ComposerController: NSObject, NSWindowDelegate {
     }
 
     /// A commit request is in flight: closing or switching identity must wait.
-    var isCommitting: Bool { model?.committing == true }
+    var isCommitting: Bool { model?.committing == true || !ComposerModel.committingDrafts.isEmpty }
 
     /// Sign-out / account switch: saves the open capture to its owner's inbox and
     /// closes it, so it can't be committed under the next user. Callers must check
