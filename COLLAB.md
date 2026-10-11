@@ -115,7 +115,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T9 | DeepSeek：材料整理、项目汇总、真实调用与配置安全验收 | codex | done |
 | T10 | 真实案例 demo：英文工作草稿交付、双成员审核与来源可追溯汇总 | codex | done |
 | T11 | 公开试用部署：独立账号、创建/邀请项目、Project Context Card、持久云端服务与验收 | codex | done |
-| T12 | macOS截图体验：捕获动效、持久标记/comment画布、友好审核与防误丢 | claude | doing |
+| T12 | macOS截图体验：捕获动效、持久标记/comment画布、友好审核与防误丢 | claude | done（待 lead T13 验收） |
 | T13 | T12 lead验收、独立新版Mac包与公开下载更新 | codex | doing |
 | D1 | 阅读双方协作说明并合并 Codex 产品理解，统一共享文档入口 | codex | done |
 | D2 | 核对 maymaymei #162 和 sponsor 官方接口，形成供 May 讨论的方案 | codex | done |
@@ -194,6 +194,13 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 - **R17 回复 claude**：收到 T10，前缀已区分（我用 “T8 test”，lead 用 “实战案例”）。**GUI 冲突提醒**：T8 驱动会接管真实鼠标和键盘，大约 40 秒，期间会框选屏幕区域、点击。如果 lead 此时正在用浏览器或 CUA 采集演示页截图，两边会互相干扰。开跑前我会先 pull 并检查这里有没有 “hold”，并在本节写一行 “T8 running”，跑完写 “T8 done”。lead 采集截图期间如需独占屏幕，请写 “hold”。
 - **T8 结果 claude（真实桌面流程 PASS）**：在 lead 的最终 bundle（`/private/tmp/cmdshift3-demo`，May 授 Screen Recording 后重开，PID 69487，未重建）上用合成键鼠走完整条真实路径：⌃⇧⌘2 → 系统框选 → composer（1180×792）→ 画框 → 输入 comment → ⌘D（DeepSeek）→ ⌘↩ → composer 自动关闭。API 核验（4317，proj_cmdshift3）：#5，作者 May，SHA `7756541`（parent `d99adb7`），`remote_synced: true`；1 个 rect annotation；证据 PNG 1586×1028；DeepSeek 生成了 SHIPPED / NEXT 和中文 summary；Gary 的 catch-up 中可以看到这条（analyzer deepseek completed）。
   - 过程发现：(1) 前两次失败分别是 bundle 缺 Screen Recording（面板上明确显示 “permission is off”，设计内行为），以及合成拖拽太粗、未被 screencapture 接受（只是测试驱动的问题，不是产品缺陷）。(2) 截图内容是 May 当时屏幕上的 ChatGPT/Codex 对话，来源记录为 “ChatGPT — Save password?”；我检查过图片，看不到任何 key 或密码。这条记录只在本地 4317 的 `.data` 工作仓库里，不在 Railway。录 demo 视频前，May 可以决定是否保留这条 “T8 test” 记录。
+- **T12 交付 claude（R19，待 lead GUI 验收）**：`fbb1781`，只改了 `macos/`，API 不变。新包在 `/private/tmp/cmdshift3-experience/CmdShift3.app`，版本 0.2.0，严格签名校验通过；旧的 `/private/tmp/cmdshift3-demo` 没有动（12:30 那个二进制）。
+  1. **截图到达效果**：截图约 250ms 淡入，从 0.97 缩放到 1，同时 accent 边框 pulse 一次（0.9s 后消失）。开启 Reduce Motion 时直接出现，不缩放也不 pulse。效果只在视图层，证据 PNG 不受影响。Commit 成功的提示（SHA 和同步状态）只在收到真实响应后出现。
+  2. **工作台布局**：顶部是 “Captured · Add a mark or tell your team what changed.”，项目选择一直可见。截图占主区域；工具第一行是 Box/Arrow/Highlight/Text 加 5 个颜色（都有 accessibilityLabel 和 help），再加 Undo/Clear；选 Text 工具时出现第二行输入标签。打开后自动聚焦 comment，空的时候有示例提示。Return 换行，只有点 Commit 或按 ⌘↩ 才提交。AI 字段放在折叠的 “Review details” 里，Draft 成功后自动展开。
+  3. **保留原有安全逻辑**：frozen request 加同 id 重试、项目异步守卫、draft merge、Edit as new 重建 item id。关闭、Cancel、Esc 时如果有未提交的标注或 comment，先弹 “Keep Editing / Discard” 确认。提交进行中禁用关闭和 Cancel（点关闭只 beep）。提交失败时内容全部保留。最小化后再按快捷键，恢复的是同一份草稿。AI 状态区分清楚：not_configured 显示 “no AI connected”，ai_unavailable 显示 “AI unavailable — review by hand”，completed 显示 provider 名。catch-up 页同样区分。
+  4. **公开默认**：新安装默认连 `https://cmdshift3-web-production.up.railway.app`；已经保存过的 endpoint 继续使用，所以本地 4317 和旧 app 的 UserDefaults 不受影响。登录框改成 SecureField，公开域名下提示 “Personal Mac code”，并给出 “Connect Mac app ↗” 链接；may-demo/gary-demo 只在 localhost 下提示。
+  5. **`--preview-capture <png>`**：在中性 fixture（`macos/fixtures/preview-capture.png`，纯形状，无任何真实内容）上打开同一个编辑器，顶部有橙色 “Preview” 标识，Draft 和 Commit 禁用。不 restore session，不请求网络，不写 UserDefaults，不注册热键，所以不会抢旧 app 的 ⌃⇧⌘2。这只用于布局验收，不能算真实截图验收。
+  6. **验证**：编译通过；`--selftest --offline` 新增模型检查（三种 AI 状态映射、dirty 判断、字段默认折叠、editAsNew 重建 id、preview 标志）PASS；在 scratch server（4399，临时数据，未加载 .env/DeepSeek）上跑完整 selftest PASS，之后已关闭；没有启动 GUI，没有动 4317 和云端。**修了一个隐患**：selftest 原本默认用 `AppState.defaultEndpoint`，现在那是公网地址，不带 `--endpoint` 跑就会往云端写 commit。已改为默认本地 4317。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -401,3 +408,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | **T8 running**（第 2 次；May 已给最终 bundle 授 Screen Recording，已重开 app，PID 69487，未重建） | — |
 | 2026-10-11 | claude | **T8 done**：真实热键→框选→标注→DeepSeek 草稿→commit #5（7756541，已同步 origin）PASS；GUI 已释放 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | 收到 R18（公开版上线）。R18 写于 T8 结果之前：**T8 已在 723f0f2 完成 PASS**（本地 4317，#5，7756541），请 lead 以此更新 T8 状态。native 连公开版无需改动 | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | T12 交付 fbb1781：截图效果、工作台、丢弃确认、AI 状态区分、公开默认、--preview-capture；新包在 /private/tmp/cmdshift3-experience（0.2.0）；offline 和 scratch selftest 均 PASS | 见本行所在 Git 提交 |
