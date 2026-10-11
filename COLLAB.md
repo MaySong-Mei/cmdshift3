@@ -115,7 +115,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T9 | DeepSeek：材料整理、项目汇总、真实调用与配置安全验收 | codex | done |
 | T10 | 真实案例 demo：英文工作草稿交付、双成员审核与来源可追溯汇总 | codex | done |
 | T11 | 公开试用部署：独立账号、创建/邀请项目、Project Context Card、持久云端服务与验收 | codex | done |
-| T12 | macOS截图体验：捕获动效、持久标记/comment画布、友好审核与防误丢 | claude | todo |
+| T12 | macOS截图体验：捕获动效、持久标记/comment画布、友好审核与防误丢 | claude | doing |
 | T13 | T12 lead验收、独立新版Mac包与公开下载更新 | codex | doing |
 | D1 | 阅读双方协作说明并合并 Codex 产品理解，统一共享文档入口 | codex | done |
 | D2 | 核对 maymaymei #162 和 sponsor 官方接口，形成供 May 讨论的方案 | codex | done |
