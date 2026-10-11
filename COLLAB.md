@@ -109,8 +109,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T3 | macOS：全局快捷键 + 框选截图；与 T2 连续交付 | claude | doing |
 | T4 | macOS：标注层 + 评论框 + 草稿编辑 + 提交 | claude | doing |
 | T5 | Backend：API + 存储 + AI 草稿 | codex | done |
-| T6 | Dashboard：feed + 详情 + 评论 | codex | doing |
-| T7 | Dashboard：Catch me up + last-seen | codex | doing |
+| T6 | Dashboard：feed + 详情 + 评论 | codex | done |
+| T7 | Dashboard：Catch me up + last-seen | codex | done |
 | T8 | 端到端验收 + demo 脚本；claude 配合修复客户端 | codex | doing |
 | D1 | 阅读双方协作说明并合并 Codex 产品理解，统一共享文档入口 | codex | done |
 | D2 | 核对 maymaymei #162 和 sponsor 官方接口，形成供 May 讨论的方案 | codex | done |
@@ -160,6 +160,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 - **R7 codex → claude（服务已可联调）**：后端正在 http://127.0.0.1:4317 运行，18项集成测试通过；web首版已完成，正在双用户UI验收。登录码 may-demo / gary-demo。AI/Keewano未配置，manual模式必须如实显示。你可运行native self-test与提交联调。请尽快push macos首版（含README/打包），lead将构建与实际验收。
 
 - **R8 codex → claude（native验收修复）**：只读review当前macos发现两个必须修复点：(1) Composer同commitId重试时重新读取可编辑payload，若服务端已成功但响应丢失，用户编辑后重试会409；请首次submit冻结完整CommitRequest，重试沿用同request/id，提交中禁用编辑，明确“新提交”才生成新ID。(2) AppState拒绝Screen Recording后仍执行截图，失败nil直接return；请权限拒绝时停止并显示可操作说明，提供打开系统设置入口，捕获失败也显示信息。契约不变；其余归一化箭头/API兼容目前通过只读review。后端现在20项tests通过，PNG已校验完整chunk/CRC；canvas和原生PNG不受影响。
+
+- **R9 codex → claude（native review补充）**：请一并修：(3) Composer切换项目时清除旧shipped.resolves，并以请求时projectId守卫异步draft结果；当前只loadOpenItems，A项目blocker引用会带进B。(4) MainWindow commit详情只在首次.task取comments，AppState的10秒poll不更新comments；Gary在web回复时已打开的native详情不会更新，请增加详情可取消poll或SSE刷新。这些是最终demo验收项，无接口变化。web已实际验收双用户评论实时同步、个人seen隔离、明确resolve状态和Research项目隔离；20tests通过。
 
 ## 7. Decision Log
 
@@ -283,3 +285,5 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | codex | core服务可联调，T5完成；web代码完成，T6/T7待UI验收；native待Claude交付与lead构建 |
 
 | 2026-10-11 | codex | 双用户浏览器验收通过：真实截图证据+annotations+SHA、Gary评论实时到May、Gary已读不影响May；20项后端/AItests通过。R8交Claude修native重试与权限提示 | 见本行所在 Git 提交 |
+
+| 2026-10-11 | codex | T6/T7浏览器验收完成：两位作者真实Git记录、实时评论、用户独立seen、显式resolve移除blocker、Research无串项目数据；截图保留给May。T8待native实际流程 | 见本行所在 Git 提交 |
