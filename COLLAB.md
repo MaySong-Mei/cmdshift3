@@ -6,6 +6,8 @@
 
 > **当前阶段：先与 May 讨论并对齐实现。** May 最新要求：“首先我要和你讨论项目实现，先和我对齐”。Codex 与 Claude 暂不推进产品代码和接口定稿；此前分工保留为提议。Claude 若已开始 T2，请保留已有工作并在 §6 汇报进度，等待对齐后的开工指令。
 
+> **最新已确认要求**：按项目管理，多人协作，必须能 demo；May 明确选择“每次 Work Commit 都生成真实 Git commit”，每个项目有独立仓库。具体架构和 sponsor 接入仍在讨论，不代表已授权开始实现。
+
 ---
 
 ## 角色
@@ -62,8 +64,8 @@
 ### 2.3 不做（MVP 阶段）
 
 - 后台被动观察（ambient capture）
-- Git、Keewano、Sparta 集成（只预留字段）
-- 多项目权限体系（MVP 只有一个 project 和几个用户）
+- 企业级权限体系、复杂 branch / merge 用户流程
+- 额外 sponsor 集成的实现范围待讨论；Git 已成为首版必要底层，详见 §9
 
 ---
 
@@ -152,6 +154,7 @@
 | T7 | Dashboard：Catch me up + last-seen | codex | todo |
 | T8 | 端到端验收 + demo 脚本；claude 配合修复客户端 | codex | todo |
 | D1 | 阅读双方协作说明并合并 Codex 产品理解，统一共享文档入口 | codex | done |
+| D2 | 核对 maymaymei #162 和 sponsor 官方接口，形成供 May 讨论的方案 | codex | done |
 
 ---
 
@@ -180,6 +183,7 @@
 - **Q5 裁决 codex（lead）**：接受稳定 item id 与显式引用的方向；首版优先 resolves，supersedes/reopens 后续扩展。后端校验引用存在且属于同一项目，AI 只提出建议，用户确认后提交。不将“没有再次提到”视为已解决。当前仍是设计裁决，§4 保持 DRAFT，T1 中补齐请求格式、ID 分配与状态语义再定稿。
 - **状态检查 codex**：截至本次检查，远端仅 main，文件为 README、LICENSE、AGENTS、CLAUDE、COLLAB；无开放 PR/Issue，无产品实现。暂无构建、测试或运行结果可验收。
 - **R3 codex → claude**：May 要求先与 lead 对齐实现。请暂缓 T2–T4 的代码推进；T2 已标 doing，实际完成范围请由 Claude 汇报并更新，不丢弃已有工作。待讨论结论同步后再开始。
+- **R4 codex → claude**：May 已确认真实 Git commit + 按项目管理 + 多人 demo。已核对 sponsor 文档，§9 为新的实现讨论基础；§4 尚未更新，不能把此前 links.git_sha 可选字段当作最终 Git 契约。请先阅读，暂不开发。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -210,3 +214,54 @@
 
 | 2026-10-11 | codex | 检查 main、分支和 PR/Issue；确认分工、给出 T2 首个交付要求、裁决 Q5 并启动 T1 设计 | 见本行所在 Git 提交 |
 | 2026-10-11 | codex | 根据 May 最新要求转入实现对齐阶段，T1 回到 todo，在 R3 通知 Claude 暂缓代码推进并保留已做工作 | 见本行所在 Git 提交 |
+| 2026-10-11 | codex | 根据 May 确认记录真实 Git 提交、项目和多人 demo 需求；核对 #162 与五家 sponsor 官方资料，追加 §9 讨论方案；未写产品代码 | 见本行所在 Git 提交 |
+
+## 9. Git 项目协作与 sponsor 实现讨论
+
+### 已确认要求
+
+- 每个项目有独立 Git 仓库；每次截图 Work Commit 都产生真实 Git commit。
+- 系统按项目组织多人协作，需要能完整演示提交、同步和 catch-up。
+- 尚处于需求对齐；下面是 Codex 提案，技术栈、部署和 sponsor 范围仍待确定。
+
+### Git 和多人协作提案
+
+后端为每个项目维护工作记录仓库，保存截图、标注、comment 和结构化 metadata；多人提交由服务端协调，成功后返回 commit SHA，再发布团队更新。重试复用提交 ID，避免重复 Git commit；成员身份由登录会话确定。是否直接连接既有 GitHub 仓库、截图入 Git 或用对象存储引用，仍待决定。应用开发仓库与用户工作记录分开。
+
+Git 保存已确认的原始工作记录；AI 整理结果保留来源 SHA，可作为后续有版本的派生记录，不重写用户已经确认的历史。Dashboard 的即时索引、成员关系、讨论及每个用户每个项目的 last-seen 由应用后端维护；它们不由 Git 自动提供。共享 Git 历史不等于问题已自动解决，状态更新仍需显式引用。
+
+### Sponsor 核验结果
+
+主要历史来源：[maymaymei #162](https://github.com/MaySong-Mei/maymaymei/issues/162) 与 [研究记录](https://github.com/MaySong-Mei/maymaymei/blob/main/research/detachable-context/2026-10-11-work-commit-product-wedge.md)。官方活动页列出 Alike、Darwin、Dial、Keewano、Sparta。下述结论基于公开文档，尚无接入实测。
+
+| Sponsor | 可发挥的作用 | 首版建议与限制 |
+|---|---|---|
+| Keewano | 按项目有序事件、历史查询，为 Catch me up 找到相关 Git SHA | 首选候选；事件是名称与单一 typed value，字符串上限 256，原文另存；新事件约 5 分钟可查，不能承担即时 feed。需 project 写入 key、查询 PAT，以及现场开通 MCP/team 功能 |
+| Alike | coding agent 共享团队决策和工作上下文 | 更适合后续给 agent 消费 Work Commit；未核实面向我们 App 的通用写入/查询 API，首页目前有 waitlist |
+| Sparta | 对支持的本地模拟业务环境验证 agent 改动并导出证据 | 用于 agent-generated Work Commit 的后续验证；不能当作任意截图的通用正确性验证器 |
+| Darwin | 搜索能处理 blocker 的 agent / API / MCP 工具 | Search 公开无需 key；Act 为 allowlisted pilot。可选“找工具解决 blocker”，不是核心存储或同步层 |
+| Dial | 电话/SMS/WhatsApp 通信，voice agent 可通过 Context MCP 查我们的数据 | 可选电话 Catch me up，依赖账户、号码和 MCP；不把它当作截图旁麦克风转录 SDK |
+
+Keewano 官方 SpeedHacks 要求：至少一次现场 live query，结果改变产品输出；仅存数据或仅展示 Dashboard 得分低。建议由 Keewano 查询已索引的项目历史，返回 SHA 后读取 Git 的完整证据，生成 catch-up。最近几分钟尚未索引的记录仍从 Git/即时索引补齐，并标明查询覆盖范围。现场新 Git commit 立即更新团队 feed，无需等待 sponsor 索引。
+
+官方来源：
+
+- [Keewano SpeedHacks quickstart](https://docs.keewano.com/getting-started/speedhacks-quickstart.md)
+- [Keewano Lua 有序历史](https://docs.keewano.com/lua-scripting/guide.md)
+- [Alike](https://alike.dev/)
+- [Sparta hackathon](https://www.usesparta.co/hackathon) 与 [starter 范围](https://www.usesparta.co/docs/starters)
+- [Darwin quickstart](https://darwin.so/docs/get-started/quickstart)
+- [Dial Context MCP](https://docs.getdial.ai/documentation/platform/context-mcp)
+- [官方活动 sponsor 名单](https://www.tech-week.com/calendar/sf/events/speedhacks-the-official-speedrun-hackathon-30c239a4-638a-4bd6-8d51-e15259668f51)
+
+### Demo 验收提案
+
+1. 两个独立用户会话加入同一项目，另有第二个项目验证历史隔离。
+2. 用户 A 从桌面应用截图、标注、写 comment、Commit；生成实际 Git SHA。
+3. 用户 B 无需手动刷新即可收到提交，并看到同一证据和项目上下文，可以评论。
+4. 用户 B 从自己的 last-seen 查询 Catch me up；用户 A 的游标不受影响。
+5. 新提交明确解决旧 blocker，当前状态更新，旧记录仍可追溯。
+6. 若采用 Keewano，提前录入并等待索引的演示历史须明确标示；现场做真实查询，查询结果决定摘要。不能用预写摘要代替集成。
+7. 验证两个用户同时提交及网络重试不会丢失记录或产生重复提交。
+
+#162 记录的现场提交截止为 2026-10-11 17:00 PT（项目资料与 demo 视频）。公开活动页的 21:00 是活动结束时间，未独立确认提交截止；排期前向 May 确认现场截止是否仍有效。
