@@ -102,6 +102,13 @@ final class ComposerModel: ObservableObject {
     func editAsNew() {
         frozen = nil
         commitId = "wc_" + UUID().uuidString.lowercased()
+        // Item ids are globally unique on the server: if the frozen attempt did
+        // land, reusing them would 409 (item_id_conflict). Keep text and resolves.
+        for kind in FieldKind.allCases {
+            fields[keyPath: kind.keyPath] = fields[keyPath: kind.keyPath].map {
+                FieldItem(id: "it_" + UUID().uuidString.lowercased(), text: $0.text, resolves: $0.resolves)
+            }
+        }
         error = nil
     }
 }

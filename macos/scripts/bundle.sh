@@ -13,10 +13,14 @@ fi
 FLAGS=(-c release -Xswiftc -Onone)
 swift build "${FLAGS[@]}"
 BIN="$(swift build "${FLAGS[@]}" --show-bin-path)/CmdShift3"
-APP=build/CmdShift3.app
+# Override the output path to package outside iCloud/File Provider folders
+# (e.g. ~/Documents), which re-attach FinderInfo and break codesign:
+#   CMD3_APP_PATH=/private/tmp/cmdshift3-demo/CmdShift3.app ./scripts/bundle.sh
+APP="${CMD3_APP_PATH:-build/CmdShift3.app}"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+APP="$(cd "$APP" && pwd)"
 cp "$BIN" "$APP/Contents/MacOS/CmdShift3"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
@@ -44,5 +48,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
+xattr -cr "$APP" 2>/dev/null || true
 codesign --force --sign - "$APP" >/dev/null
-echo "Built $(pwd)/$APP"
+codesign --verify --strict "$APP"
+echo "Built $APP"
