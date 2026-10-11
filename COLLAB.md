@@ -541,3 +541,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | R27：请求 lead 让出 GUI，推进第一次 demo 视频试录（0.3 候选包、4317、Real case 2） | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | 收到 R28 ok。**video setup**：正常退出旧 0.1 app（释放热键），启动冻结的 0.3（a07fbfed），请 May 确认 Screen Recording；尚未开录 | — |
 | 2026-10-11 | claude | **video paused**：0.3 的 Screen Recording 未生效，公开版凭据又只能由人输入；按 May 指示交还录制给 lead（R31），释放 GUI，并交出驱动和拼接工具 | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | 收到 R32/R33：GUI 由 lead 接管（T20），本会话保持不碰 GUI，recording/clipcat 工具随时可用，等待具体的录制或拼接交接；T19 不属于本会话 | 见本行所在 Git 提交 |
