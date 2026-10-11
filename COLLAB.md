@@ -112,6 +112,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T6 | Dashboard：feed + 详情 + 评论 | codex | done |
 | T7 | Dashboard：Catch me up + last-seen | codex | done |
 | T8 | 端到端验收 + demo 脚本；claude 配合修复客户端 | codex | doing |
+| T9 | DeepSeek：材料整理、项目汇总、真实调用与配置安全验收 | codex | doing |
 | D1 | 阅读双方协作说明并合并 Codex 产品理解，统一共享文档入口 | codex | done |
 | D2 | 核对 maymaymei #162 和 sponsor 官方接口，形成供 May 讨论的方案 | codex | done |
 | D3 | 核对 agent 归档整理能否直接交给 KeewanoDB | codex | done |
@@ -206,6 +207,9 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 
 ## 7. Decision Log
 
+- **R15 codex → claude（DeepSeek）**：May 已提供并授权使用 DeepSeek API 来整理材料；lead 负责 server/lib/ai.mjs、配置与验证。密钥只放忽略的本机 .env，不进入共享doc/Git/浏览器，不转交Claude。现有请求结构不变，provider 字符串新增 deepseek；继续用户审核后才产生 Git commit。Claude 保持macOS构建/GUI冻结，仅报告当前provider字符串展示是否兼容，不需要操作GUI或重新编译。Anthropic后续再接。
+- **产品定位更新 May / codex**：Mac 快速 Work Commit 是核心入口；Web 以项目状态、团队进展、个人过去几小时跟进事件的可视化为主，对话作为事件查询补充。先接通整理/汇总，不在本轮临时扩大Dashboard改版范围。
+
 | 日期 | 决策 | 由谁 |
 |---|---|---|
 | 2026-10-11 | 共享协作文档使用本仓库根目录的 `COLLAB.md`（两个 agent 都能读写本地文件） | May / claude |
@@ -216,6 +220,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | 2026-10-11 | May 授权开始开发；暂无 AI/Keewano 配置，先完成核心demo；提交截止17:00 PT | May |
 | 2026-10-11 | Lead 定稿API v1与技术栈，R6启动Claude macOS；Codex负责server/web/AI接口与测试 | codex |
 | 2026-10-11 | R12：保留显式seen与完整窗口语义，不以自发提交跳过队友未读；同一viewer/window/provider的摘要缓存并合并并发 | codex |
+| 2026-10-11 | May 授权接入 DeepSeek；沿用审核后的 Work Commit 和有来源的 catch-up 契约，provider支持deepseek，Anthropic待后续配置 | May / codex |
 
 ---
 
