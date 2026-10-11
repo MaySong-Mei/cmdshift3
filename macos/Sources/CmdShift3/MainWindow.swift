@@ -9,8 +9,15 @@ struct MainView: View {
                 Label("Catch me up", systemImage: "sparkles")
                     .badge(app.unseenCount)
                     .tag(MainTab.catchup)
-                Label("Feed", systemImage: "list.bullet.rectangle").tag(MainTab.feed)
-                Label("Project state", systemImage: "square.stack.3d.up").tag(MainTab.state)
+                Section("Work") {
+                    Label("Work", systemImage: "list.bullet.rectangle").tag(MainTab.feed)
+                    Label("Progress", systemImage: "point.3.connected.trianglepath.dotted").tag(MainTab.progress)
+                    Label("People", systemImage: "person.2").tag(MainTab.people)
+                    Label("Project state", systemImage: "square.stack.3d.up").tag(MainTab.state)
+                }
+                Section("Ask") {
+                    Label("Ask", systemImage: "bubble.left.and.text.bubble.right").tag(MainTab.ask)
+                }
             }
             .navigationSplitViewColumnWidth(200)
         } detail: {
@@ -21,7 +28,10 @@ struct MainView: View {
                     switch app.mainTab {
                     case .catchup: CatchupView()
                     case .feed: FeedView()
+                    case .progress: ProjectProgressView()
+                    case .people: PeopleView()
                     case .state: StateView()
+                    case .ask: AskView()
                     }
                 }
             }

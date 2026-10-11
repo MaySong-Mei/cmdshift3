@@ -97,6 +97,10 @@ final class APIClient: @unchecked Sendable {
         try await send("GET", "/api/projects/\(project)/state")
     }
 
+    func context(project: String) async throws -> ProjectContextResponse {
+        try await send("GET", "/api/projects/\(project)/context")
+    }
+
     func catchup(project: String) async throws -> CatchupResponse {
         try await send("GET", "/api/projects/\(project)/catchup")
     }

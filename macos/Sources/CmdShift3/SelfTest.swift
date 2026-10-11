@@ -24,6 +24,12 @@ enum SelfTest {
             log("FAIL: model check — \(failure)")
             exit(1)
         }
+        if let path = arg("--progress-fixture") {
+            // Dev parity check with web/app.js: prints the tree as JSON for a fixture
+            // {"project_id", "current_user_id", "members":[...], "commits":[...]}.
+            dumpProgress(path)
+            exit(0)
+        }
         log("✓ model checks (AI status labels, AI-first review gating, generation/revision guards, failure/frozen, close guard, preview)")
         if CommandLine.arguments.contains("--offline") { log("PASS (offline)"); exit(0) }
         do {
@@ -72,6 +78,18 @@ enum SelfTest {
             let after = try await client.state(project: project).state
             guard !after.blockers.contains(where: { $0.id == ownBlocker }) else { throw APIError(status: 0, code: "state", message: "own blocker still open after resolve") }
             log("✓ own blocker resolved; \(after.blockers.count) other blocker(s) untouched")
+
+            // T22 progress tree from the real feed + /context members.
+            let ctxMembers = (try? await client.context(project: project).members) ?? []
+            let feedNow = try await client.commits(project: project).commits
+            let tree = ProgressTree.build(commits: feedNow, projectId: project, currentUserId: session.user.id, members: ctxMembers)
+            guard let ownTask = tree.tasks.first(where: { $0.id == ownBlocker }), ownTask.status == .completed,
+                  ownTask.evidence.count == 2, ownTask.evidence.last?.role == "Completed work" else {
+                throw APIError(status: 0, code: "progress", message: "own blocker not shown as completed with its review evidence")
+            }
+            let colors = MemberColors().assign(tree.members)
+            guard Set(colors.values).count == colors.count else { throw APIError(status: 0, code: "progress", message: "member colors not distinct") }
+            log("✓ progress tree: own task completed with 2 records; \(tree.members.count) member(s) via /context=\(!ctxMembers.isEmpty), distinct colors")
 
             let feed = try await client.commits(project: project)
             guard feed.commits.contains(where: { $0.id == c.id }) else { throw APIError(status: 0, code: "feed", message: "commit missing from feed") }
@@ -344,6 +362,31 @@ enum SelfTest {
         guard !z.applyDraft(ai("late", "l"), gen: gz.gen, input: gz.input) else { return "a draft applied after freezing" }
         guard z.beginDraft() == nil, z.primaryAction == .retryCommit else { return "frozen retry must never re-draft" }
         return nil
+    }
+
+    /// JSON dump of ProgressTree + member colors for a fixture (parity with the web tree).
+    static func dumpProgress(_ path: String) {
+        struct Fixture: Decodable { let projectId: String; let currentUserId: String?; let members: [User]; let commits: [WorkCommit] }
+        let d = JSONDecoder(); d.keyDecodingStrategy = .convertFromSnakeCase
+        guard let data = FileManager.default.contents(atPath: path), let f = try? d.decode(Fixture.self, from: data) else {
+            print("FAIL: cannot read progress fixture \(path)"); exit(2)
+        }
+        let tree = ProgressTree.build(commits: f.commits, projectId: f.projectId, currentUserId: f.currentUserId, members: f.members)
+        let colors = MemberColors().assign(tree.members)
+        func ev(_ e: ProgressEvidence) -> [String: Any] {
+            ["commit_id": e.commitId, "item_id": e.itemId ?? NSNull(), "role": e.role, "text": e.text, "mine": e.mine,
+             "git_sha": e.gitSha, "facts": e.facts.map { ["kind": $0.kind, "text": $0.text] }]
+        }
+        let out: [String: Any] = [
+            "tasks": tree.tasks.map { ["id": $0.id, "kind": $0.kind, "status": $0.status.rawValue, "sequence": $0.sequence,
+                                       "evidence": $0.evidence.map(ev)] },
+            "supporting": tree.supporting.map(ev),
+            "members": tree.members.map { ["id": $0.id, "name": $0.name] },
+            "commit_count": tree.commitCount, "mine_count": tree.mineCount,
+            "colors": colors,
+        ]
+        let json = try! JSONSerialization.data(withJSONObject: out, options: [.sortedKeys, .prettyPrinted])
+        print(String(data: json, encoding: .utf8)!)
     }
 
     /// Small generated PNG so the selftest needs no screen-recording permission.

@@ -6,7 +6,7 @@ extension Notification.Name {
 }
 
 enum MainTab: String, Hashable {
-    case catchup, feed, state
+    case catchup, feed, progress, people, state, ask
 }
 
 @MainActor
@@ -45,7 +45,7 @@ final class AppState: ObservableObject {
         didSet {
             if persists { UserDefaults.standard.set(projectId, forKey: "projectId") }
             if oldValue != projectId {
-                commits = []; state = nil; catchup = nil
+                commits = []; state = nil; catchup = nil; members = []; membersLoadedFor = nil
                 Task { await refresh() }
             }
         }
@@ -57,6 +57,18 @@ final class AppState: ObservableObject {
     @Published var signingIn = false
     @Published var capturing = false
     @Published var mainTab: MainTab = .catchup
+    /// Project members from the context API (falls back to commit authors).
+    @Published var members: [User] = []
+    let memberColors = MemberColors()
+    private var membersLoadedFor: String?
+
+    /// Task-organized progress, rebuilt from the already-loaded feed (no extra request).
+    var progressTree: ProgressTree {
+        guard let pid = projectId else { return ProgressTree(tasks: [], supporting: [], members: [], commitCount: 0, mineCount: 0) }
+        let tree = ProgressTree.build(commits: commits, projectId: pid, currentUserId: user?.id, members: members)
+        memberColors.assign(tree.members)
+        return tree
+    }
     @Published var selectedCommitId: String?
 
     let client: APIClient
@@ -238,6 +250,13 @@ final class AppState: ObservableObject {
             guard pid == projectId, token == client.token else { return }
             commits = cr.commits
             state = sr.state
+            if membersLoadedFor != pid || forceCatchup {
+                // Older servers may not have /context; the tree then uses commit authors.
+                if let ctx = try? await client.context(project: pid), pid == projectId, token == client.token {
+                    members = ctx.members
+                    membersLoadedFor = pid
+                }
+            }
             let moved = cr.throughSequence != nil && cr.throughSequence != catchup?.throughSequence
             if forceCatchup || catchup == nil || moved {
                 let ur = try await client.catchup(project: pid)

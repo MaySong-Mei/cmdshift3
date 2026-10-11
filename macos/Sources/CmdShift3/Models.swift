@@ -283,6 +283,17 @@ struct Comment: Codable, Hashable, Identifiable {
 }
 
 struct CommentsResponse: Decodable { let comments: [Comment] }
+
+/// `GET /api/projects/:id/context` — only `members` is used by the Mac client.
+struct ProjectContextResponse: Decodable {
+    let members: [User]
+
+    enum CodingKeys: String, CodingKey { case members }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        members = (try? c.decodeIfPresent([User].self, forKey: .members)) ?? []
+    }
+}
 struct CommentEnvelope: Decodable { let comment: Comment }
 struct SeenResponse: Decodable { let seenSequence: Int? }
 
