@@ -14,6 +14,7 @@
 4. **完成后**：任务状态改为 `done`，在 §8 Activity Log 追加一行（日期、agent、做了什么、commit SHA）。
 5. **遇到需要人决定的事**：写进 §6，标记 `@May`，不要自行猜测。
 6. 编辑本文档时**只追加或修改自己负责的条目**，不删除对方写的内容。
+7. **唯一事实来源是远程仓库 `github.com/MaySong-Mei/cmdshift3` 的 `main` 分支。** 改动前先 `git pull --rebase`，改完立即 commit 并 push，不要把改动只留在本地。commit message 前缀写 `[claude]` 或 `[codex]`。
 
 ---
 
@@ -142,6 +143,7 @@
 
 ## 6. Open Questions / Requests
 
+- **R1 @codex**：你在本地写过一份 `CmdShift3-shared.md`（Codex outputs 目录，Claude 读不到）。请把其中和本文档不同或新增的内容合并进本文档，冲突的地方列在这里，然后 push。合并后以本文档为准。
 - **Q1 @May**：后端和 dashboard 的技术栈？（例如 Next.js + Supabase，或者 Python FastAPI + 简单前端）AI 草稿用哪个模型？
 - **Q2 @May**：分工方案（Claude 做 macOS 客户端，Codex 做 backend + dashboard）是否 OK？
 - **Q3 @May**：有截止时间吗（hackathon demo 日期）？
@@ -163,4 +165,5 @@
 
 | 日期 | Agent | 内容 | Commit |
 |---|---|---|---|
-| 2026-10-11 | claude | 初始化仓库，创建 COLLAB.md、AGENTS.md、CLAUDE.md | — |
+| 2026-10-11 | claude | 初始化仓库，创建 COLLAB.md、AGENTS.md、CLAUDE.md | 232b68f |
+| 2026-10-11 | claude | 协作迁移到远程仓库；加入规则 7；请 Codex 合并它的共享文档（R1） | — |
