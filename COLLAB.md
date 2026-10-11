@@ -125,6 +125,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T16 | Screenshot-only AI evidence summary; preserve human review and completion rules | codex | done |
 | T17 | Coordinate the English first-take video script and acceptance handoff | codex (video_coordinator) | done |
 | T18 | Prepare public video demo actors, project and private off-camera sign-in handoff | codex | done |
+| T19 | Task progress tree with distinct member-colored contribution lines | codex | doing |
+| T20 | Recover public off-camera sign-in and frozen-app recording setup after R31 handoff | codex | doing |
 
 ---
 
@@ -335,6 +337,9 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 
 - **R30 codex (T15 public v0.3 release complete)**: Railway source is pinned to `b02252c63a49929ebf8fd0bc53abc44f384ac063`; deployment `361e214c-a3bd-4dd1-90d2-8f3f5eda98ed` SUCCESS on the existing /data volume. Public download is the frozen v0.3 ZIP, 985403 bytes, SHA256 `c0c271b047703a5f90bb4a7813a50e48faa2a1f2cea93759034f491fbd4de3e2`. Existing QA context/members/capture/discussion/original Git SHA preserved PASS. Real public DeepSeek empty-comment screenshot draft describes visible checkout/validation/review details, has no shipped/resolves and writes no Git. T15 done; T17 recording handoff done, actual video/T8 remains pending. No further deploy or GUI action required by root.
 
+- **R32 codex -> original Claude (R31 accepted; root takes GUI/setup)**: May explicitly asked lead to help you and allows subagents. Received your video paused handoff. Root owns GUI now to diagnose the frozen v0.3 Screen Recording identity and prepare dedicated public demo login off-camera through ordinary UI. No app rebuild/re-sign, TCC database edit/reset or permission bypass. Please remain GUI-free. Your credential-entry restriction remains respected; root handles sign-in using its own authorized tools. Keep your recording/clipcat tools available and await a concrete recording/assembly handoff. No video or native physical v0.3 PASS claimed yet.
+- **R33 codex (T19 start; May confirmed task tree and member colors)**: Dashboard scope only: project -> real work items/tasks -> contribution/evidence records. Give each actual member a stable distinct line color plus name/legend, show open/blocked/completed status only from recorded fields and explicit resolves, and open existing evidence/SHA detail. Do not invent milestone dependencies, ownership assignments, AI completion or percentages. Preserve Feed view and current collaboration/session behavior. Codex subagent edits web/app.js, web/styles.css and focused semantic tests; root owns canonical COLLAB/Git/release. No API/schema change and no GUI conflict with T20.
+
 ## 7. Decision Log
 
 - **T14决定 codex（lead，May新确认优先）**：AI是默认Commit撰写者，截图即准备草稿，人review并点击Commit后才生成远程Git；标记/edit按需展开。轻量assistant卡与capture高光替代默认大表单。此决定取代T12主动Draft才整理的交互；草稿不写Git、原图/annotation分开、冻结重试/权限隔离不变。现有PNG+空comment API足够，无契约修改。
@@ -365,6 +370,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 - 2026-10-11 / codex: R25 accepted. Automatic screenshot drafting should provide a useful visible-evidence summary even without a comment. Human review remains mandatory; no screenshot-only inference of shipped work or resolved blockers. API v1 is unchanged.
 
 ## 8. Activity Log
+
+| 2026-10-11 | codex | Accepted original Claude R31 paused recording handoff; root claims T20 GUI/public sign-in and exact Screen Recording diagnosis. Started T19 task-based tree with stable member colors per May; web-only delegated implementation, no native rebuild or API changes | This commit |
 
 | 2026-10-11 | codex | T15 public v0.3 pin/download/data-retention/real screenshot-only AI PASS. T17 English guide handed off via R29; T18 two public demo actors and one private context project ready, password/Mac-code sign-in verified, credentials local-only, no seeded Work Commits. Original Claude owns actual recording; root keeps GUI free | This commit |
 
