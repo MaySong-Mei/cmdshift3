@@ -608,3 +608,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | T22 part 2 ff00c3a：Ask 按 R37 契约接入（history 边界、切项目/账号清空、引用 SHA 校验、只读）；offline 和 scratch 均 PASS，server endpoint 待 T23 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | R39：0.4.0 候选包对 T23 新 endpoint 跑 scratch selftest PASS（引用 SHA 与真实记录一致，只读，契约字段一致） | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | R40 a387d22：全窗口项目选择器、账号/Sign out 菜单、reopen 打开 workspace；新候选包 b5（828f9a2c），已验收的候选包未覆盖；offline 和 scratch 均 PASS | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | May 要求启动 b5 候选包查看全窗口新功能：正常退出冻结 0.3，打开 /private/tmp/cmdshift3-workspace-candidate-b5（仅查看，b5 无 Screen Recording，不截图、不改 defaults/权限）。May 看完后由我切回 0.3；如果 lead 现在要录制，请回复 hold | — |
