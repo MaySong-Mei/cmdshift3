@@ -14,6 +14,7 @@ const state = {
   mode: 'unknown', publicRegistration: false, authEpoch: 0,
   context: null, contextError: '', contextRequest: 0, contextExpanded: false, workspaceDialogEpoch: 0,
   workView: 'feed', highlightMine: true, progressColors: new Map(), progressCollapsed: new Set(),
+  conversation: null,
 };
 let toastTimer;
 
@@ -116,6 +117,7 @@ async function login(credentials, createAccount=false) {
   try {
     const result = await api(createAccount?'/api/accounts':'/api/session', {method:'POST',body:typeof credentials==='string'?{code:credentials}:credentials,token:null});
     if(authEpoch!==state.authEpoch)return;
+    resetProjectConversation();
     state.token = result.token; sessionStorage.setItem('cmdshift3-token', result.token);
     state.user = result.user; state.projects = result.projects || [];
     await enterWorkspace();
@@ -140,6 +142,7 @@ function publicLoginScreen(message='',view='signin',username='') {
 
 async function logout() {
   const token = state.token;
+  resetProjectConversation();
   state.epoch++; state.stream?.abort(); clearImages();
   state.token = null; state.user = null; sessionStorage.removeItem('cmdshift3-token');
   if(state.composer?.imageURL) URL.revokeObjectURL(state.composer.imageURL);
@@ -162,6 +165,7 @@ async function enterWorkspace() {
 
 async function switchProject(id) {
   const project = state.projects.find(item => item.id === id); if (!project) return;
+  resetProjectConversation();
   state.epoch++; state.stream?.abort(); clearImages();
   state.project = project; state.commits = []; state.catchup = null; state.through = 0;
   state.progressCollapsed.clear();
@@ -259,6 +263,7 @@ function renderContextCard() {
 
 function openWorkspaceDialog(title,body,footer='') {
   const dialog=$('#workspace-dialog');
+  dialog.classList.remove('conversation-dialog');
   const dialogEpoch=++state.workspaceDialogEpoch;
   dialog.innerHTML=`<div class="dialog-header"><h2 id="workspace-dialog-title">${escapeHTML(title)}</h2><button class="icon-button" data-close aria-label="Close ${escapeHTML(title)}">×</button></div><div class="dialog-body">${body}</div>${footer?`<div class="dialog-footer">${footer}</div>`:''}`;
   bindDialogClose(dialog);if(!dialog.open)dialog.showModal();
@@ -488,8 +493,84 @@ function renderCurrentState() {
 
 function renderCatchupBox() {
   const unread = state.catchup?.commits?.length ?? 0;
-  $('#catchup-box').innerHTML = `<div class="catchup-box"><div class="row space-between"><h3>Back in the loop.</h3>${unread?`<span class="badge">${unread} new</span>`:''}</div><p>${unread?`${unread} work ${unread===1?'commit has':'commits have'} arrived since you last caught up.`:'See what changed since your last visit, with the evidence behind it.'}</p><button class="button secondary" id="catch-me-up">Catch me up <span aria-hidden="true">↗</span></button></div>`;
+  $('#catchup-box').innerHTML = `<div class="catchup-box"><div class="row space-between"><h3>Back in the loop.</h3>${unread?`<span class="badge">${unread} new</span>`:''}</div><p>${unread?`${unread} work ${unread===1?'commit has':'commits have'} arrived since you last caught up.`:'See what changed since your last visit, with the evidence behind it.'}</p><div class="catchup-actions"><button class="button secondary" id="catch-me-up">Catch me up <span aria-hidden="true">↗</span></button><button class="button secondary" id="ask-project">Ask project <span aria-hidden="true">↗</span></button></div></div>`;
   $('#catch-me-up').addEventListener('click',openCatchup);
+  $('#ask-project').addEventListener('click',openProjectConversation);
+}
+
+function resetProjectConversation() {
+  state.conversation?.controller?.abort();
+  state.conversation=null;
+}
+
+function projectConversationCurrent(conversation) {
+  return Boolean(conversation&&state.conversation===conversation&&conversation.epoch===state.epoch&&conversation.projectId===state.project?.id&&conversation.userId===state.user?.id&&conversation.token===state.token);
+}
+
+function projectConversationHistory(turns, question) {
+  const content=value=>String(value??'').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g,'').trim().slice(0,2000).replace(/[\uD800-\uDBFF]$/,'');
+  const history=turns.slice(-3).flatMap(turn=>[{role:'user',content:content(turn.question)},{role:'assistant',content:content(turn.answer)}]);
+  while(history.length&&(history.reduce((count,message)=>count+message.content.length,0)>6000||new TextEncoder().encode(JSON.stringify({question,history})).length>16*1024))history.splice(0,2);
+  return history.filter(message=>message.content.length);
+}
+
+function conversationAnswerNote(analyzer={}) {
+  if(analyzer.status==='no_changes')return 'Based on project context · No confirmed work yet.';
+  if(analyzer.provider==='manual')return analyzer.status==='ai_unavailable'?'AI is unavailable · Showing confirmed records.':'Based on confirmed records · AI is not connected.';
+  return 'AI answer · Based on confirmed project records.';
+}
+
+function openProjectConversation() {
+  if(!state.project||!state.user||!state.token)return;
+  if(!state.conversation||!projectConversationCurrent(state.conversation)){
+    resetProjectConversation();
+    state.conversation={epoch:state.epoch,projectId:state.project.id,userId:state.user.id,token:state.token,turns:[],draft:'',error:'',busy:false,pendingQuestion:'',request:0,controller:null,ticket:null};
+  }
+  const conversation=state.conversation;
+  conversation.ticket=openWorkspaceDialog('Ask project','');
+  $('#workspace-dialog').classList.add('conversation-dialog');
+  renderProjectConversation(conversation);
+  if(!conversation.busy)$('#project-question')?.focus();
+}
+
+function renderProjectConversation(conversation) {
+  if(!projectConversationCurrent(conversation)||!conversation.ticket||!workspaceDialogCurrent(conversation.ticket))return;
+  const dialog=$('#workspace-dialog');
+  const suggestions=['What changed for the team?','What is blocked right now?','What should we do next?'];
+  $('.dialog-body',dialog).innerHTML=`<div class="conversation-project"><span class="eyebrow">${escapeHTML(state.project.name)}</span><p>Ask about progress, decisions or what comes next.</p></div><div class="project-conversation" aria-live="polite" aria-busy="${conversation.busy}">${conversation.turns.map(turn=>`<section class="conversation-turn"><div class="conversation-question"><span>You</span><p>${escapeHTML(turn.question)}</p></div><div class="conversation-answer"><span class="conversation-answer-note">${escapeHTML(conversationAnswerNote(turn.analyzer))}</span><p>${escapeHTML(turn.answer)}</p>${turn.evidence?.length?`<div class="conversation-sources" aria-label="Sources for this answer">${turn.evidence.map(evidence=>{const commit=state.commits.find(item=>item.id===evidence.commit_id);return `<button data-question-source="${escapeHTML(evidence.commit_id)}" title="${escapeHTML(evidence.git_sha)}"><span>${escapeHTML(commit?summaryOf(commit):'Open source record')}</span><span class="sha">${escapeHTML(evidence.git_sha.slice(0,7))} ↗</span></button>`;}).join('')}</div>`:''}${turn.coverage?.truncated?'<p class="conversation-coverage">This answer covers a selection of the project history. Some earlier work is outside its review.</p>':''}${turn.through_sequence<state.through||turn.context_version<projectVersion()?'<p class="conversation-coverage">The project has changed since this answer. Ask again for the latest.</p>':''}</div></section>`).join('')}${conversation.busy?`<section class="conversation-turn"><div class="conversation-question"><span>You</span><p>${escapeHTML(conversation.pendingQuestion)}</p></div><div class="conversation-thinking" role="status">Reading the project’s work…</div></section>`:''}${!conversation.turns.length&&!conversation.busy?`<div class="conversation-start"><p>Start with the shared picture.</p><div class="conversation-suggestions">${suggestions.map(question=>`<button data-suggest-question="${escapeHTML(question)}">${escapeHTML(question)} <span aria-hidden="true">↗</span></button>`).join('')}</div></div>`:''}</div><form id="project-question-form" class="project-question-form"><label for="project-question" class="sr-only">Ask a project question</label><textarea id="project-question" rows="2" maxlength="2000" required placeholder="What would you like to know?" ${conversation.busy?'disabled':''}>${escapeHTML(conversation.draft)}</textarea><div class="conversation-form-foot"><span>⌘Return to ask</span><button class="button small" type="submit" ${conversation.busy?'disabled':''}>${conversation.busy?'Reading…':'Ask ↗'}</button></div><p class="form-error" id="project-question-error" role="alert">${escapeHTML(conversation.error)}</p></form><div class="conversation-footer"><p>Answers follow confirmed work and project context. This conversation stays in this tab until you switch projects or sign out.</p>${conversation.turns.length?`<button id="clear-project-conversation" ${conversation.busy?'disabled':''}>Clear conversation</button>`:''}</div>`;
+  const input=$('#project-question',dialog);
+  input.addEventListener('input',()=>{conversation.draft=input.value;});
+  input.addEventListener('keydown',event=>{if(event.key==='Enter'&&(event.metaKey||event.ctrlKey)){event.preventDefault();askProjectQuestion(conversation);}});
+  $('#project-question-form',dialog).addEventListener('submit',event=>{event.preventDefault();askProjectQuestion(conversation);});
+  $$('[data-suggest-question]',dialog).forEach(button=>button.addEventListener('click',()=>{input.value=button.dataset.suggestQuestion;conversation.draft=input.value;input.focus();}));
+  $$('[data-question-source]',dialog).forEach(button=>button.addEventListener('click',()=>{dialog.close();openDetail(button.dataset.questionSource);}));
+  $('#clear-project-conversation',dialog)?.addEventListener('click',()=>{if(!conversation.busy){conversation.turns=[];conversation.error='';renderProjectConversation(conversation);$('#project-question',dialog).focus();}});
+  const transcript=$('.project-conversation',dialog);transcript.scrollTop=transcript.scrollHeight;
+}
+
+async function askProjectQuestion(conversation) {
+  if(!projectConversationCurrent(conversation)||conversation.busy||!conversation.ticket||!workspaceDialogCurrent(conversation.ticket))return;
+  const question=conversation.draft.trim();
+  if(!question||question.length>2000||/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(question)){
+    conversation.error='Write a readable question of up to 2,000 characters.';renderProjectConversation(conversation);return;
+  }
+  const history=projectConversationHistory(conversation.turns,question);
+  const request=++conversation.request;
+  conversation.controller=new AbortController();conversation.busy=true;conversation.error='';conversation.pendingQuestion=question;conversation.draft='';
+  renderProjectConversation(conversation);
+  try{
+    const result=await api(`/api/projects/${encodeURIComponent(conversation.projectId)}/conversation`,{method:'POST',token:conversation.token,signal:conversation.controller.signal,body:{question,history}});
+    if(!projectConversationCurrent(conversation)||request!==conversation.request)return;
+    if(typeof result.answer!=='string'||!result.answer.trim())throw new Error('The project answer was empty. Please try again.');
+    conversation.turns.push({question,answer:result.answer,analyzer:result.analyzer||{provider:'manual'},evidence:(Array.isArray(result.evidence)?result.evidence:[]).filter(item=>typeof item?.commit_id==='string'&&typeof item?.git_sha==='string'),coverage:result.coverage,through_sequence:result.through_sequence,context_version:result.context_version});
+    conversation.turns=conversation.turns.slice(-3);
+  }catch(error){
+    if(!projectConversationCurrent(conversation)||request!==conversation.request)return;
+    conversation.draft=question;
+    conversation.error=error.status===401?'Your sign-in has expired. Sign out and sign in to continue.':error.status===403?'You no longer have access to this project.':error.status===429?'Project questions are busy right now. Try again shortly.':error.status===404?'Project questions are not available yet. Try again shortly.':'Could not read the project right now. Your question is kept here; try again.';
+  }finally{
+    if(projectConversationCurrent(conversation)&&request===conversation.request){conversation.busy=false;conversation.pendingQuestion='';conversation.controller=null;renderProjectConversation(conversation);}
+  }
 }
 
 async function refreshProject(epoch = state.epoch) {

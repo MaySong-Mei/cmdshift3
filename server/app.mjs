@@ -5,7 +5,7 @@ import { resolve, join, extname, sep } from 'node:path';
 import { openStore } from './lib/store.mjs';
 import { openProjectGit } from './lib/git.mjs';
 import { ApiError, fail, text, source, decodePNG, annotations, fields, requestHash, foldState, validCommitId } from './lib/validation.mjs';
-import { organizeDeliverable, summarizeProject, providerStatus } from './lib/ai.mjs';
+import { organizeDeliverable, summarizeProject, answerProjectQuestion, providerStatus } from './lib/ai.mjs';
 
 const MAX_BODY = 12 * 1024 * 1024;
 const CATCHUP_CACHE_LIMIT = 128;
@@ -37,6 +37,23 @@ function accountInput(input) {
   if (!name || /[\u0000-\u001f]/.test(name)) fail(400, 'invalid_input', 'Name must contain visible text.');
   if (typeof input.password !== 'string' || input.password.length < 12 || input.password.length > 128) fail(400, 'invalid_input', 'Password must be 12–128 characters.');
   return { username: input.username, name, password: input.password };
+}
+function questionInput(input) {
+  const visibleText = (value, label) => {
+    if (typeof value !== 'string') fail(400, 'invalid_input', `${label} must be text.`);
+    const normalized = text(value.trim(), label, 2000, 1);
+    if (!normalized || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(normalized)) fail(400, 'invalid_input', `${label} must contain visible text.`);
+    return normalized;
+  };
+  const question = visibleText(input.question, 'question');
+  const history = input.history ?? [];
+  if (!Array.isArray(history) || history.length > 6) fail(400, 'invalid_input', 'history must contain at most 6 messages.');
+  const normalized = history.map(message => {
+    if (!message || !['user', 'assistant'].includes(message.role)) fail(400, 'invalid_input', 'history roles must be user or assistant.');
+    return { role: message.role, content: visibleText(message.content, 'history content') };
+  });
+  if (normalized.reduce((count, message) => count + message.content.length, 0) > 6000) fail(400, 'invalid_input', 'history must contain at most 6000 characters in total.');
+  return { question, history: normalized };
 }
 async function diskBytes(directory) {
   const info = await lstat(directory);
@@ -97,6 +114,7 @@ export async function createApp(options = {}) {
   }
   const organize = options.organizeDeliverable ?? organizeDeliverable;
   const summarize = options.summarizeProject ?? summarizeProject;
+  const answerQuestion = options.answerProjectQuestion ?? answerProjectQuestion;
 
   async function reconcile(projectId) {
     const repo = repositories.get(projectId);
@@ -230,10 +248,11 @@ export async function createApp(options = {}) {
       const token = req.headers.authorization?.match(/^Bearer ([A-Za-z0-9_-]+)$/)?.[1];
       const user = token ? store.userForToken(token) : null;
       if (!user) fail(401, 'unauthorized', 'A valid bearer session is required.');
+      const conversationMatch = path.match(/^\/api\/projects\/([^/]+)\/conversation$/);
       if (req.method === 'GET' && path === '/api/me') { json(res, 200, { user, projects: store.projectsFor(user.id) }); return; }
       if (req.method === 'POST' && path !== '/api/commits') {
         rate(`write:${user.id}`, 60, 60 * 1000);
-        if (publicMode && !['/api/session/logout','/api/draft'].includes(path) && await diskBytes(dataDir) + 64 * 1024 > limits.totalBytes) fail(507, 'storage_limit', 'The service storage allowance is full.');
+        if (publicMode && !conversationMatch && !['/api/session/logout','/api/draft'].includes(path) && await diskBytes(dataDir) + 64 * 1024 > limits.totalBytes) fail(507, 'storage_limit', 'The service storage allowance is full.');
       }
       if (req.method === 'POST' && path === '/api/me/access-code') { json(res, 200, store.rotateAccessCode(user.id)); return; }
       if (req.method === 'GET' && path === '/api/projects') { json(res, 200, { projects: store.projectsFor(user.id) }); return; }
@@ -285,6 +304,16 @@ export async function createApp(options = {}) {
         const state = foldState(store.commits(input.project_id));
         const draft = await aiWork(user.id, beforeModelCall => organize({ project_id: input.project_id, project: projectBackground(input.project_id), actor: { id: user.id, name: user.name }, comment, source: captureSource, image_base64: input.image_base64, state, beforeModelCall }));
         json(res, 200, draft); return;
+      }
+      if (req.method === 'POST' && conversationMatch) {
+        const projectId = conversationMatch[1]; membership(user, projectId);
+        const input = questionInput(await body(req, 16 * 1024));
+        rate(`conversation:${user.id}`, 10, 60 * 1000);
+        const through = store.sequence(projectId);
+        const commits = store.commits(projectId).filter(commit => commit.sequence <= through);
+        const project = projectBackground(projectId);
+        const result = await aiWork(user.id, beforeModelCall => answerQuestion({ ...input, project_id: projectId, project, commits, state: foldState(commits), beforeModelCall }));
+        json(res, 200, { ...result, through_sequence: through, context_version: project.version }); return;
       }
       if (req.method === 'POST' && path === '/api/commits') {
         const input = await body(req); membership(user, input.project_id);
