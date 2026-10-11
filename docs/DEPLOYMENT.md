@@ -2,6 +2,10 @@
 
 The public release lets each person create an account, create a private project, invite teammates, and submit screenshot Work Commits. The web dashboard and Mac client connect to the same HTTPS service. Project context records retain who changed the background and when; confirmed screenshot deliverables continue to create real Git commits.
 
+Public service: **[cmdshift3-web-production.up.railway.app](https://cmdshift3-web-production.up.railway.app/)**. [Download the Mac app](https://cmdshift3-web-production.up.railway.app/downloads/CmdShift3.zip).
+
+The initial deployment is pinned to tested source commit `ec7aea29fc42202668cbd8e17ee759b6366189fa`. Later source pushes do not automatically replace it; deploy a newly verified commit explicitly.
+
 ## Hosting layout
 
 Run one Node 22.19+ process with Git installed. Mount persistent storage at `/data`, and set `CMD3_DATA_DIR=/data`. That volume contains SQLite, discussion, memberships, context versions, screenshot files, per-project Git working repositories and bare origins. Keep one replica and avoid overlapping writers during deployments. The bundled Dockerfile installs Git and uses the Node 22 runtime; Railway detects it at the repository root.

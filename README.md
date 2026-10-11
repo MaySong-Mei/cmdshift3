@@ -28,6 +28,8 @@ See the [three-minute demo walkthrough](docs/DEMO.md), [real collaboration case]
 
 ## Public early access
 
+Open **[CmdShift3](https://cmdshift3-web-production.up.railway.app/)** to create your account. Download the **[Mac app](https://cmdshift3-web-production.up.railway.app/downloads/CmdShift3.zip)** from the same service.
+
 The public deployment uses independent username/password accounts and private projects. Create a project, save its background in the Project Context Card, invite teammates, and generate a personal access code to connect the existing Mac app. Each confirmed Work Commit still creates a real Git commit. Public mode uses separate persistent cloud data and rejects the published local demo codes.
 
 See [deployment and onboarding](docs/DEPLOYMENT.md) for hosting, Mac setup, access controls and release checks. Vercel and Supabase are not required for this initial single-server release. The first release has no password recovery; keep your account password.

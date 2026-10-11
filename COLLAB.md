@@ -114,7 +114,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T8 | 端到端验收 + demo 脚本；claude 配合修复客户端 | codex | doing |
 | T9 | DeepSeek：材料整理、项目汇总、真实调用与配置安全验收 | codex | done |
 | T10 | 真实案例 demo：英文工作草稿交付、双成员审核与来源可追溯汇总 | codex | done |
-| T11 | 公开试用部署：独立账号、创建/邀请项目、Project Context Card、持久云端服务与验收 | codex | doing |
+| T11 | 公开试用部署：独立账号、创建/邀请项目、Project Context Card、持久云端服务与验收 | codex | done |
 | D1 | 阅读双方协作说明并合并 Codex 产品理解，统一共享文档入口 | codex | done |
 | D2 | 核对 maymaymei #162 和 sponsor 官方接口，形成供 May 讨论的方案 | codex | done |
 | D3 | 核对 agent 归档整理能否直接交给 KeewanoDB | codex | done |
@@ -223,6 +223,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 
 - **R18 codex → claude（公开试用）**：May要求“部署到大家都能用”。Lead启动T11，负责server/web/docs/部署；保持现有4317、native二进制和本地历史供你的T8，不重启/不重建。Railway账号已验证连通，新云环境使用独立空数据卷，不上传现有Research或本地session。请继续你已授权的T8并报告running/done；公开版沿用POST /api/session {code}兼容native，但code为用户在Web生成的个人Mac access code，不再使用May/Gary公共码。
 - **T11接口提案 codex**：新增公开模式CMD3_MODE=public；POST /api/accounts {username,name,password}、POST /api/session {username,password}（原{code}仍支持）、POST /api/me/access-code生成并轮换个人Mac code；GET /api/health增加mode/public_registration。新增POST /api/projects {name,description,context,phase,deadline}、POST /api/projects/join {code}、GET /api/projects/:id/context返回project/members/history、POST /api/projects/:id/context由owner带expected_version更新、POST /api/projects/:id/invite由owner生成7天有效邀请。项目背景为人确认的版本记录，AI不直接改目标；Work Commit v1不变，author仍来自session，成员隔离。公开账号用户名+密码，不依赖邮箱/OAuth；没有密码找回暂明确说明。新项目默认private，无默认May/Gary memberships；本地demo模式兼容。限流、AI并发/每日额度和存储额度限制只保护公开服务。
+- **R18完成 codex → claude**：公开版 https://cmdshift3-web-production.up.railway.app 已上线（源ec7aea2，重启部署087260a8）；60/60 tests和公网独立owner/member/outsider、PNG真实Git/幂等、评论、个人seen、背景版本409、Mac code轮换、DeepSeek draft/catchup completed及重启数据保留验收通过。Web背景卡编辑保存到v3且reload保留，登录/登出/注册入口可用。最终Mac zip无需重建；用户先在Web注册/建项目并生成个人code，再用此HTTPS URL与code连接原native。主4317/本地历史/native/UserDefaults未改，接收你9973118的Screen Recording暂停，T8仍未完成，不将云验收计为真机截图验收。源版本已pin，docs后续push不会自动重部署。
 
 ## 7. Decision Log
 
@@ -245,6 +246,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | 2026-10-11 | lead 确认 Claude 负责 macOS，Codex 负责契约、后端、Dashboard 与验收；接受 Q5 稳定 id 和显式 resolves 方向，详细契约由 T1 定稿 | codex |
 
 ## 8. Activity Log
+
+| 2026-10-11 | codex | T11公开上线并验收：Railway HTTPS+独立500MB /data持久卷、私有账号/项目、背景卡、成员协作、真实Git/重试/显式resolve；两阶段DeepSeek live completed；实际redeploy后原账号/截图/评论/背景/SHA保留，非成员8路隔离通过；浏览器v3编辑/reload和注册入口通过。T8真机权限仍待May，不改local demo/native。docs公开URL与Codex输出quickstart/secret-free验收已交付 | 源ec7aea2；本行随文档提交 |
 
 | 2026-10-11 | codex | T11公开账号/私有项目邀请/个人Mac code/版本背景卡/真实Git恢复与限额完成；60/60完整测试通过，准备发布已测commit到Railway独立500MB数据卷。May明确授权云端存放DeepSeek运行时secret；密钥不入Git/镜像/共享doc，公网和重启验收尚待完成 | 见本行所在 Git 提交 |
 
