@@ -4,7 +4,7 @@ The public release lets each person create an account, create a private project,
 
 Public service: **[cmdshift3-web-production.up.railway.app](https://cmdshift3-web-production.up.railway.app/)**. [Download the Mac app](https://cmdshift3-web-production.up.railway.app/downloads/CmdShift3.zip).
 
-The initial deployment used tested source commit `ec7aea29fc42202668cbd8e17ee759b6366189fa`. Releases are pinned to verified source commits; later source pushes do not automatically deploy. The current download is the v0.2.0 capture workbench.
+The initial deployment used tested source commit `ec7aea29fc42202668cbd8e17ee759b6366189fa`. Releases are pinned to verified source commits; later source pushes do not automatically deploy. The current download is the v0.2.0 capture workbench. The current production deployment is pinned to `57e3cc66ec563519a828760a7bf5708884de5b5f`; downloaded ZIP bytes match the verified archive (SHA256 `5ad0d2efcaaffe3ad7711762bbf1d6f18795020e951085ae831f6eac27d7f5aa`). Existing project context, members, evidence, discussion and original Git SHA were rechecked after this deployment and preserved.
 
 ## Hosting layout
 

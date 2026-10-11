@@ -116,7 +116,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T10 | 真实案例 demo：英文工作草稿交付、双成员审核与来源可追溯汇总 | codex | done |
 | T11 | 公开试用部署：独立账号、创建/邀请项目、Project Context Card、持久云端服务与验收 | codex | done |
 | T12 | macOS截图体验：捕获动效、持久标记/comment画布、友好审核与防误丢 | claude | done（lead R22 验收通过） |
-| T13 | T12 lead验收、独立新版Mac包与公开下载更新 | codex | doing |
+| T13 | T12 lead验收、独立新版Mac包与公开下载更新 | codex | done |
 | D1 | 阅读双方协作说明并合并 Codex 产品理解，统一共享文档入口 | codex | done |
 | D2 | 核对 maymaymei #162 和 sponsor 官方接口，形成供 May 讨论的方案 | codex | done |
 | D3 | 核对 agent 归档整理能否直接交给 KeewanoDB | codex | done |
@@ -259,6 +259,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 - **R21 codex → claude（R20一处异步补充）**：三项修复已通过定向复核；signIn的isCommitting目前只检查await client.session之前。保留草稿的过期会话中，登录请求等待时用户仍可点Commit；登录先返回便会closeAll并换token，关掉正在提交的窗口。请在await session返回后、closeAll/设置token/apply之前再检查isCommitting，拒绝换身份并显示同样提示；closeAll也加防御性committing guard，但不能依赖它代替会话动作的检查。仅修这一项，不扩大review；更新独立0.2.0包、offline检查和交接。lead GUI继续独占，旧app/4317/云端不动。
 
 - **R22 codex → claude（T13本地验收完成，候选包冻结）**：接收7ba4831/77e0be8，R19/R20/R21定向review通过。实际fixture工作台四种mark、两行comment、工具栏切换仍对齐、数分钟停留、关闭/Esc→Keep Editing保留内容已验收；UI源04bf48b，R21仅会话guard、不改变UI。最终7ba4831包root offline PASS，strict签名、zip CRC、解压签名和binary一致PASS，0.2.0/arm64。生产zip为835964 bytes，SHA256 5ad0d2efcaaffe3ad7711762bbf1d6f18795020e951085ae831f6eac27d7f5aa。lead开始更新公开下载并复核云数据保留；T13暂保持doing。请保持新旧包/GUI冻结，不再重建或扩大review，直到May/lead的新任务。0.2 fixture验收不冒充新的物理capture；旧T8真机PASS仍单独记录。
+
+- **R23 codex（T12验收接受 / T13完成）**：57e3cc66ec563519a828760a7bf5708884de5b5f已明确pin部署，Railway 5f910cfb-fef9-4845-bddc-3cde837b8eba SUCCESS。公网ZIP与候选hash/835964 bytes一致；现存QA context v3、2 members、原SHA a3f3caab13cc3b524bba73d44c0b14bacf2bdf11、member comment、capture重新读取全PASS，无新增账户/AI/WorkCommit。数据卷仍/data同一volume；server/web代码未变，仅新增验收原生工作台下载。T12接受、T13 done。证据素材为中性fixture预览；不宣称0.2包已重新走物理capture。请继续保持冻结；0.2用户自行授Screen Recording后可试。旧4317、旧运行app/UserDefaults未改。英文quickstart/独立0.2 zip/工作台图片在Codex outputs。
 
 ## 7. Decision Log
 
@@ -432,3 +434,5 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | 认领 R21（signIn 在 await 之后再检查 isCommitting + closeAll 防御 guard） | — |
 | 2026-10-11 | claude | R21：signIn await 之后再检查 isCommitting，并撤销未使用的 session；closeAll 增加防御 guard；禁网 offline PASS（7ba4831） | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | 收到 R22：T12 验收通过，候选包冻结。保持新旧包和 GUI 冻结，不重建、不扩大 review，等待 May/lead 新任务 | 见本行所在 Git 提交 |
+
+| 2026-10-11 | codex | T13完成：接受Claude T12/R20/R21；fixture GUI/最终offline/签名ZIP PASS，57e3cc6上线Mac0.2下载；公网ZIP hash一致，现存项目/证据/comment/SHA部署后保留PASS | 57e3cc6（发布源）；本行见当前记录提交 |
