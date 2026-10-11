@@ -115,6 +115,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T9 | DeepSeek：材料整理、项目汇总、真实调用与配置安全验收 | codex | done |
 | T10 | 真实案例 demo：英文工作草稿交付、双成员审核与来源可追溯汇总 | codex | done |
 | T11 | 公开试用部署：独立账号、创建/邀请项目、Project Context Card、持久云端服务与验收 | codex | done |
+| T12 | macOS截图体验：捕获动效、持久标记/comment画布、友好审核与防误丢 | claude | todo |
+| T13 | T12 lead验收、独立新版Mac包与公开下载更新 | codex | doing |
 | D1 | 阅读双方协作说明并合并 Codex 产品理解，统一共享文档入口 | codex | done |
 | D2 | 核对 maymaymei #162 和 sponsor 官方接口，形成供 May 讨论的方案 | codex | done |
 | D3 | 核对 agent 归档整理能否直接交给 KeewanoDB | codex | done |
@@ -227,6 +229,16 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 
 ## 7. Decision Log
 
+- **R19 codex → claude（T12开工）**：May新要求截图commit核心体验，允许本轮新开发/构建（仅新路径，不覆盖已授权最终bundle）。请认领T12 doing，只改macos/及自己的COLLAB条目；API不变，server/web/docs由lead负责。
+  1. 沿用系统可靠框选，捕获后增加约200–300ms柔和淡入/轻微scale与一次accent边框pulse；尊重Reduce Motion，不持续闪烁，不将效果烧进证据PNG。成功效果仅在真实Commit响应后显示SHA/sync。
+  2. 将Composer做成持久、截图占主面积的编辑工作台，友好“Captured · Add a mark or tell your team what changed.”；工具Box/Arrow/Highlight/Text可发现、两行布局适合MacBook，颜色/Undo有accessibility label和help。comment明显，空态引导用户一句话。项目始终可见，AI结构字段默认折叠，在主动Draft后展开供审核；Return换行，只有明确Commit/⌘↩提交，不自动发送。
+  3. 保留所有frozen request/same-id retry、项目异步守卫、编辑merge和新提交重建item ids；编辑时停留/最小化后新快捷键恢复同一草稿。Cancel/Esc/关闭有dirty草稿先确认discard；Commit进行中禁用关闭和Cancel，失败保留全部内容。不要把ai_unavailable标成“no AI connected”。
+  4. 公开新用户默认endpoint用已部署HTTPS（AppState有保存endpoint继续沿用）；Welcome明确个人Mac code来自网页Connect Mac app，不能在公开域名诱导may-demo/gary-demo。bundle版本更新0.2.0，原local4317和旧app/UserDefaults不重置。
+  5. 为lead无TCC重置的布局验收提供开发参数 --preview-capture <PNG path>：用指定的非敏感fixture打开同一editor，可加标记/comment；清楚显示preview状态，禁用真实Draft/Commit、避免自动网络/写UserDefaults，不要求屏幕权限，不注册抢占旧app热键。正常启动行为不受影响。若不宜实现则给lead替代实际UI预览方法，不要冒充真实捕获验收。
+  6. 可以编译验证，不启动GUI/不kill正在运行旧app/不做真截图/不触碰云API；lead先独立GUI验收。测试必要模型状态与Swift构建，已有native selftest只用scratch endpoint/data；本轮不扩大广泛review。提交push并写实现/验证及新包路径，lead接收后冻结一次最终build、更新web/downloads并部署新commit。输出建议 /private/tmp/cmdshift3-experience/CmdShift3.app（旧/private/tmp/cmdshift3-demo保持原样）。
+
+- **T12决定 codex（lead）**：May要求“截图commit是核心功能，需要截图的时候有特效，也很friendly，可以停在那边增加标记和comment”。本轮先沿用已真机验证的系统框选，动效放在捕获后的持久编辑画布，保留截图原图与0–1 annotation metadata，API/Git/frozen retry不变；截图优先、comment优先、结构字段渐进展开。用户主动Draft才发送截图整理，Commit才生成项目历史，不宣称AI读取未传入的annotation。新原生包独立构建验收后再更新公开下载。
+
 - **T8接收 codex（lead）**：接收Claude的723f0f2真实快捷键/框选/标注/DeepSeek/提交PASS报告；lead独立核对4317 #5的完整SHA 7756541be78b70c241729dd0a2292efd169486a7、parent d99adb7、author usr_may、origin_synced、1 rect和1586×1028 PNG，均PASS。本地原生截图链路验收完成；不上传这张本地对话截图到云端，T8仍余最终demo视频。T11公网验收为独立QA项目，不混同两者。
 
 - **T11决定 codex（lead）**：接受以上契约，落实独立注册→建项目/受邀加入→真实Git提交→队友评论/catch-up，补Project Context Card并提供个人Mac连接码。首轮用一个带持久卷的Railway服务/单副本，云端bare origins与GitHub remote明确区分；不迁移Supabase、不拆Vercel，不扩张对话AI范围。公开环境不包含本机私有历史/密钥文件；AI key若云端配置只作为运行时secret。
@@ -248,6 +260,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | 2026-10-11 | lead 确认 Claude 负责 macOS，Codex 负责契约、后端、Dashboard 与验收；接受 Q5 稳定 id 和显式 resolves 方向，详细契约由 T1 定稿 | codex |
 
 ## 8. Activity Log
+
+| 2026-10-11 | codex | May授权优化核心截图体验；启动T12给Claude（R19），T13由lead负责。只读检查确认现有persistent composer可用但工具/表单拥挤；保留已验收旧包与云服务，准备新版独立验收 | 见本行所在 Git 提交 |
 
 | 2026-10-11 | codex | 接收Claude真实Mac截图PASS并独立API核验#5/7756541、parent/author/同步/rect/PNG尺寸；本地原生链路通过。公开部署不需要重建最终包，云数据与本地截图隔离，T8剩视频 | 见本行所在 Git 提交 |
 
