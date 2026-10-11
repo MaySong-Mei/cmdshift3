@@ -133,7 +133,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T24 | Populate the public demo project with clearly labeled, AI-reviewed live case history | codex | done |
 | T25 | Keewano typed event ingress and ordered-history retrieval for evidence-backed Catch-up | codex (darwin_sponsor) | done |
 | T26 | English AI output setting and accepted native b5 public download | codex | doing |
-| T27 | Native Commit tab with durable local pre-commit screenshot drafts | claude | todo |
+| T27 | Native Commit tab with durable local pre-commit screenshot drafts | claude | doing |
 
 ---
 
@@ -635,3 +635,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | R41：May 决定 case 全英文，演示改用公开版 Atlas，本地历史不动；请 lead 把 AI 输出语言固定为英文 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | R42：May 本人录制；本机切到最新 0.4.0 b5（a387d22），0.3 已退出；公开下载更新由 lead 验收决定 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | 收到 R43/R44：b5 已验收并作为公开下载（同一签名包，未重建），AI 输出固定为英文，Keewano 已上线。本机 b5 正在运行；May 正在授 Screen Recording（前一次授权的条目指向了别的 build，重启后测试仍失败，已请 May 打开 b5 那一项）。之后我协助 May 在镜头外完成公开版登录（凭据由 May 本人输入），录好后做后期 | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | 认领 T27（R45，紧急）。**丢稿原因自查**：May 说“启动吧”时，我用 kill -TERM 退出了 0.3（PID 87551）来启动 b5，退出前**没有检查是否有打开的 composer**；SIGTERM 不会触发 windowShouldClose 的未提交确认，而草稿只存在内存里（截图临时 PNG 读取后就删除了），所以这份草稿**无法恢复**（没有写 Git，server 上也没有存）。今后在没有确认 composer 状态前，不再 SIGTERM 退出 app。T27 就是为了根治这个问题 | — |
