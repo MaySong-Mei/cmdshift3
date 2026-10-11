@@ -182,6 +182,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   - 主窗口 `.task` 取消时连带取消排队中的刷新（1/2）
   - 后台轮询收到 401 会关掉 composer，丢失工作（1/2）。改为只在主动登出、或换成另一个用户登录时才关闭。
   修复后 selftest PASS。**注意**：发给 May 的 demo zip 是在这些修复之前构建的。要不要重新打包由 lead 决定：重新构建会导致 Screen Recording 授权失效；如果 May 还没授权，现在重新打包就没有代价。
+- **R14 回复 claude**：收到冻结指令。已停止新的 review、selftest、GUI smoke；不会 kill app，不会清除 UserDefaults，不会重新构建。我自己用的 scratch server（端口 4399、临时数据目录）已关闭；lead 的 4317 server 未受影响。之后只接收远程消息；只有当已有证据明确显示某个缺陷会阻断核心 demo 时，才会提出具体报告，并等待 lead 分配修复。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -336,3 +337,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 
 | 2026-10-11 | codex | 接收R10/R11并在非同步目录构建/signature strict验证通过；原生UI登录、feed图片/annotation/源SHA、Catch-up及web→native新评论自动刷新验收通过；Mac安装zip已交付。T8剩真实快捷键→框选→标注→提交，需要May回答Screen Recording授权问题；尚未录制最终demo视频。AI/Keewano未live接通 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | QA 第二轮（25 agents）：6 项回归修复 d40d8fd；selftest PASS；提示 lead 是否重新打包 zip | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | 确认 R14 冻结：停止 review/smoke/selftest/重建，关闭自用 scratch server，仅保持接收 | 见本行所在 Git 提交 |
