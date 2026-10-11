@@ -6,7 +6,7 @@
 
 > **当前阶段：开发已获 May 授权。** May：“准备好指挥和协调claude，如果没有问题就可以开发了”。按今天 17:00 PT 提交倒排，先完成核心 demo。暂缓指令 R3/R4 已撤销。
 >
-> **已确认要求**：每项目独立仓库，每次 Work Commit 生成真实 Git commit；本地整理 deliverable，远程比较并汇总；多人协作、截图标注/comment、Dashboard、Catch me up。核心 demo 已交付；May 已授权接入 DeepSeek 整理/汇总，Keewano 尚无配置，未连接的能力必须如实标注。
+> **已确认要求**：每项目独立仓库，每次 Work Commit 生成真实 Git commit；本地整理 deliverable，远程比较并汇总；多人协作、截图标注/comment、Dashboard、Catch me up。May 已授权 DeepSeek 整理/汇总和 Keewano SDK/PAT 服务端接入；三个准备案例的真实写入与有序查询已通过，Catch-up 公开发布正在验收。最终视频仍待完成，未连接的能力必须如实标注。
 
 
 ---
@@ -129,7 +129,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T20 | Recover public off-camera sign-in and frozen-app recording setup after R31 handoff | codex | doing |
 | T21 | Recording post-production toolkit, English captions and offline export verification | claude | ready（工具+离线验证完成，等真实 clip） |
 | T22 | Native full workspace: task tree, member work browsing and grounded project conversation | claude | doing |
-| T23 | Read-only project question API with confirmed Git evidence | codex | doing |
+| T23 | Read-only project question API with confirmed Git evidence | codex | done |
 | T24 | Populate the public demo project with clearly labeled, AI-reviewed live case history | codex | done |
 | T25 | Keewano typed event ingress and ordered-history retrieval for evidence-backed Catch-up | codex (darwin_sponsor) | doing |
 
@@ -394,6 +394,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 - **R40 codex (T25 Catch-up integration contract)**: May authorized creating one SDK-type key and storing it server-side for Commit SHA/actor ID/count ingress. Add optional `retrieval` to the existing Catch-up response: `{provider:"keewano",status:"disabled"|"schema_pending"|"not_indexed"|"unavailable"|"completed",indexed_commits,recent_git_commits,evidence:[{commit_id,git_sha}],activity:{contributors,blockers_recorded,items_resolved,next_recorded},queried_at?}`. Query fixed, read-only, project-entity-scoped Lua, never user/model code. Match candidates to the authenticated project's confirmed Git feed including SHA, actor, timestamp and field counts; ignore foreign or mismatched candidates. All ordinary Catch-up commits/current state/citations remain grounded in the same confirmed Git window, recent unindexed records always included. For matched query records show a concise indexed-activity section derived from those validated rows, so a real query changes the product output; counts describe recorded events, not current blockers or claimed task completion. The base AI summary remains cached; retrieval is a separate bounded 30-second project cache/in-flight coalescing so new indexing can refresh without spending an extra AI request. Disabled/unavailable/pending querying preserves normal Catch-up. No extra query when empty/no config, no seen/Git mutation. Root backend subagent implements server/tests; root owns Web display and release.
 - **R40 native acceptance update codex -> Claude**: Candidate 0.4.0 independent strict signature/arm64/network-denied offline/full scratch checks PASS against T23 source `2b5f2c0`, Ask actual 200 with two matching Git SHAs and feed unchanged 2->2. Root can now see the current v0.3 full window after May opened it. Please add two narrow full-workspace discoverability controls under T22: a project picker and regular Sign out/account entry in the full window (same existing guarded AppState methods; no new auth/API); and a standard `applicationShouldHandleReopen` path which opens the existing main workspace when the user opens the app again. Keep selftest/preview isolated and preserve menu capture. These are currently accessible only from the menu bar panel, which obstructs full-app browsing/setup. Build candidate separately, no GUI/permissions/defaults/cloud/4317/frozen0.3 changes. Root owns recording and visual acceptance; no broad UI rewrite.
 
+- **R41 codex -> original Claude (sponsor ready for public release)**: User authorized creating the SDK key. Three prepared Atlas records were ingested (7/7 events each), then real entity-filtered Lua returned all three SHAs in order; actor, timestamp and all counters matched the authenticated Git feed. Root securely configured SDK/PAT/project UUID on the Railway service with redeploy skipped, and is publishing verified retrieval with independent 30-second cache and honest Git coverage wording. Targeted integration checks and independent access/provenance review passed. T23 real public DeepSeek Ask returned valid source SHAs; English phrasing is being checked for the video. Your R40 b5 toolbar/reopen delivery is received. Root is operating only background Web/API checks now; May may finish viewing b5. Keep binaries frozen and do not start capture/recording or switch apps until the separate GUI handoff. Root will verify b5 visuals/public sign-in next; no new OS permission is implied. No final video exists yet.
+
 ## 7. Decision Log
 
 - **T25 Catch-up decision codex**: Accept R40 additive retrieval provenance and verified indexed-activity section. Existing native decoders may ignore the optional field. Keewano event counts supplement history visibility; only Git fields/explicit resolves determine current state. Keep base summary and newest Git records available through missing configuration, index delay or sponsor failure.
@@ -432,6 +434,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 - 2026-10-11 / codex: R25 accepted. Automatic screenshot drafting should provide a useful visible-evidence summary even without a comment. Human review remains mandatory; no screenshot-only inference of shipped work or resolved blockers. API v1 is unchanged.
 
 ## 8. Activity Log
+
+| 2026-10-11 | codex | T25 SDK key created with May approval; 21 typed events accepted and real ordered Lua query returned 3 exact Git matches. R40 Catch-up integration and Web provenance display ready, independent review accepted with coverage wording fixed. Server secrets stored in Railway without redeploy; publishing and public output acceptance next. T23 actual public AI Ask/source citations verified, native R40 b5 received | This commit |
 
 | 2026-10-11 | codex | T19 published/tree accepted; T24 three English prepared-role Git cases and actual DeepSeek catch-up created/verified in Atlas Checkout Launch. T23 grounded conversation/Web Ask implemented; independent repair-budget issue fixed, 23 AI/conversation checks PASS. Keewano PAT real discovery/projects/catalog PASS, typed acknowledgement + read-only MCP adapters tested; SDK key/live ingress/history remain pending. Claude requested to rerun native 0.4 scratch integration | This commit |
 

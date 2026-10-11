@@ -6,10 +6,14 @@ import { openStore } from './lib/store.mjs';
 import { openProjectGit } from './lib/git.mjs';
 import { ApiError, fail, text, source, decodePNG, annotations, fields, requestHash, foldState, validCommitId } from './lib/validation.mjs';
 import { organizeDeliverable, summarizeProject, answerProjectQuestion, providerStatus } from './lib/ai.mjs';
+import { readKeewanoProjectHistory } from './lib/keewano-history.mjs';
+import { createKeewanoMcpClient } from './lib/keewano-mcp.mjs';
 
 const MAX_BODY = 12 * 1024 * 1024;
 const CATCHUP_CACHE_LIMIT = 128;
 const CATCHUP_CACHE_TTL = 10 * 60 * 1000;
+const HISTORY_CACHE_TTL = 30 * 1000;
+const HISTORY_CACHE_LIMIT = 128;
 const MIME = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon' };
 function json(res, status, value) { if (!res.destroyed) { res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(value)); } }
 async function body(req, maximum = MAX_BODY) {
@@ -94,6 +98,13 @@ export async function createApp(options = {}) {
   const streams = new Map();
   const catchupCache = new Map();
   const catchupInFlight = new Map();
+  const historyCache = new Map();
+  const historyInFlight = new Map();
+  const historyReader = options.readKeewanoProjectHistory ?? readKeewanoProjectHistory;
+  const keewanoProjectId = options.keewanoProjectId ?? process.env.KEEWANO_PROJECT_ID;
+  const keewanoPat = options.keewanoPat ?? process.env.KEEWANO_PAT;
+  const historyConfigured = typeof keewanoProjectId === 'string' && Boolean(keewanoProjectId.trim()) && typeof keewanoPat === 'string' && Boolean(keewanoPat.trim());
+  const historyClient = historyConfigured ? createKeewanoMcpClient({ pat: keewanoPat, readOnlyToolNames: ['list_event_types', 'run_script_query'] }) : undefined;
   let closing = false;
   let activeRequests = 0; let activeAuth = 0; let activeAI = 0;
   const rateBuckets = new Map();
@@ -189,6 +200,70 @@ export async function createApp(options = {}) {
     return pending;
   }
   function projectBackground(id) { const project = store.project(id); return Object.fromEntries(['id','name','description','context','phase','deadline','version'].map(key => [key, project[key]])); }
+  function projectHistory(projectId) {
+    const cached = historyCache.get(projectId);
+    if (cached && cached.expires > Date.now()) {
+      historyCache.delete(projectId); historyCache.set(projectId, cached);
+      return Promise.resolve(cached.result);
+    }
+    if (cached) historyCache.delete(projectId);
+    if (historyInFlight.has(projectId)) return historyInFlight.get(projectId);
+    const pending = Promise.resolve().then(() => historyReader({ appProjectId: projectId, keewanoProjectId, client: historyClient })).then(result => {
+      const statuses = ['disabled', 'schema_pending', 'not_indexed', 'unavailable', 'completed'];
+      if (!result || !statuses.includes(result.status) || (result.status === 'completed' && (!Array.isArray(result.candidates) || result.candidates.length > 40))) return { status: 'unavailable' };
+      return result;
+    }).catch(() => ({ status: 'unavailable' })).then(result => {
+      // Cache query outcomes separately: newly indexed history can refresh without another model call.
+      historyCache.set(projectId, { result, expires: Date.now() + HISTORY_CACHE_TTL });
+      while (historyCache.size > HISTORY_CACHE_LIMIT) historyCache.delete(historyCache.keys().next().value);
+      return result;
+    });
+    historyInFlight.set(projectId, pending);
+    pending.finally(() => { if (historyInFlight.get(projectId) === pending) historyInFlight.delete(projectId); }).catch(() => {});
+    return pending;
+  }
+  async function retrieveWindow(projectId, all, commits) {
+    const retrieval = {
+      provider: 'keewano', status: historyConfigured ? 'not_indexed' : 'disabled',
+      indexed_commits: 0, recent_git_commits: commits.length, evidence: [],
+      activity: { contributors: 0, blockers_recorded: 0, items_resolved: 0, next_recorded: 0 },
+    };
+    if (!historyConfigured || !commits.length) return { retrieval, section: '' };
+    const result = await projectHistory(projectId);
+    retrieval.status = result.status;
+    if (typeof result.queried_at === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(result.queried_at) && Number.isFinite(Date.parse(result.queried_at))) retrieval.queried_at = result.queried_at;
+    if (result.status !== 'completed') return { retrieval, section: '' };
+    const confirmed = new Map(all.map(commit => [commit.git.sha, commit]));
+    const verified = new Map();
+    for (const candidate of result.candidates) {
+      if (!candidate || typeof candidate.sha !== 'string' || !/^[0-9a-f]{40}$/i.test(candidate.sha)) continue;
+      const sha = candidate.sha.toLowerCase();
+      const commit = confirmed.get(sha);
+      if (!commit || commit.project_id !== projectId || candidate.actor_id !== commit.author.id || candidate.timestamp !== Math.floor(Date.parse(commit.created_at) / 1000) ||
+        candidate.blockers_recorded !== commit.fields.blocker.length || candidate.next_recorded !== commit.fields.next.length ||
+        candidate.items_resolved !== commit.fields.shipped.reduce((count, item) => count + (item.resolves?.length ?? 0), 0)) continue;
+      verified.set(sha, { commit, candidate });
+    }
+    const indexed = commits.filter(commit => verified.has(commit.git.sha));
+    retrieval.indexed_commits = indexed.length;
+    retrieval.recent_git_commits = commits.length - indexed.length;
+    retrieval.status = indexed.length ? 'completed' : 'not_indexed';
+    retrieval.evidence = indexed.map(commit => ({ commit_id: commit.id, git_sha: commit.git.sha }));
+    const contributors = new Map();
+    for (const commit of indexed) {
+      const candidate = verified.get(commit.git.sha).candidate;
+      contributors.set(commit.author.id, commit.author.name);
+      retrieval.activity.blockers_recorded += candidate.blockers_recorded;
+      retrieval.activity.items_resolved += candidate.items_resolved;
+      retrieval.activity.next_recorded += candidate.next_recorded;
+    }
+    retrieval.activity.contributors = contributors.size;
+    if (!indexed.length) return { retrieval, section: '' };
+    const countText = (count, singular, plural = `${singular}s`) => `${count} ${count === 1 ? singular : plural}`;
+    const activity = retrieval.activity;
+    const section = `Keewano indexed activity: ${countText(indexed.length, 'work commit')} from ${countText(contributors.size, 'contributor')} (${[...contributors.values()].sort().join(', ')}); ${countText(activity.blockers_recorded, 'blocker')} recorded, ${countText(activity.items_resolved, 'resolved-item reference')} recorded, and ${countText(activity.next_recorded, 'next step')} recorded.${retrieval.recent_git_commits ? ` ${countText(retrieval.recent_git_commits, 'additional Git commit')} ${retrieval.recent_git_commits === 1 ? 'is' : 'are'} included directly from Git, outside this query’s verified coverage.` : ''}`;
+    return { retrieval, section };
+  }
   async function staticFile(path, res) {
     let decoded;
     try { decoded = decodeURIComponent(path); } catch { fail(400, 'invalid_input', 'Invalid URL.'); }
@@ -390,8 +465,8 @@ export async function createApp(options = {}) {
           const since = store.seen(user.id, projectId);
           const all = store.commits(projectId).filter(commit => commit.sequence <= through); const commits = all.filter(commit => commit.sequence > since);
           const state = foldState(all);
-          const result = await summarizeWindow(user.id, projectId, since, through, commits, state);
-          json(res, 200, { since_sequence: since, through_sequence: through, commits, summary: result.summary, state, analyzer: result.analyzer, evidence: commits.map(commit => ({ commit_id: commit.id, git_sha: commit.git.sha })) }); return;
+          const [result, history] = await Promise.all([summarizeWindow(user.id, projectId, since, through, commits, state), retrieveWindow(projectId, all, commits)]);
+          json(res, 200, { since_sequence: since, through_sequence: through, commits, summary: history.section ? `${result.summary}\n\n${history.section}` : result.summary, state, analyzer: result.analyzer, evidence: commits.map(commit => ({ commit_id: commit.id, git_sha: commit.git.sha })), retrieval: history.retrieval }); return;
         }
         if (req.method === 'POST' && operation === 'seen') {
           const input = await body(req, 1024); const seen = sequence(input.through_sequence, 'through_sequence');
@@ -428,7 +503,9 @@ export async function createApp(options = {}) {
       await Promise.allSettled([...queues.values()]);
       if (server.listening) await new Promise(done => server.close(done));
       await Promise.allSettled([...catchupInFlight.values()]);
+      await Promise.allSettled([...historyInFlight.values()]);
       catchupCache.clear(); catchupInFlight.clear();
+      historyCache.clear(); historyInFlight.clear();
       store.close();
     },
   };

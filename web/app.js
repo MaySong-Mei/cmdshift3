@@ -769,6 +769,16 @@ function readableSummary(summary) {
   return 'Your project is up to date.';
 }
 
+function historyRetrievalMarkup(retrieval) {
+  if(!retrieval || retrieval.provider!=='keewano' || retrieval.status==='disabled')return '';
+  const count=Number.isInteger(retrieval.indexed_commits)?retrieval.indexed_commits:0;
+  const recent=Number.isInteger(retrieval.recent_git_commits)?retrieval.recent_git_commits:0;
+  const completed=retrieval.status==='completed' && count>0;
+  const title=completed?'History organized with Keewano':retrieval.status==='unavailable'?'History is available from Git':'History is still syncing';
+  const note=completed?`${count} ${count===1?'commit':'commits'} indexed and checked against this project’s Git history.${recent?` ${recent} additional ${recent===1?'update is':'updates are'} included directly from Git.`:''}`:retrieval.status==='unavailable'?'Indexed history could not be reached. Your latest Git updates are included below.':'Your latest Git updates are included below. Indexed history will join the summary when it is ready.';
+  return `<div class="history-retrieval${completed?' ready':''}" role="status"><span class="status-symbol" aria-hidden="true"></span><div><strong>${escapeHTML(title)}</strong><p>${escapeHTML(note)}</p></div></div>`;
+}
+
 async function openCatchup() {
   const dialog=$('#catchup-dialog'),epoch=state.epoch,projectId=state.project.id;
   dialog.innerHTML='<div class="dialog-header"><h2 id="catchup-title">Catch me up</h2><button class="icon-button" data-close aria-label="Close catch-up">×</button></div><div class="dialog-body loading">Finding what changed…</div>';
@@ -778,7 +788,7 @@ async function openCatchup() {
     if(epoch!==state.epoch||!dialog.open)return;
     state.catchup=result;renderCatchupBox();
     const commits=result.commits||[],through=result.through_sequence||0;
-    dialog.innerHTML=`<div class="dialog-header"><h2 id="catchup-title">You're back in the loop.</h2><button class="icon-button" data-close aria-label="Close catch-up">×</button></div><div class="dialog-body"><p class="catchup-subtitle">${escapeHTML(state.project.name)} · ${commits.length} ${commits.length===1?'update':'updates'} since you last marked the project seen.</p><div class="catchup-summary">${escapeHTML(readableSummary(result.summary))}</div>${commits.length?`<div class="catchup-evidence"><div class="eyebrow">THE WORK BEHIND THE UPDATE</div>${commits.map(commit=>`<button class="catchup-entry" data-catchup-commit="${escapeHTML(commit.id)}">${avatar(commit.author)}<div><strong>${escapeHTML(summaryOf(commit))}</strong><small>${escapeHTML(commit.author?.name)} · ${escapeHTML(relativeTime(commit.created_at))}</small></div><span class="sha">${escapeHTML((commit.git?.sha || '').slice(0,7))} ↗</span></button>`).join('')}</div>`:''}<p class="catchup-provider">${escapeHTML(analysisNote(result.analyzer))}</p><p class="helper" style="margin-top:5px">Opening catch-up does not mark anything read.</p></div><div class="dialog-footer"><span class="helper" id="seen-help">Only these updates will be marked seen.</span><button class="button secondary" data-close-bottom>Keep unread</button><button class="button accent" id="mark-seen">Mark seen <span aria-hidden="true">✓</span></button></div>`;
+    dialog.innerHTML=`<div class="dialog-header"><h2 id="catchup-title">You're back in the loop.</h2><button class="icon-button" data-close aria-label="Close catch-up">×</button></div><div class="dialog-body"><p class="catchup-subtitle">${escapeHTML(state.project.name)} · ${commits.length} ${commits.length===1?'update':'updates'} since you last marked the project seen.</p><div class="catchup-summary">${escapeHTML(readableSummary(result.summary))}</div>${historyRetrievalMarkup(result.retrieval)}${commits.length?`<div class="catchup-evidence"><div class="eyebrow">THE WORK BEHIND THE UPDATE</div>${commits.map(commit=>`<button class="catchup-entry" data-catchup-commit="${escapeHTML(commit.id)}">${avatar(commit.author)}<div><strong>${escapeHTML(summaryOf(commit))}</strong><small>${escapeHTML(commit.author?.name)} · ${escapeHTML(relativeTime(commit.created_at))}</small></div><span class="sha">${escapeHTML((commit.git?.sha || '').slice(0,7))} ↗</span></button>`).join('')}</div>`:''}<p class="catchup-provider">${escapeHTML(analysisNote(result.analyzer))}</p><p class="helper" style="margin-top:5px">Opening catch-up does not mark anything read.</p></div><div class="dialog-footer"><span class="helper" id="seen-help">Only these updates will be marked seen.</span><button class="button secondary" data-close-bottom>Keep unread</button><button class="button accent" id="mark-seen">Mark seen <span aria-hidden="true">✓</span></button></div>`;
     bindDialogClose(dialog);$('[data-close-bottom]',dialog).addEventListener('click',()=>dialog.close());
     $$('[data-catchup-commit]',dialog).forEach(button=>button.addEventListener('click',()=>{dialog.close();openDetail(button.dataset.catchupCommit);}));
     $('#mark-seen').addEventListener('click',async()=>{
