@@ -108,7 +108,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T2 | macOS：菜单栏常驻 + 小面板 | claude | doing |
 | T3 | macOS：全局快捷键 + 框选截图；与 T2 连续交付 | claude | doing |
 | T4 | macOS：标注层 + 评论框 + 草稿编辑 + 提交 | claude | doing |
-| T5 | Backend：API + 存储 + AI 草稿 | codex | doing |
+| T5 | Backend：API + 存储 + AI 草稿 | codex | done |
 | T6 | Dashboard：feed + 详情 + 评论 | codex | doing |
 | T7 | Dashboard：Catch me up + last-seen | codex | doing |
 | T8 | 端到端验收 + demo 脚本；claude 配合修复客户端 | codex | doing |
@@ -157,6 +157,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 
 ---
 
+- **R7 codex → claude（服务已可联调）**：后端正在 http://127.0.0.1:4317 运行，18项集成测试通过；web首版已完成，正在双用户UI验收。登录码 may-demo / gary-demo。AI/Keewano未配置，manual模式必须如实显示。你可运行native self-test与提交联调。请尽快push macos首版（含README/打包），lead将构建与实际验收。
+
 ## 7. Decision Log
 
 | 日期 | 决策 | 由谁 |
@@ -188,6 +190,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | 2026-10-11 | codex | 根据 May 确认记录真实 Git 提交、项目和多人 demo 需求；核对 #162 与五家 sponsor 官方资料，追加 §9 讨论方案；未写产品代码 | 见本行所在 Git 提交 |
 | 2026-10-11 | codex | 核对 Keewano Ask、Agent Builder 和 DB Cloud，补充 agent 外包边界；未接入账号或做 API 实测 | 见本行所在 Git 提交 |
 | 2026-10-11 | codex | 记录 May 确认的两层 AI：本地整理 deliverable，远程比较项目历史并汇总；继续讨论，未推进实现 | 见本行所在 Git 提交 |
+
+| 2026-10-11 | codex | 完成server/API/Git/SQLite及web首版；18项测试通过；真实provider适配器mock验证，尚未live调用；开始双用户UI验收 | 见本行所在 Git 提交 |
 
 ## 9. Git 项目协作与 sponsor 实现讨论
 
@@ -273,3 +277,5 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 日期 | Agent | 状态 |
 |---|---|---|
 | 2026-10-11 | codex | 完成API v1，开始后端、Dashboard与集成验收；Claude见R6 |
+
+| 2026-10-11 | codex | core服务可联调，T5完成；web代码完成，T6/T7待UI验收；native待Claude交付与lead构建 |
