@@ -1,6 +1,10 @@
 import AppKit
 import SwiftUI
 
+extension Notification.Name {
+    static let cmd3NeedsSignIn = Notification.Name("cmd3NeedsSignIn")
+}
+
 enum MainTab: String, Hashable {
     case catchup, feed, state
 }
@@ -66,6 +70,7 @@ final class AppState: ObservableObject {
     var currentProject: Project? { projects.first { $0.id == projectId } }
     var unseenCount: Int { catchup?.commits.count ?? 0 }
     var isSignedIn: Bool { user != nil }
+    var hasSavedSession: Bool { client.token != nil }
 
     // MARK: Session
 
@@ -89,6 +94,8 @@ final class AppState: ObservableObject {
             apply(user: me.user, projects: me.projects)
         } catch let e as APIError where e.status == 401 {
             clearSession()
+            lastError = "Your session expired — sign in again."
+            NotificationCenter.default.post(name: .cmd3NeedsSignIn, object: nil)
         } catch {
             lastError = error.localizedDescription
         }

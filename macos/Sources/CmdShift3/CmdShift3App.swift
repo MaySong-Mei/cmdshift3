@@ -10,8 +10,7 @@ struct CmdShift3App: App {
         MenuBarExtra {
             MenuPanel().environmentObject(app)
         } label: {
-            Image(systemName: "camera.viewfinder")
-            if app.unseenCount > 0 { Text("\(app.unseenCount)") }
+            MenuBarLabel().environmentObject(app)
         }
         .menuBarExtraStyle(.window)
 
@@ -35,5 +34,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         hotKey = HotKey { AppState.shared.startCapture() }
+    }
+}
+
+/// The menu bar label is rendered at launch, so it is where we can reach
+/// openWindow: with no saved session, open the main window for sign-in.
+struct MenuBarLabel: View {
+    @EnvironmentObject var app: AppState
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "camera.viewfinder")
+            if app.unseenCount > 0 { Text("\(app.unseenCount)") }
+        }
+        .onAppear {
+            guard !CommandLine.arguments.contains("--selftest"), !app.hasSavedSession else { return }
+            openWindow(id: "main")
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .cmd3NeedsSignIn)) { _ in
+            openWindow(id: "main")
+            NSApp.activate(ignoringOtherApps: true)
+        }
     }
 }

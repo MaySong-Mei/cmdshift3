@@ -3,7 +3,6 @@ import SwiftUI
 struct MenuPanel: View {
     @EnvironmentObject var app: AppState
     @Environment(\.openWindow) private var openWindow
-    @State private var code = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -20,20 +19,7 @@ struct MenuPanel: View {
 
     // MARK: Signed out
 
-    private var signIn: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("CmdShift3").font(.headline)
-            Text("Commit your work. Everyone stays caught up.").font(.caption).foregroundStyle(.secondary)
-            TextField("Server", text: $app.endpoint).textFieldStyle(.roundedBorder)
-            HStack {
-                TextField("Login code", text: $code).textFieldStyle(.roundedBorder)
-                    .onSubmit { Task { await app.signIn(code: code) } }
-                Button("Sign in") { Task { await app.signIn(code: code) } }
-                    .disabled(code.isEmpty || app.signingIn)
-            }
-            Text("Demo codes: may-demo, gary-demo").font(.caption2).foregroundStyle(.secondary)
-        }
-    }
+    private var signIn: some View { SignInForm() }
 
     // MARK: Signed in
 
@@ -118,6 +104,27 @@ struct MenuPanel: View {
         app.mainTab = tab
         openWindow(id: "main")
         NSApp.activate(ignoringOtherApps: true)
+    }
+}
+
+/// Shared by the menu bar panel and the first-launch welcome window.
+struct SignInForm: View {
+    @EnvironmentObject var app: AppState
+    @State private var code = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("CmdShift3").font(.headline)
+            Text("Commit your work. Everyone stays caught up.").font(.caption).foregroundStyle(.secondary)
+            TextField("Server", text: $app.endpoint).textFieldStyle(.roundedBorder)
+            HStack {
+                TextField("Login code", text: $code).textFieldStyle(.roundedBorder)
+                    .onSubmit { Task { await app.signIn(code: code) } }
+                Button("Sign in") { Task { await app.signIn(code: code) } }
+                    .disabled(code.isEmpty || app.signingIn)
+            }
+            Text("Demo codes: may-demo, gary-demo").font(.caption2).foregroundStyle(.secondary)
+        }
     }
 }
 

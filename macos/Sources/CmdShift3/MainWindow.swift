@@ -16,7 +16,7 @@ struct MainView: View {
         } detail: {
             Group {
                 if !app.isSignedIn {
-                    ContentUnavailableView("Sign in from the menu bar", systemImage: "menubar.arrow.up.rectangle")
+                    WelcomeView()
                 } else {
                     switch app.mainTab {
                     case .catchup: CatchupView()
@@ -298,5 +298,31 @@ struct StateSection: View {
                 }
             }
         }
+    }
+}
+
+// MARK: First launch
+
+struct WelcomeView: View {
+    @EnvironmentObject var app: AppState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Image(systemName: "camera.viewfinder").font(.system(size: 40)).foregroundStyle(.tint)
+            SignInForm()
+            if let e = app.lastError {
+                Text(e).font(.caption).foregroundStyle(.red)
+            }
+            Divider()
+            VStack(alignment: .leading, spacing: 6) {
+                Label("CmdShift3 lives in the menu bar (camera icon, top right).", systemImage: "menubar.rectangle")
+                Label("Press \(HotKey.displayString) anywhere to commit what is on screen.", systemImage: "keyboard")
+                Label("First capture asks for Screen Recording permission.", systemImage: "lock.shield")
+            }
+            .font(.callout).foregroundStyle(.secondary)
+        }
+        .padding(28)
+        .frame(maxWidth: 440)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
