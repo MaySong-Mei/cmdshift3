@@ -227,8 +227,6 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 - **T11接口提案 codex**：新增公开模式CMD3_MODE=public；POST /api/accounts {username,name,password}、POST /api/session {username,password}（原{code}仍支持）、POST /api/me/access-code生成并轮换个人Mac code；GET /api/health增加mode/public_registration。新增POST /api/projects {name,description,context,phase,deadline}、POST /api/projects/join {code}、GET /api/projects/:id/context返回project/members/history、POST /api/projects/:id/context由owner带expected_version更新、POST /api/projects/:id/invite由owner生成7天有效邀请。项目背景为人确认的版本记录，AI不直接改目标；Work Commit v1不变，author仍来自session，成员隔离。公开账号用户名+密码，不依赖邮箱/OAuth；没有密码找回暂明确说明。新项目默认private，无默认May/Gary memberships；本地demo模式兼容。限流、AI并发/每日额度和存储额度限制只保护公开服务。
 - **R18完成 codex → claude**：公开版 https://cmdshift3-web-production.up.railway.app 已上线（源ec7aea2，重启部署087260a8）；60/60 tests和公网独立owner/member/outsider、PNG真实Git/幂等、评论、个人seen、背景版本409、Mac code轮换、DeepSeek draft/catchup completed及重启数据保留验收通过。Web背景卡编辑保存到v3且reload保留，登录/登出/注册入口可用。最终Mac zip无需重建；用户先在Web注册/建项目并生成个人code，再用此HTTPS URL与code连接原native。主4317/本地历史/native/UserDefaults未改，接收你9973118的Screen Recording暂停，T8仍未完成，不将云验收计为真机截图验收。源版本已pin，docs后续push不会自动重部署。
 
-## 7. Decision Log
-
 - **R19 codex → claude（T12开工）**：May新要求截图commit核心体验，允许本轮新开发/构建（仅新路径，不覆盖已授权最终bundle）。请认领T12 doing，只改macos/及自己的COLLAB条目；API不变，server/web/docs由lead负责。
   1. 沿用系统可靠框选，捕获后增加约200–300ms柔和淡入/轻微scale与一次accent边框pulse；尊重Reduce Motion，不持续闪烁，不将效果烧进证据PNG。成功效果仅在真实Commit响应后显示SHA/sync。
   2. 将Composer做成持久、截图占主面积的编辑工作台，友好“Captured · Add a mark or tell your team what changed.”；工具Box/Arrow/Highlight/Text可发现、两行布局适合MacBook，颜色/Undo有accessibility label和help。comment明显，空态引导用户一句话。项目始终可见，AI结构字段默认折叠，在主动Draft后展开供审核；Return换行，只有明确Commit/⌘↩提交，不自动发送。
@@ -236,6 +234,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   4. 公开新用户默认endpoint用已部署HTTPS（AppState有保存endpoint继续沿用）；Welcome明确个人Mac code来自网页Connect Mac app，不能在公开域名诱导may-demo/gary-demo。bundle版本更新0.2.0，原local4317和旧app/UserDefaults不重置。
   5. 为lead无TCC重置的布局验收提供开发参数 --preview-capture <PNG path>：用指定的非敏感fixture打开同一editor，可加标记/comment；清楚显示preview状态，禁用真实Draft/Commit、避免自动网络/写UserDefaults，不要求屏幕权限，不注册抢占旧app热键。正常启动行为不受影响。若不宜实现则给lead替代实际UI预览方法，不要冒充真实捕获验收。
   6. 可以编译验证，不启动GUI/不kill正在运行旧app/不做真截图/不触碰云API；lead先独立GUI验收。测试必要模型状态与Swift构建，已有native selftest只用scratch endpoint/data；本轮不扩大广泛review。提交push并写实现/验证及新包路径，lead接收后冻结一次最终build、更新web/downloads并部署新commit。输出建议 /private/tmp/cmdshift3-experience/CmdShift3.app（旧/private/tmp/cmdshift3-demo保持原样）。
+
+## 7. Decision Log
 
 - **T12决定 codex（lead）**：May要求“截图commit是核心功能，需要截图的时候有特效，也很friendly，可以停在那边增加标记和comment”。本轮先沿用已真机验证的系统框选，动效放在捕获后的持久编辑画布，保留截图原图与0–1 annotation metadata，API/Git/frozen retry不变；截图优先、comment优先、结构字段渐进展开。用户主动Draft才发送截图整理，Commit才生成项目历史，不宣称AI读取未传入的annotation。新原生包独立构建验收后再更新公开下载。
 
