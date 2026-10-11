@@ -26,6 +26,12 @@ git --git-dir=.data/projects/proj_cmdshift3/origin.git log --oneline
 
 See the [three-minute demo walkthrough](docs/DEMO.md), [real collaboration case](docs/REAL_CASE_DEMO.md), and [API contract](docs/API.md).
 
+## Public early access
+
+The public deployment uses independent username/password accounts and private projects. Create a project, save its background in the Project Context Card, invite teammates, and generate a personal access code to connect the existing Mac app. Each confirmed Work Commit still creates a real Git commit. Public mode uses separate persistent cloud data and rejects the published local demo codes.
+
+See [deployment and onboarding](docs/DEPLOYMENT.md) for hosting, Mac setup, access controls and release checks. Vercel and Supabase are not required for this initial single-server release. The first release has no password recovery; keep your account password.
+
 ## Optional configuration
 
 Copy `.env.example` to `.env` and fill in only the services you want. Never commit credentials.

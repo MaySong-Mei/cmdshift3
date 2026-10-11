@@ -1,0 +1,11 @@
+.git
+.env
+.env.*
+.data
+work
+outputs
+node_modules
+macos
+test
+*.log
+.DS_Store

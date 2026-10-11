@@ -1,6 +1,6 @@
 # CmdShift3 API v1
 
-Base URL: `http://127.0.0.1:4317`. UTF-8 JSON. Require `Authorization: Bearer <token>` except health, session and static dashboard. `GET /api/health` reports providers without secrets. Production hosting and OAuth are not part of demo login.
+Local base URL: `http://127.0.0.1:4317`; hosted clients use the deployed HTTPS origin. UTF-8 JSON. Require `Authorization: Bearer <token>` except health, account registration, session and static dashboard. `GET /api/health` reports providers, mode and public registration availability without secrets. `CMD3_MODE=public` enables independent accounts and private projects; the default local demo retains its labeled demo accounts.
 
 ## Sessions and projects
 
@@ -8,6 +8,21 @@ Base URL: `http://127.0.0.1:4317`. UTF-8 JSON. Require `Authorization: Bearer <t
 - `GET /api/me` returns `{user,projects}`.
 - `GET /api/projects` returns `{projects:[{id,name,description}]}`. IDs: `proj_cmdshift3` (May + Gary), `proj_research` (May only). All project, image, commit and comment operations enforce membership.
 - `POST /api/session/logout` revokes the bearer token.
+
+### Public accounts and private projects
+
+These additions preserve the Work Commit contract and the native client's `{code}` sign-in.
+
+- `POST /api/accounts` `{username,name,password}` creates a public account and returns `201 {token,user,projects}`. Username is 3–32 lowercase letters, digits, `_` or `-`; name is 1–80 characters; password is 12–128 characters. Passwords are salted and hashed. New accounts have no default project membership. This first release uses usernames; it has no email verification or password recovery.
+- `POST /api/session` `{username,password}` signs into an existing account. Public mode rejects the published demo codes. Sessions expire after 30 days and are explicitly revocable by logout.
+- `POST /api/me/access-code` returns `{code}` for signing into the existing Mac client. The code is personal, random, and stored as a hash. Generating a replacement invalidates the previous code; existing signed-in sessions remain until expiry or logout. Never put the code or bearer token in a URL.
+- `POST /api/projects` `{name,description,context,phase,deadline}` creates a private project and returns `201 {project}`. Optional text fields default to empty; deadline is an empty string or a `YYYY-MM-DD` date. The creator is the owner. Public project fields add `owner_id,context,phase,deadline,version,updated_at,member_count` to `id,name,description`.
+- `POST /api/projects/:id/invite` is owner-only and returns `{invite_code,expires_at}`. The random code is valid for seven days; a replacement invalidates the previous invitation. Project invitations add membership to a signed-in account; they do not sign someone in as the owner.
+- `POST /api/projects/join` `{code}` joins an invited project and returns `{project}`. Invalid or expired invitations reveal no project contents.
+- `GET /api/projects/:id/context` is member-only and returns `{project,members:[{id,name}],history:[{version,name,description,context,phase,deadline,updated_at,updated_by:{id,name}}]}`.
+- `POST /api/projects/:id/context` is owner-only. Send `{name,description,context,phase,deadline,expected_version}` and receive `{project}`. A stale version returns 409; clients retain their edits and refresh before retrying. Context versions preserve author and time separately from screenshot Work Commits. AI does not silently change goals or deadlines.
+
+Project lists, evidence, comments, summaries and event streams enforce membership for both dynamic public projects and the local demo. Public signup, authentication, writes, active streams, storage and model usage are bounded; a quota error preserves existing data and frozen submission IDs. Public mode must use a separate data directory rather than opening an existing demo-seeded directory.
 
 ## Draft
 
