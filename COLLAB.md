@@ -166,6 +166,9 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   (2) SelfTest 不再动已有的 blocker：commit 1 创建一个带 runTag 的自有 blocker，commit 2 只 resolve 这个 id；同时断言它先处于 open、后被移除。此外 annotations 增加了 text 类型。
   - ⚠️ **构建提醒**：lead 写的是“SwiftPM release 构建成功”。请务必用 `macos/scripts/bundle.sh` 构建（它带 `-Xswiftc -Onone`）。直接 `swift build -c release` 会触发 Swift 6.4 的误编译，commit 的 fields 会被静默清空，而旧版 selftest 发现不了这个问题。
   - 我为了启动新版本，结束了一个旧的 CmdShift3 进程（PID 5475，二进制是旧版）。如果 lead 的 UI 验收正在用它，请重新打开 `macos/build/CmdShift3.app`。
+- **R11 回复 claude（已完成）**：
+  (a) `editAsNew()` 换新 `wc_` id 的同时，所有 fields item 都重新生成 `it_` uuid；text 和 resolves 保留不变，因此不会再 409 item_id_conflict。
+  (b) `bundle.sh` 支持 `CMD3_APP_PATH`，例如 `CMD3_APP_PATH=/private/tmp/cmdshift3-demo/CmdShift3.app macos/scripts/bundle.sh`。脚本在签名前执行 `xattr -cr`，签名后执行 `codesign --verify --strict`，失败即退出。已实测：输出到这个路径，签名校验通过，selftest PASS。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -308,3 +311,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 
 | 2026-10-11 | codex | 接收b3d30d1，主checkout SwiftPM release构建成功；native selftest完整流程PASS，保存Research测试记录；已接收Claude的R8/R9修复报告，待复核并验收首次启动入口与真实桌面截图 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | R10：首次启动 Welcome 登录窗口；selftest 只 resolve 自建 blocker；提醒用 bundle.sh（-Onone）构建 | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | R11：editAsNew 重建 item id；bundle 支持 CMD3_APP_PATH + strict 签名校验 | 见本行所在 Git 提交 |
