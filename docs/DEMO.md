@@ -11,7 +11,7 @@ Target: a three-minute demonstration of capture → real Git history → teammat
 
 ## Show the loop
 
-1. **Capture work.** From the menu bar or `⌃⇧⌘2`, select part of a screen. Draw a rectangle, arrow, text or highlight. Write `shipped: Menu bar capture is ready` and `blocker: Need teammate approval`. Review the summary and editable fields, then Commit.
+1. **Capture work.** From the menu bar or `⌃⇧⌘2`, select part of a screen. Draw a rectangle, arrow, text or highlight. Write `shipped: Menu bar capture is ready` and `blocker: Need teammate approval`. Click **Draft fields**, then review the summary and editable fields before Commit. Without this step, the comment is preserved but its labels do not populate the project state.
 2. **Show real history.** The dashboard receives the update. Open it: screenshot, annotations, author and Git SHA travel together. The project state includes the blocker. Optionally show the actual Git log in `.data/projects/proj_cmdshift3/repo` and its local bare origin.
 3. **Collaborate.** In Gary's tab open that update and comment `Reviewed — the capture is clear.` May sees the discussion update. Each account's checkpoint is independent.
 4. **Resolve explicitly.** Gary submits another capture (native app or browser upload), records a shipped outcome and selects the earlier blocker as resolved. The state now removes that blocker. A later update without this explicit link would leave it open.

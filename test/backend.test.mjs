@@ -37,14 +37,14 @@ function git(repo, ...args) {
   return execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim();
 }
 
-async function fixture(t) {
+async function fixture(t, options = {}) {
   const dataDir = await mkdtemp(path.join(tmpdir(), 'cmdshift3-test-'));
   const aiEnvironment = new Map(['CMD3_AI_API_KEY', 'CMD3_AI_MODEL'].map((key) => [key, process.env[key]]));
   for (const key of aiEnvironment.keys()) delete process.env[key];
   let app;
   let base;
   const start = async () => {
-    app = await createApp({ dataDir });
+    app = await createApp({ dataDir, ...options });
     await app.listen(0, '127.0.0.1');
     base = `http://127.0.0.1:${app.server.address().port}`;
   };
@@ -77,6 +77,7 @@ async function fixture(t) {
   const may = await login('may-demo');
   const gary = await login('gary-demo');
   return {
+    get app() { return app; },
     dataDir,
     may,
     gary,
@@ -342,6 +343,207 @@ test('catch-up cursors are explicit, per-user and per-project, and preserve arri
   assert.equal((await f.json('GET', `/api/projects/${PROJECT}/catchup`, f.gary.token)).since_sequence, 2, 'invalid future cursor must leave the unseen arrival intact');
   await f.submit(f.may.token, deliverable({ project_id: RESEARCH }));
   assert.equal((await f.json('GET', `/api/projects/${RESEARCH}/catchup`, f.may.token)).since_sequence, 0);
+});
+
+test('catch-up shares concurrent summaries and keys completed results by viewer, project and checkpoint window', { timeout: 15000 }, async (t) => {
+  const gate = Promise.withResolvers();
+  t.after(() => gate.resolve());
+  const calls = [];
+  const f = await fixture(t, {
+    summarizeProject: async (input) => {
+      const call = calls.push(structuredClone(input));
+      await gate.promise;
+      return { summary: `Summary ${call}: ${input.project_id} ${input.since_sequence}-${input.through_sequence}`, analyzer: { provider: 'openai', status: 'completed' } };
+    },
+  });
+  process.env.CMD3_AI_API_KEY = 'test-only-key';
+  process.env.CMD3_AI_MODEL = 'test-only-model';
+  const first = await f.submit(f.may.token, deliverable());
+  const endpoint = `/api/projects/${PROJECT}/catchup`;
+  const arrived = Promise.withResolvers();
+  let requests = 0;
+  const observe = (req) => {
+    if (req.method === 'GET' && req.url === endpoint && ++requests === 2) arrived.resolve();
+  };
+  f.app.server.on('request', observe);
+  const pending = [f.json('GET', endpoint, f.may.token), f.json('GET', endpoint, f.may.token)];
+  let initial;
+  try {
+    await arrived.promise;
+    assert.equal(calls.length, 1, 'both HTTP requests reached the route, but only one model call may start');
+    gate.resolve();
+    const [left, right] = await Promise.all(pending);
+    assert.deepEqual(left, right);
+    initial = left;
+  } finally {
+    gate.resolve();
+    f.app.server.off('request', observe);
+    await Promise.allSettled(pending);
+  }
+  assert.deepEqual(await f.json('GET', endpoint, f.may.token), initial);
+  const anotherMaySession = await f.login('may-demo');
+  assert.equal((await f.json('GET', endpoint, anotherMaySession.token)).summary, initial.summary);
+  assert.equal(calls.length, 1, 'cache belongs to the user, rather than one bearer session');
+
+  const gary = await f.json('GET', endpoint, f.gary.token);
+  assert.equal(calls.length, 2, 'another viewer must receive a separate summary');
+  assert.notEqual(gary.summary, initial.summary);
+  assert.deepEqual(await f.json('GET', endpoint, f.gary.token), gary);
+  assert.equal(calls.length, 2);
+
+  const second = await f.submit(f.gary.token, deliverable({ summary: 'Dashboard ready' }));
+  const changed = await f.json('GET', endpoint, f.may.token);
+  assert.equal(calls.length, 3, 'a new through_sequence requires new analysis');
+  assert.equal(changed.through_sequence, 2);
+  assert.deepEqual(changed.commits.map((commit) => commit.id), [second.id, first.id]);
+  await f.json('POST', `/api/projects/${PROJECT}/seen`, f.may.token, { through_sequence: 1 });
+  const afterSeen = await f.json('GET', endpoint, f.may.token);
+  assert.equal(calls.length, 4, 'advancing the personal checkpoint requires a new window');
+  assert.equal(afterSeen.since_sequence, 1);
+  assert.equal(afterSeen.through_sequence, 2);
+  assert.deepEqual(afterSeen.commits.map((commit) => commit.id), [second.id]);
+  assert.deepEqual(await f.json('GET', endpoint, f.may.token), afterSeen);
+  assert.equal(calls.length, 4);
+
+  const researchCommit = await f.submit(f.may.token, deliverable({ project_id: RESEARCH, summary: 'Private research' }));
+  const research = await f.json('GET', `/api/projects/${RESEARCH}/catchup`, f.may.token);
+  assert.equal(calls.length, 5, 'another project with the same 0-1 window must not reuse the first project result');
+  assert.deepEqual(research.commits.map((commit) => commit.id), [researchCommit.id]);
+  assert.notEqual(research.summary, initial.summary);
+  assert.deepEqual(calls.map(({ project_id, since_sequence, through_sequence }) => [project_id, since_sequence, through_sequence]), [
+    [PROJECT, 0, 1], [PROJECT, 0, 1], [PROJECT, 0, 2], [PROJECT, 1, 2], [RESEARCH, 0, 1],
+  ]);
+});
+
+test('catch-up caches the explicit manual mode and changes cache entries when the AI provider becomes configured', async (t) => {
+  let calls = 0;
+  const f = await fixture(t, {
+    summarizeProject: async () => {
+      const configured = Boolean(process.env.CMD3_AI_API_KEY && process.env.CMD3_AI_MODEL);
+      calls++;
+      return { summary: `Provider summary ${calls}`, analyzer: configured ? { provider: 'openai', status: 'completed' } : { provider: 'manual', status: 'not_configured' } };
+    },
+  });
+  await f.submit(f.may.token, deliverable());
+  const endpoint = `/api/projects/${PROJECT}/catchup`;
+  const manual = await f.json('GET', endpoint, f.may.token);
+  assert.deepEqual(manual.analyzer, { provider: 'manual', status: 'not_configured' });
+  assert.deepEqual(await f.json('GET', endpoint, f.may.token), manual);
+  assert.equal(calls, 1, 'unconfigured manual results can be reused');
+  process.env.CMD3_AI_API_KEY = 'test-only-key';
+  assert.deepEqual(await f.json('GET', endpoint, f.may.token), manual);
+  assert.equal(calls, 1, 'a key without a model still represents the same unconfigured provider');
+  process.env.CMD3_AI_MODEL = 'test-only-model';
+  const configured = await f.json('GET', endpoint, f.may.token);
+  assert.deepEqual(configured.analyzer, { provider: 'openai', status: 'completed' });
+  assert.notEqual(configured.summary, manual.summary);
+  assert.deepEqual(await f.json('GET', endpoint, f.may.token), configured);
+  assert.equal(calls, 2, 'enabling the provider cannot return the cached manual fallback');
+  delete process.env.CMD3_AI_API_KEY;
+  delete process.env.CMD3_AI_MODEL;
+  assert.deepEqual(await f.json('GET', endpoint, f.may.token), manual);
+  assert.equal(calls, 2);
+});
+
+test('catch-up retries an unavailable AI fallback and caches only the later completed result', async (t) => {
+  let calls = 0;
+  const f = await fixture(t, {
+    summarizeProject: async () => {
+      calls++;
+      return calls === 1
+        ? { summary: 'Temporary manual fallback', analyzer: { provider: 'manual', status: 'ai_unavailable' } }
+        : { summary: 'Recovered AI summary', analyzer: { provider: 'openai', status: 'completed' } };
+    },
+  });
+  process.env.CMD3_AI_API_KEY = 'test-only-key';
+  process.env.CMD3_AI_MODEL = 'test-only-model';
+  await f.submit(f.may.token, deliverable());
+  const endpoint = `/api/projects/${PROJECT}/catchup`;
+  const failed = await f.json('GET', endpoint, f.may.token);
+  assert.deepEqual(failed.analyzer, { provider: 'manual', status: 'ai_unavailable' });
+  const recovered = await f.json('GET', endpoint, f.may.token);
+  assert.equal(calls, 2, 'the next request must retry rather than cache an unavailable fallback');
+  assert.deepEqual(recovered.analyzer, { provider: 'openai', status: 'completed' });
+  assert.notEqual(recovered.summary, failed.summary);
+  assert.deepEqual(await f.json('GET', endpoint, f.may.token), recovered);
+  assert.equal(calls, 2, 'a completed retry becomes reusable');
+});
+
+test('cached catch-up still checks current membership and bearer session on every request', async (t) => {
+  let calls = 0;
+  const f = await fixture(t, {
+    summarizeProject: async () => ({ summary: `Summary ${++calls}`, analyzer: { provider: 'openai', status: 'completed' } }),
+  });
+  await f.submit(f.may.token, deliverable());
+  const endpoint = `/api/projects/${PROJECT}/catchup`;
+  const may = await f.json('GET', endpoint, f.may.token);
+  await f.json('GET', endpoint, f.gary.token);
+  assert.equal(calls, 2);
+  f.app.store.db.prepare('DELETE FROM memberships WHERE user_id = ? AND project_id = ?').run(f.gary.user.id, PROJECT);
+  await f.json('GET', endpoint, f.gary.token, undefined, 403);
+  assert.deepEqual(await f.json('GET', endpoint, f.may.token), may);
+  await f.json('POST', '/api/session/logout', f.may.token, {});
+  await f.json('GET', endpoint, f.may.token, undefined, 401);
+  await f.json('GET', endpoint, null, undefined, 401);
+  await f.json('GET', endpoint, 'not-a-real-token', undefined, 401);
+  assert.equal(calls, 2, 'unauthorized requests must never use a cached result or invoke the model');
+  const newSession = await f.login('may-demo');
+  assert.deepEqual(await f.json('GET', endpoint, newSession.token), may);
+  assert.equal(calls, 2, 'a fresh authorized session can reuse its user summary');
+});
+
+test('catch-up keeps its original state and evidence window while the model waits for a later commit', { timeout: 15000 }, async (t) => {
+  const gate = Promise.withResolvers();
+  const started = Promise.withResolvers();
+  t.after(() => gate.resolve());
+  const calls = [];
+  const f = await fixture(t, {
+    summarizeProject: async (input) => {
+      calls.push(structuredClone(input));
+      started.resolve();
+      await gate.promise;
+      return { summary: `Through ${input.through_sequence}: ${input.state.blockers.map((entry) => entry.text).join('; ')}`, analyzer: { provider: 'openai', status: 'completed' } };
+    },
+  });
+  const oldBlocker = item('Authentication blocks handoff');
+  const first = await f.submit(f.may.token, deliverable({ fields: fields({ blocker: [oldBlocker] }) }));
+  const endpoint = `/api/projects/${PROJECT}/catchup`;
+  const pending = f.json('GET', endpoint, f.gary.token);
+  let second;
+  let newerBlocker;
+  let snapshot;
+  try {
+    await started.promise;
+    newerBlocker = item('Export needs review');
+    second = await f.submit(f.may.token, deliverable({ fields: fields({
+      shipped: [item('Authentication works', { resolves: [oldBlocker.id] })], blocker: [newerBlocker],
+    }) }));
+    gate.resolve();
+    snapshot = await pending;
+  } finally {
+    gate.resolve();
+    await Promise.allSettled([pending]);
+  }
+  assert.equal(snapshot.since_sequence, 0);
+  assert.equal(snapshot.through_sequence, 1);
+  assert.deepEqual(snapshot.commits.map((commit) => commit.id), [first.id]);
+  assert.deepEqual(snapshot.evidence, [{ commit_id: first.id, git_sha: first.git.sha }]);
+  assert.deepEqual(snapshot.state.blockers.map((entry) => entry.id), [oldBlocker.id]);
+  assert.deepEqual(snapshot.state.shipped, []);
+  assert.match(snapshot.summary, /Authentication blocks handoff/);
+  assert.equal(calls[0].through_sequence, 1);
+  assert.deepEqual(calls[0].commits.map((commit) => commit.id), [first.id]);
+  assert.deepEqual(calls[0].state, snapshot.state);
+  const current = await f.json('GET', endpoint, f.gary.token);
+  assert.equal(calls.length, 2, 'the later sequence must receive its own analysis');
+  assert.equal(current.through_sequence, 2);
+  assert.deepEqual(current.commits.map((commit) => commit.id), [second.id, first.id]);
+  assert.deepEqual(current.evidence, [
+    { commit_id: second.id, git_sha: second.git.sha }, { commit_id: first.id, git_sha: first.git.sha },
+  ]);
+  assert.deepEqual(current.state.blockers.map((entry) => entry.id), [newerBlocker.id]);
+  assert.deepEqual(current.state.shipped.map((entry) => entry.commit_id), [second.id]);
+  assert.match(current.summary, /Export needs review/);
 });
 
 test('comments preserve their session author and do not rewrite immutable deliverables', async (t) => {

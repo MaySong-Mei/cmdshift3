@@ -7,6 +7,8 @@ import { ApiError, fail, text, source, decodePNG, annotations, fields, requestHa
 import { organizeDeliverable, summarizeProject, providerStatus } from './lib/ai.mjs';
 
 const MAX_BODY = 12 * 1024 * 1024;
+const CATCHUP_CACHE_LIMIT = 128;
+const CATCHUP_CACHE_TTL = 10 * 60 * 1000;
 const MIME = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon' };
 function json(res, status, value) { if (!res.destroyed) { res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(value)); } }
 async function body(req) {
@@ -27,6 +29,8 @@ export async function createApp(options = {}) {
   const repositories = new Map();
   const queues = new Map();
   const streams = new Map();
+  const catchupCache = new Map();
+  const catchupInFlight = new Map();
   let closing = false;
   const organize = options.organizeDeliverable ?? organizeDeliverable;
   const summarize = options.summarizeProject ?? summarizeProject;
@@ -71,6 +75,33 @@ export async function createApp(options = {}) {
   }
   function markRemoteSynced(projectId) {
     for (const commit of store.commits(projectId)) if (!commit.git.remote_synced) { commit.git.remote_synced = true; store.updateCommit(commit); }
+  }
+  function summarizeWindow(userId, projectId, since, through, commits, state) {
+    const ai = providerStatus().ai;
+    const key = JSON.stringify([userId, projectId, since, through, ai.provider, ai.configured]);
+    const cached = catchupCache.get(key);
+    if (cached && cached.expires > Date.now()) {
+      // Refresh insertion order for bounded LRU retention, preserving the original expiry.
+      catchupCache.delete(key); catchupCache.set(key, cached);
+      return Promise.resolve(cached.result);
+    }
+    if (cached) catchupCache.delete(key);
+    if (catchupInFlight.has(key)) return catchupInFlight.get(key);
+    const pending = Promise.resolve().then(() => summarize({ commits, state, since_sequence: since, through_sequence: through, project_id: projectId })).then(result => {
+      const analyzer = result?.analyzer;
+      const cacheable = typeof result?.summary === 'string' && (
+        (analyzer?.provider === 'manual' && analyzer.status === 'not_configured') ||
+        (typeof analyzer?.provider === 'string' && analyzer.provider !== 'manual' && analyzer.status === 'completed')
+      );
+      if (cacheable) {
+        catchupCache.set(key, { result, expires: Date.now() + CATCHUP_CACHE_TTL });
+        while (catchupCache.size > CATCHUP_CACHE_LIMIT) catchupCache.delete(catchupCache.keys().next().value);
+      }
+      return result;
+    });
+    catchupInFlight.set(key, pending);
+    pending.finally(() => { if (catchupInFlight.get(key) === pending) catchupInFlight.delete(key); }).catch(() => {});
+    return pending;
   }
   async function staticFile(path, res) {
     let decoded;
@@ -189,9 +220,9 @@ export async function createApp(options = {}) {
         if (req.method === 'GET' && operation === 'state') { json(res, 200, { state: foldState(store.commits(projectId)), through_sequence: through }); return; }
         if (req.method === 'GET' && operation === 'catchup') {
           const since = store.seen(user.id, projectId);
-          const all = store.commits(projectId); const commits = all.filter(commit => commit.sequence > since && commit.sequence <= through);
+          const all = store.commits(projectId).filter(commit => commit.sequence <= through); const commits = all.filter(commit => commit.sequence > since);
           const state = foldState(all);
-          const result = await summarize({ commits, state, since_sequence: since, through_sequence: through, project_id: projectId });
+          const result = await summarizeWindow(user.id, projectId, since, through, commits, state);
           json(res, 200, { since_sequence: since, through_sequence: through, commits, summary: result.summary, state, analyzer: result.analyzer, evidence: commits.map(commit => ({ commit_id: commit.id, git_sha: commit.git.sha })) }); return;
         }
         if (req.method === 'POST' && operation === 'seen') {
@@ -223,6 +254,8 @@ export async function createApp(options = {}) {
       for (const clients of streams.values()) for (const client of clients) { clearInterval(client.timer); client.res.end(); }
       await Promise.allSettled([...queues.values()]);
       if (server.listening) await new Promise(done => server.close(done));
+      await Promise.allSettled([...catchupInFlight.values()]);
+      catchupCache.clear(); catchupInFlight.clear();
       store.close();
     },
   };

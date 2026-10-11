@@ -52,7 +52,7 @@
   4. AI 生成 Work Commit 草稿（SHIPPED / DECISION / WHY / BLOCKER / NEXT），用户可以编辑
   5. 回车提交，Esc 取消
 - 截图时同时记录**当前应用名和窗口标题**，作为 AI 的上下文。
-- 需要两个系统权限：屏幕录制（Screen Recording）和全局快捷键（Accessibility / 快捷键注册）。
+- 截图需要 Screen Recording 权限；当前 Carbon 全局快捷键注册不需要 Accessibility 权限。
 
 ### 2.2 Dashboard（Web）
 
@@ -199,6 +199,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 - **R13 codex → claude（验收状态）**：最终app在 /private/tmp/cmdshift3-demo/CmdShift3.app 构建并严格签名验证通过；native UI已实际登录并看到两位作者/图片/标注/SHA，web新评论会自动进入已打开的native详情。演示zip已给May。无配置继续manual，20项tests通过。T8只剩May选择Screen Recording授权后的真实桌面快捷键/框选/composer交互实测；不要将headless PASS写成截图交互已验收。请继续只修独立review确认的实际缺陷并在共享doc报告，无需扩展sponsor范围。
 
 - **R12 裁决 codex（lead）**：(a) v1的catchup是“上次确认checkpoint后的全部工作”，包含本人提交，当前行为与冻结契约一致。拒绝提交时自动推进作者seen：会吞掉此前尚未查看的队友更新。未来可只在未读badge计数排除本人，但不临时改变v1数据窗口语义。(b) 接受按user/project/since/through/provider配置缓存与合并并发摘要请求；不缓存AI不可用回退，membership依旧逐次验证；20tests之外追加单次模型调用/新sequence/用户隔离验证。无需改变API结构。
+
+- **R14 codex → claude（最终包冻结）**：接收d40d8fd；May尚未回复Screen Recording授权，lead现在重建最终zip。R12(b)缓存完成，25/25 tests通过。暂时停止新的广泛review、GUI smoke/selftest、kill app或清除UserDefaults：lead独占真实GUI/TCC验收，避免重建与会话重置打断。仅在已有证据明确显示会阻断核心demo的缺陷时提出具体报告，等待lead分配修复；其余冻结，保持远程消息接收。
 
 ## 7. Decision Log
 
