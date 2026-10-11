@@ -281,6 +281,11 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   - **Commit tab**：放在主窗口第一项，带数量 badge。每行显示缩略图、标题、状态（Ready to review / Needs update / AI couldn't write / Commit failed — retry 等）、项目、来源、时间，提供 Open 或 Show 和 Discard…；有空状态说明，并明确告诉用户系统 ⌘⇧3/⌘⇧4 截图不会进 CmdShift3；有 **New capture** 和 **Import Screenshot…**（用 NSOpenPanel 显式选择 png/jpeg/heic/tiff，转成 PNG 并控制体积，**不会自动扫描 Desktop**）。menu bar 面板会显示 “N captures waiting to commit”。
   - **验证**：(1) 禁网 offline PASS，新增临时目录检查：两条 capture、编辑后重载、账号/server 隔离、已 draft 的恢复后可 review 且不发 AI、改了 comment 需要 update、freeze 先落盘、恢复后只能 retry 同一个 id、损坏条目被跳过、stash 会保存并关闭、删除；并确认隔离启动**不会创建真实的 Drafts 目录**（跑完后检查确实不存在）。(2) scratch 4399 完整 selftest PASS，新增：frozen capture 落盘后恢复两次各自 commit，得到**同一个 SHA，feed 只多 1 条**，AI 请求为 0；原有 progress、ask、frozen retry 也都通过。scratch 已关闭。
   - 未做：GUI 目视检查（Commit tab、Save for later / Discard 的交互）由 lead 或 May 验收。
+- **R46 回复 claude（T27 补充）**：`00925f1`。新候选包：`/private/tmp/cmdshift3-capture-inbox-candidate-b7/CmdShift3.app`（0.5.0 build 7，binary `c0bceb4f156a393d`）。build 6 那份保留没动，`/Applications` 里的 b5（`828f9a2c…`）也没动。
+  1. **多草稿的 in-flight 守卫**：新增 `ComposerModel.committingDrafts`，记录所有正在 commit 的 draftId，不管窗口开着还是关了。`ComposerController.isCommitting` 现在只要这个集合非空就为 true，所以 capture、import、resume（stash 时拒绝）、切项目、切账号（signIn 在 await 前后都检查，signOut 也检查）都会被挡住，直到当前这次 Commit 完成。
+  2. **在 capture 入口可见的错误**：Screen Recording 被拒绝时，会把 `captureProblem` 显示在 **Commit tab 顶部横幅**（附 Open System Settings 按钮）和 **menu bar 面板**里；文案带上当前运行 bundle 的路径，方便判断授权到底是哪一份 app。开始新的 capture 时清除。
+  3. **热键状态**：`HotKey` 记录 `InstallEventHandler` / `RegisterEventHotKey` 返回的 OSStatus，提供 `isRegistered`。注册失败时 `hotKeyProblem` 会显示在同样两个位置（提示改用 New capture），并写入 NSLog。不会在没核实的情况下声称热键可用。
+  - 验证：禁网 offline PASS，新增：集合里有 draft 时，即使没有打开的 composer 也 `isCommitting`；用不冲突的 ⌃⌥⇧⌘F19 实际注册一次，`isRegistered` 与 OSStatus 一致；之前的 inbox 检查全部仍然通过。scratch 完整 selftest PASS（inbox 恢复两次 → 一次 commit `79f95b2`，progress、ask 都通过）。真实的 Drafts 目录没有被创建。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -652,3 +657,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | 认领 T27（R45，紧急）。**丢稿原因自查**：May 说“启动吧”时，我用 kill -TERM 退出了 0.3（PID 87551）来启动 b5，退出前**没有检查是否有打开的 composer**；SIGTERM 不会触发 windowShouldClose 的未提交确认，而草稿只存在内存里（截图临时 PNG 读取后就删除了），所以这份草稿**无法恢复**（没有写 Git，server 上也没有存）。今后在没有确认 composer 状态前，不再 SIGTERM 退出 app。T27 就是为了根治这个问题 | — |
 | 2026-10-11 | claude | 更正“丢稿”结论（May 用的是系统截图）；b5 原样安装到 /Applications，旧 0.1 repo build 已归档；T27 ETA 约 45 分钟，候选包 /private/tmp/cmdshift3-capture-inbox-candidate（0.5.0） | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | T27 68e1b44：持久化 Commit 收件箱（落盘/自动保存/freeze 先写盘/只有成功 commit 才移除/Import Screenshot）；候选包 0.5.0（aeca3258）禁网 offline 和 scratch（恢复两次 → 一次 commit）均 PASS | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | R46 00925f1：全局 in-flight 守卫、capture 入口可见错误、热键 OSStatus 记录；候选包 0.5.0 b7（c0bceb4f），offline 和 scratch 均 PASS | 见本行所在 Git 提交 |
