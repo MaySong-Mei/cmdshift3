@@ -249,6 +249,10 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   - **People**：成员列表（颜色和记录数）→ 该成员的记录 → 详情。**Ask**：明确显示“尚未连接”，不做假聊天，等 T23 契约。成员来自 `GET /api/projects/:id/context`，失败时退回使用 commit 作者。主窗口导航：Catch me up / Work / Progress / People / Project state / Ask。menu bar 快速 capture 流程没有改动。
   - **验证**：(1) **与 web 对拍 PASS**：同一个 fixture（显式 resolve、未知 id、重复 resolve、同 commit resolve、无字段记录、无 commit 的成员、其他项目的 commit）分别交给 Swift `--selftest --progress-fixture` 和 node 执行的 web `progressTreeData`/`progressMemberColors`（直接从 web/app.js 抽取），输出 JSON 完全一致。(2) 禁网 offline PASS。(3) scratch 4399 完整 selftest PASS，新增的 tree 检查：用真实 /context（2 个成员）加 feed，自建 blocker 显示为 completed 且有 2 条记录，成员颜色互不相同。scratch 已关闭。(4) 修了一个隐患：新视图如果命名为 `ProgressView` 会遮蔽 SwiftUI 的同名 spinner，已改名为 `ProjectProgressView`。
   - **尚未做**：GUI 目视检查（lead 独占 GUI）；Ask 的接入（等 T23）。
+- **T22 part 2 交付 claude（R37 Ask 接入）**：`ff00c3a`，只改了 `macos/`，候选包仍在 `/private/tmp/cmdshift3-workspace-candidate/CmdShift3.app`（0.4.0），冻结的 0.3 未动。
+  - Ask 按 R37 契约调用 `POST /api/projects/:id/conversation`：question 先 trim，限 1–2000 字；history 最多 6 条、每条最多 2000 字、总计最多 6000 字，超出时丢弃最旧的；只存在内存里，**切换项目或账号就清空**（apply / clearSession / 项目变化都会清）；请求进行中如果项目或账号变了，结果直接丢弃。界面显示：对话记录、引用记录（短 SHA + 记录 summary，带成员颜色，点击进入详情）、如实的 analyzer 标签（AI / AI unavailable / 未连接 AI）、coverage（“Based on N of M records”，截断时说明）。429、404、401 都有明确提示。界面上写明“asking never changes the project”。
+  - **验证**：offline（禁网）PASS，新增 history 边界、契约样例响应解码、请求体形状（不带 history 时只有 `{"question"}`）。scratch 完整 selftest PASS：当前 server 还没有该 endpoint，返回 404，客户端按设计处理。**server 落地后**，selftest 会自动改为验证：每条引用的 SHA 都与真实记录一致，并且提问前后 feed 计数不变（只读）。
+  - 待办：T23 server 合入后在 scratch 上重跑 selftest；GUI 目视检查由 lead 做。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -583,3 +587,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | T21 ready：assemble/inspect/synth/mksrt + 英文 captions 大纲；合成 clip 离线导出和全部失败用例 PASS | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | 认领 T22（R35）：先做 Progress（现有 API），Ask 等 T23 契约；只改 macos/，候选包 /private/tmp/cmdshift3-workspace-candidate/，冻结 0.3 不动，不碰 GUI | — |
 | 2026-10-11 | claude | T22 part 1 4e5d844：原生 Progress/People（与 web 对拍 PASS），Ask 占位等 T23；候选包 0.4.0 禁网 offline 和 scratch selftest 均 PASS | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | T22 part 2 ff00c3a：Ask 按 R37 契约接入（history 边界、切项目/账号清空、引用 SHA 校验、只读）；offline 和 scratch 均 PASS，server endpoint 待 T23 | 见本行所在 Git 提交 |
