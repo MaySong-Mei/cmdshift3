@@ -118,12 +118,13 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T12 | macOS截图体验：捕获动效、持久标记/comment画布、友好审核与防误丢 | claude | done（lead R22 验收通过） |
 | T13 | T12 lead验收、独立新版Mac包与公开下载更新 | codex | done |
 | T14 | AI默认撰写→review→Commit：轻量捕获卡、可选编辑、Codex风格与高光 | claude | done（c5a83ad，待 T15 lead 验收；scratch integration 未能在本会话运行，见 T14 交付） |
-| T15 | T14 lead验收、AI默认流程验证及新版公开下载 | codex | doing |
+| T15 | T14 lead验收、AI默认流程验证及新版公开下载 | codex | done |
 | D1 | 阅读双方协作说明并合并 Codex 产品理解，统一共享文档入口 | codex | done |
 | D2 | 核对 maymaymei #162 和 sponsor 官方接口，形成供 May 讨论的方案 | codex | done |
 | D3 | 核对 agent 归档整理能否直接交给 KeewanoDB | codex | done |
 | T16 | Screenshot-only AI evidence summary; preserve human review and completion rules | codex | done |
-| T17 | Coordinate the English first-take video script and acceptance handoff | codex (video_coordinator) | doing |
+| T17 | Coordinate the English first-take video script and acceptance handoff | codex (video_coordinator) | done |
+| T18 | Prepare public video demo actors, project and private off-camera sign-in handoff | codex | done |
 
 ---
 
@@ -319,6 +320,14 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   4. Show only the neutral case/test results and product. Hide unrelated windows; no API keys, token/code prompts, private chats or account/invitation credentials in frames. Recording is local only; no upload authorized by this handoff. Use the forthcoming docs/VIDEO_DEMO.md script as the coordinator's detail, not a reason to delay the first take.
   5. Before GUI actions append **video running** and reserve the mouse/keyboard; root will keep GUI free until you append **video done** or **video paused**. Deliver the MP4 plus a poster frame to /Users/maymaymei/Documents/Codex/2026-10-11/new-chat/outputs, and report actual actor/commit SHA/origin sync/capture size/annotations. Separate observed success from permission/setup failures. If blocked, keep material and report the exact required May action; no broad fixes during recording.
 
+- **R29 codex -> original Claude recording session (public demo accounts ready; May requested off-camera login)**: May now wants dedicated public test users so signup/sign-in can be omitted from the video. Two independent accounts and a private **CmdShift3 Release Review** project are ready at https://cmdshift3-web-production.up.railway.app/. Display names are **May (Demo)** and **Gary (Demo)**; usernames are `cmd3_demo_may` and `cmd3_demo_gary`. Both password sign-in and personal Mac-code sign-in were verified; both accounts see the same project with two members. No Work Commit was seeded (initial count zero).
+  1. Credentials are ONLY in `/Users/maymaymei/Documents/Codex/cmdshift3/work/video-demo-accounts.json` (ignored, mode 600). Human-readable private handoff: `/Users/maymaymei/Documents/Codex/2026-10-11/new-chat/outputs/CmdShift3-demo-accounts-private.md` (mode 600). These absolute paths apply even if your recording checkout differs. Read privately for authorized setup; never print, commit, upload, or capture passwords, tokens, Mac codes or invitations.
+  2. Prefer this public project for the next take. Complete web sign-in for both actors and native sign-in as May off-camera through the regular UI, then begin at the project context/team card. Endpoint is the public HTTPS origin, native code is May's personal code from the private handoff. Finish/discard any unsent demo material first; normal Sign out and entering the public server/code through UI are authorized. Do not edit saved defaults directly or reuse the local token with the public origin. Preserve old local history and the 4317 service.
+  3. If a local first take is already running, finish it before switching. Keep the accepted frozen v0.3 bundle unchanged and confirm any missing Screen Recording with May. Root still keeps GUI free. Your last published status is video setup, not recording completion.
+  4. The coordinated English guide is now `docs/VIDEO_DEMO.md` (90-180 seconds). Lead with project context, real capture/highlight/automatic AI, optional mark/comment, updated draft, human review and explicit Commit; then Gary's actual comment/review and May Catch me up. Neutral test output or the displayed checkout demo fixture are suitable. Do not claim tests passed from the fixture alone. Use actual new SHAs and case-specific explicit resolution, and deliver the local MP4/poster/report for May to review.
+
+- **R30 codex (T15 public v0.3 release complete)**: Railway source is pinned to `b02252c63a49929ebf8fd0bc53abc44f384ac063`; deployment `361e214c-a3bd-4dd1-90d2-8f3f5eda98ed` SUCCESS on the existing /data volume. Public download is the frozen v0.3 ZIP, 985403 bytes, SHA256 `c0c271b047703a5f90bb4a7813a50e48faa2a1f2cea93759034f491fbd4de3e2`. Existing QA context/members/capture/discussion/original Git SHA preserved PASS. Real public DeepSeek empty-comment screenshot draft describes visible checkout/validation/review details, has no shipped/resolves and writes no Git. T15 done; T17 recording handoff done, actual video/T8 remains pending. No further deploy or GUI action required by root.
+
 ## 7. Decision Log
 
 - **T14决定 codex（lead，May新确认优先）**：AI是默认Commit撰写者，截图即准备草稿，人review并点击Commit后才生成远程Git；标记/edit按需展开。轻量assistant卡与capture高光替代默认大表单。此决定取代T12主动Draft才整理的交互；草稿不写Git、原图/annotation分开、冻结重试/权限隔离不变。现有PNG+空comment API足够，无契约修改。
@@ -349,6 +358,9 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 - 2026-10-11 / codex: R25 accepted. Automatic screenshot drafting should provide a useful visible-evidence summary even without a comment. Human review remains mandatory; no screenshot-only inference of shipped work or resolved blockers. API v1 is unchanged.
 
 ## 8. Activity Log
+
+| 2026-10-11 | codex | T15 public v0.3 pin/download/data-retention/real screenshot-only AI PASS. T17 English guide handed off via R29; T18 two public demo actors and one private context project ready, password/Mac-code sign-in verified, credentials local-only, no seeded Work Commits. Original Claude owns actual recording; root keeps GUI free | This commit |
+
 
 | 2026-10-11 | codex | R27 accepted T14/R26: final fixture UI four tools/context/summary/collapse/close PASS; no-network model checks + isolated native Git integration PASS. v0.3.0 strict signed/extracted ZIP verified and frozen. T15 public rollout pending; GUI released for original Claude video session | This commit |
 

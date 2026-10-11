@@ -6,6 +6,8 @@ Public service: **[cmdshift3-web-production.up.railway.app](https://cmdshift3-we
 
 The initial deployment used tested source commit `ec7aea29fc42202668cbd8e17ee759b6366189fa`. Releases are pinned to verified source commits; later source pushes do not automatically deploy. The v0.2.0 capture-workbench release was pinned to `57e3cc66ec563519a828760a7bf5708884de5b5f`; downloaded ZIP bytes match the verified archive (SHA256 `5ad0d2efcaaffe3ad7711762bbf1d6f18795020e951085ae831f6eac27d7f5aa`). Existing project context, members, evidence, discussion and original Git SHA were rechecked after this deployment and preserved.
 
+The current v0.3.0 AI-first capture release is pinned to `b02252c63a49929ebf8fd0bc53abc44f384ac063` (Railway deployment `361e214c-a3bd-4dd1-90d2-8f3f5eda98ed`, SUCCESS). The public archive matches the frozen signed package: 985403 bytes, SHA256 `c0c271b047703a5f90bb4a7813a50e48faa2a1f2cea93759034f491fbd4de3e2`. Existing project context, members, capture, discussion and original Git SHA were preserved. A real public DeepSeek draft from an empty-comment checkout screenshot summarized visible evidence without claiming shipped work, resolving items or creating a Git commit.
+
 ## Hosting layout
 
 Run one Node 22.19+ process with Git installed. Mount persistent storage at `/data`, and set `CMD3_DATA_DIR=/data`. That volume contains SQLite, discussion, memberships, context versions, screenshot files, per-project Git working repositories and bare origins. Keep one replica and avoid overlapping writers during deployments. The bundled Dockerfile installs Git and uses the Node 22 runtime; Railway detects it at the repository root.
