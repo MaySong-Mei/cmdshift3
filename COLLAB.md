@@ -254,6 +254,11 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   - **验证**：offline（禁网）PASS，新增 history 边界、契约样例响应解码、请求体形状（不带 history 时只有 `{"question"}`）。scratch 完整 selftest PASS：当前 server 还没有该 endpoint，返回 404，客户端按设计处理。**server 落地后**，selftest 会自动改为验证：每条引用的 SHA 都与真实记录一致，并且提问前后 feed 计数不变（只读）。
   - 待办：T23 server 合入后在 scratch 上重跑 selftest；GUI 目视检查由 lead 做。
 - **R39 回复 claude（T23 端到端 PASS）**：拉取 `2b5f2c0` 后，用候选包 0.4.0（binary sha256 前缀 `1d7b5c8052601cad`，未重建）在 scratch 4399 上跑完整 selftest，**PASS**：progress tree 检查通过（真实 /context 2 个成员、自建 task 完成并有 2 条记录、成员颜色互不相同）；**ask**：manual/not_configured（scratch 未加载 .env），**2 条引用记录的 SHA 都与真实 commit 一致**，提问前后 **feed 计数不变（只读）**。另外抓了一次原始响应，字段 `answer / analyzer / evidence[{commit_id,git_sha}] / coverage{total,included,from,truncated} / through_sequence / context_version` 与 R37 契约一致；客户端把 manual/not_configured 标成 “No AI connected — factual answer”。scratch 已关闭；GUI、权限、defaults、旧包、4317、云端都没有动。T22 候选包等 lead 验收。
+- **R40 交付 claude（T22 入口控件）**：`a387d22`，只改了 `macos/`。
+  1. 全窗口 toolbar 新增**项目选择器**（与菜单栏面板共用 `AppState.projectId`；只有一个项目时禁用），以及**账号菜单**（显示 “Signed in as …”、endpoint、最近一条错误、**Sign out**；Sign out 走现有的受守卫 `signOut()`，提交进行中会拒绝）。没有新增 auth 或 API。
+  2. 新增 `applicationShouldHandleReopen`：从 Dock、Finder 或 Spotlight 再次打开 app 时，会 post `cmd3OpenWorkspace`，由 MenuBarLabel 打开主窗口。selftest 和 preview 这类隔离启动直接返回 false，不受影响；menu bar 快速 capture 不变。
+  - **新候选包在单独路径** `/private/tmp/cmdshift3-workspace-candidate-b5/CmdShift3.app`（0.4.0 build 5，binary sha256 前缀 `828f9a2c838fb5a3`，strict 签名）。lead 已验收的 `/private/tmp/cmdshift3-workspace-candidate`（`1d7b5c80…`）**没有覆盖**；冻结的 0.3 也没有动。
+  - 验证：禁网 offline PASS；scratch 4399 完整 selftest PASS（progress tree 和 ask 的引用 SHA / 只读检查都通过）。scratch 已关闭。没有操作 GUI，toolbar 和 reopen 的目视验收交给 lead。Catch-up 新增的可选字段 `retrieval`（R40/T25）会被现有解码器忽略，不影响原生端。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -602,3 +607,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | T22 part 1 4e5d844：原生 Progress/People（与 web 对拍 PASS），Ask 占位等 T23；候选包 0.4.0 禁网 offline 和 scratch selftest 均 PASS | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | T22 part 2 ff00c3a：Ask 按 R37 契约接入（history 边界、切项目/账号清空、引用 SHA 校验、只读）；offline 和 scratch 均 PASS，server endpoint 待 T23 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | R39：0.4.0 候选包对 T23 新 endpoint 跑 scratch selftest PASS（引用 SHA 与真实记录一致，只读，契约字段一致） | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | R40 a387d22：全窗口项目选择器、账号/Sign out 菜单、reopen 打开 workspace；新候选包 b5（828f9a2c），已验收的候选包未覆盖；offline 和 scratch 均 PASS | 见本行所在 Git 提交 |
