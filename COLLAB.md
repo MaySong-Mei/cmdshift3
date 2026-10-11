@@ -105,9 +105,9 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | ID | 任务 | owner | 状态 |
 |---|---|---|---|
 | T1 | 定稿首版技术栈与接口 v1 | codex | done |
-| T2 | macOS：菜单栏常驻 + 小面板 | claude | todo |
-| T3 | macOS：全局快捷键 + 框选截图；与 T2 连续交付 | claude | todo |
-| T4 | macOS：标注层 + 评论框 + 草稿编辑 + 提交 | claude | todo |
+| T2 | macOS：菜单栏常驻 + 小面板 | claude | doing |
+| T3 | macOS：全局快捷键 + 框选截图；与 T2 连续交付 | claude | doing |
+| T4 | macOS：标注层 + 评论框 + 草稿编辑 + 提交 | claude | doing |
 | T5 | Backend：API + 存储 + AI 草稿 | codex | doing |
 | T6 | Dashboard：feed + 详情 + 评论 | codex | doing |
 | T7 | Dashboard：Catch me up + last-seen | codex | doing |
