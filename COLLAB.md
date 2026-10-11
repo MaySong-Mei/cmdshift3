@@ -190,6 +190,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 - **R15 状态 claude**：**已暂停，没有做任何 GUI 操作。** 用合成键鼠事件驱动 app 的步骤被 Claude Code 的权限策略拦截，需要 May 明确放行。running app（PID 23572）、UserDefaults、构建都没有动。T8 仍待：May 亲手操作，或 May 放行后由 claude 执行。lead 的冻结继续有效。
 - **R16 回复 claude**：收到 T9。不重建，不改最终 zip，保持当前 app（PID 23572）和 UserDefaults 不动。native 端的 organizer badge 对非 manual 的 provider 会直接显示 provider 名（deepseek），无需改代码。T8：May 已给 VS Code 辅助功能权限，并正在 Claude Code 中添加运行 T8 驱动的权限规则。规则生效后，我会对当前 app 走一次真实的 ⌃⇧⌘2 → 框选 → 画框 → comment → ⌘D（等 20 秒让 DeepSeek 返回）→ ⌘↩，然后通过 API 核对 SHA、截图和 annotations。测试 commit 的 summary/comment 以 “T8 test” 开头。lead 如需要我 hold，请在这里回复。
 - **R17 回复 claude**：收到 T10，前缀已区分（我用 “T8 test”，lead 用 “实战案例”）。**GUI 冲突提醒**：T8 驱动会接管真实鼠标和键盘，大约 40 秒，期间会框选屏幕区域、点击。如果 lead 此时正在用浏览器或 CUA 采集演示页截图，两边会互相干扰。开跑前我会先 pull 并检查这里有没有 “hold”，并在本节写一行 “T8 running”，跑完写 “T8 done”。lead 采集截图期间如需独占屏幕，请写 “hold”。
+- **T8 结果 claude（真实桌面流程 PASS）**：在 lead 的最终 bundle（`/private/tmp/cmdshift3-demo`，May 授 Screen Recording 后重开，PID 69487，未重建）上用合成键鼠走完整条真实路径：⌃⇧⌘2 → 系统框选 → composer（1180×792）→ 画框 → 输入 comment → ⌘D（DeepSeek）→ ⌘↩ → composer 自动关闭。API 核验（4317，proj_cmdshift3）：#5，作者 May，SHA `7756541`（parent `d99adb7`），`remote_synced: true`；1 个 rect annotation；证据 PNG 1586×1028；DeepSeek 生成了 SHIPPED / NEXT 和中文 summary；Gary 的 catch-up 中可以看到这条（analyzer deepseek completed）。
+  - 过程发现：(1) 前两次失败分别是 bundle 缺 Screen Recording（面板上明确显示 “permission is off”，设计内行为），以及合成拖拽太粗、未被 screencapture 接受（只是测试驱动的问题，不是产品缺陷）。(2) 截图内容是 May 当时屏幕上的 ChatGPT/Codex 对话，来源记录为 “ChatGPT — Save password?”；我检查过图片，看不到任何 key 或密码。这条记录只在本地 4317 的 `.data` 工作仓库里，不在 Railway。录 demo 视频前，May 可以决定是否保留这条 “T8 test” 记录。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -376,3 +378,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | **T8 paused（已不在运行）**：快捷键、登录态、权限检查都按设计工作；面板显示 “Screen Recording permission is off for CmdShift3”。最终 bundle（/private/tmp/cmdshift3-demo）是重新签名的，旧授权失效。需要 May 在系统设置里给它授 Screen Recording，然后重开这个 app（不重建）。无数据写入，baseline 仍为 #4 | — |
 | 2026-10-11 | claude | 收到 T11（公开部署/账号/个人 Mac code），native 的 `{code}` 登录保持兼容，无需改动或重建。T8 仍等 May 给最终 bundle 授 Screen Recording | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | **T8 running**（第 2 次；May 已给最终 bundle 授 Screen Recording，已重开 app，PID 69487，未重建） | — |
+| 2026-10-11 | claude | **T8 done**：真实热键→框选→标注→DeepSeek 草稿→commit #5（7756541，已同步 origin）PASS；GUI 已释放 | 见本行所在 Git 提交 |
