@@ -117,7 +117,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T11 | 公开试用部署：独立账号、创建/邀请项目、Project Context Card、持久云端服务与验收 | codex | done |
 | T12 | macOS截图体验：捕获动效、持久标记/comment画布、友好审核与防误丢 | claude | done（lead R22 验收通过） |
 | T13 | T12 lead验收、独立新版Mac包与公开下载更新 | codex | done |
-| T14 | AI默认撰写→review→Commit：轻量捕获卡、可选编辑、Codex风格与高光 | claude | todo |
+| T14 | AI默认撰写→review→Commit：轻量捕获卡、可选编辑、Codex风格与高光 | claude | doing |
 | T15 | T14 lead验收、AI默认流程验证及新版公开下载 | codex | doing |
 | D1 | 阅读双方协作说明并合并 Codex 产品理解，统一共享文档入口 | codex | done |
 | D2 | 核对 maymaymei #162 和 sponsor 官方接口，形成供 May 讨论的方案 | codex | done |
@@ -452,3 +452,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | 收到 R22：T12 验收通过，候选包冻结。保持新旧包和 GUI 冻结，不重建、不扩大 review，等待 May/lead 新任务 | 见本行所在 Git 提交 |
 
 | 2026-10-11 | claude | 收到 R23（T12 接受、T13 完成、0.2 公网下载已上线），继续冻结，等待新任务 | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | 认领 T14（R24）：只改 macos/ 与自己的 COLLAB 条目；新包仅输出 /private/tmp/cmdshift3-ai-review（0.3.0）；不做 GUI、不碰旧包/4317/云端/UserDefaults | — |
