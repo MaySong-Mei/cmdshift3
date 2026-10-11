@@ -1,275 +1,454 @@
 import AppKit
 import SwiftUI
 
-/// An open blocker / next item a shipped item can explicitly resolve.
-struct OpenItem: Identifiable, Hashable {
-    let item: StateItem
-    let kind: String
-    var id: String { item.id }
-}
-
-@MainActor
-final class ComposerModel: ObservableObject {
-    /// Generated once per composer and reused on retry (API v1 idempotency).
-    private(set) var commitId = "wc_" + UUID().uuidString.lowercased()
-    /// Frozen on first submit so a retry resends exactly the same payload.
-    @Published private(set) var frozen: CommitRequest?
-    var isLocked: Bool { frozen != nil }
-    let image: NSImage
-    let png: Data
-    let source: Source
-    /// `--preview-capture`: layout review only — no network, no Draft/Commit.
-    let isPreview: Bool
-
-    @Published var projectId: String
-    @Published var annotations: [Annotation] = []
-    @Published var comment = ""
-    @Published var summary = ""
-    @Published var fields = Fields()
-    @Published var organizer: Provider?
-    @Published var warnings: [String] = []
-    @Published var openItems: [OpenItem] = []
-    @Published var drafting = false
-    @Published var committing = false
-    @Published var error: String?
-    @Published var result: WorkCommit?
-    /// AI fields stay folded until the user drafts (or adds one by hand).
-    @Published var fieldsExpanded = false
-    /// What the last draft inserted (item id → text, and summary), so a
-    /// re-draft can replace it without touching the user's own edits.
-    private var drafted: [String: String] = [:]
-    private var draftedSummary: String?
-
-    init(image: NSImage, png: Data, source: Source, projectId: String, isPreview: Bool = false) {
-        self.image = image
-        self.png = png
-        self.source = source
-        self.projectId = projectId
-        self.isPreview = isPreview
-    }
-
-    /// Unsent work that closing the window would throw away.
-    var isDirty: Bool {
-        guard result == nil else { return false }
-        return !annotations.isEmpty
-            || !comment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            || !summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            || !fields.cleaned().isEmpty
-    }
-
-    var fieldCount: Int { FieldKind.allCases.reduce(0) { $0 + fields[keyPath: $1.keyPath].count } }
-
-    func loadOpenItems(_ app: AppState) async {
-        guard !isPreview else { return }
-        let pid = projectId
-        guard let s = try? await app.client.state(project: pid).state else { if pid == projectId { openItems = [] }; return }
-        guard pid == projectId else { return }
-        openItems = s.blockers.map { OpenItem(item: $0, kind: "BLOCKER") } + s.next.map { OpenItem(item: $0, kind: "NEXT") }
-    }
-
-    /// Resolves references are project-scoped, so they cannot follow a project switch.
-    func projectChanged(_ app: AppState) async {
-        for i in fields.shipped.indices { fields.shipped[i].resolves = nil }
-        organizer = nil
-        warnings = []
-        openItems = []
-        await loadOpenItems(app)
-    }
-
-    func draft(_ app: AppState) async {
-        guard !isPreview else { return }
-        let pid = projectId
-        drafting = true
-        error = nil
-        defer { drafting = false }
-        do {
-            let r = try await app.client.draft(DraftRequest(projectId: pid, comment: comment, source: source,
-                                                            imageBase64: png.base64EncodedString()))
-            guard pid == projectId, !isLocked else { return }
-            // Re-drafting replaces the previous draft's untouched items, but keeps
-            // anything the user typed or edited (and any resolves they linked).
-            if let f = r.fields {
-                for kind in FieldKind.allCases {
-                    let kept = fields[keyPath: kind.keyPath].filter { item in
-                        guard let original = drafted[item.id] else { return true }
-                        return item.text != original || !(item.resolves ?? []).isEmpty
-                    }
-                    let have = Set(kept.map { $0.text.lowercased() })
-                    fields[keyPath: kind.keyPath] = kept + f[keyPath: kind.keyPath].filter { !have.contains($0.text.lowercased()) }
-                }
-                drafted = [:]
-                for kind in FieldKind.allCases {
-                    for item in f[keyPath: kind.keyPath] { drafted[item.id] = item.text }
-                }
-            }
-            if let s = r.summary, !s.isEmpty {
-                let current = summary.trimmingCharacters(in: .whitespaces)
-                if current.isEmpty || current == draftedSummary { summary = s }
-                draftedSummary = s
-            }
-            organizer = r.organizer
-            warnings = r.warnings ?? []
-            fieldsExpanded = true
-        } catch {
-            self.error = error.localizedDescription
-        }
-    }
-
-    var effectiveSummary: String {
-        let s = summary.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !s.isEmpty { return s }
-        if let first = fields.cleaned().shipped.first?.text { return first }
-        let line = comment.split(separator: "\n").first.map(String.init)?.trimmingCharacters(in: .whitespaces) ?? ""
-        return line.isEmpty ? "Work update from \(source.appName)" : String(line.prefix(140))
-    }
-
-    func commit(_ app: AppState) async {
-        guard !isPreview else { return }
-        committing = true
-        error = nil
-        defer { committing = false }
-        let req = frozen ?? CommitRequest(id: commitId, projectId: projectId, source: source,
-                                          imageBase64: png.base64EncodedString(), annotations: annotations,
-                                          comment: comment, summary: effectiveSummary, fields: fields.cleaned())
-        frozen = req
-        do {
-            result = try await app.client.commit(req)
-            await app.refresh()
-        } catch {
-            self.error = error.localizedDescription
-        }
-    }
-
-    /// Explicitly abandons the frozen attempt: unlocks editing under a fresh id.
-    /// If the earlier attempt did reach the server, that becomes a separate commit.
-    func editAsNew() {
-        frozen = nil
-        commitId = "wc_" + UUID().uuidString.lowercased()
-        // Item ids are globally unique on the server: if the frozen attempt did
-        // land, reusing them would 409 (item_id_conflict). Keep text and resolves.
-        for kind in FieldKind.allCases {
-            fields[keyPath: kind.keyPath] = fields[keyPath: kind.keyPath].map {
-                FieldItem(id: "it_" + UUID().uuidString.lowercased(), text: $0.text, resolves: $0.resolves)
-            }
-        }
-        error = nil
-    }
-}
-
-@MainActor
-final class ComposerController: NSObject, NSWindowDelegate {
-    static let shared = ComposerController()
-    private var window: NSWindow?
-    private var model: ComposerModel?
-    /// Set once the user confirmed discarding (or the commit succeeded).
-    private var allowClose = false
-
-    /// A composer is open: new captures must not silently replace its work.
-    /// windowWillClose clears `window`, so this also covers a minimized composer.
-    var isOpen: Bool { window != nil }
-
-    func bringToFront() {
-        if window?.isMiniaturized == true { window?.deminiaturize(nil) }
-        window?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-    }
-
-    /// A commit request is in flight: closing or switching identity must wait.
-    var isCommitting: Bool { model?.committing == true }
-
-    /// Sign-out / account switch: closes the composer so a draft cannot be
-    /// committed under the next user. Callers must check `isCommitting` first.
-    func closeAll() {
-        // Defensive only: session actions must check `isCommitting` themselves.
-        guard let window, !isCommitting else { return }
-        forceClose(window)
-    }
-
-    /// Closes exactly `target` without the discard prompt. A stale caller (an
-    /// older composer's delayed finish) can never close a newer window: only
-    /// `target` itself is closed, and the guard flag is scoped to it.
-    func forceClose(_ target: NSWindow) {
-        if target === window { allowClose = true }
-        target.close()
-    }
-
-    func open(image: NSImage, png: Data, source: Source, app: AppState, preview: Bool = false) {
-        guard !isOpen else { bringToFront(); return }
-        guard let pid = preview ? (app.projectId ?? "preview") : app.projectId else { return }
-        let model = ComposerModel(image: image, png: png, source: source, projectId: pid, isPreview: preview)
-        // Each composer's buttons act on its own window only, never `self.window`
-        // at call time (which may already be a newer capture).
-        weak var own: NSWindow?
-        let view = ComposerView(model: model,
-                                requestClose: { own?.performClose(nil) },
-                                finish: { [weak self] in if let own { self?.forceClose(own) } })
-            .environmentObject(app)
-        let visible = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        let size = NSSize(width: min(1280, visible.width - 40), height: min(820, visible.height - 40))
-        let w = NSWindow(contentRect: NSRect(origin: .zero, size: size),
-                         styleMask: [.titled, .closable, .resizable, .miniaturizable],
-                         backing: .buffered, defer: false)
-        w.title = preview ? "Work Commit — Preview" : "Work Commit — \(source.appName)"
-        let host = NSHostingController(rootView: view)
-        host.sizingOptions = [.minSize]
-        w.contentViewController = host
-        // Attaching the controller resizes to SwiftUI's ideal size; re-apply ours.
-        w.setContentSize(size)
-        w.isReleasedWhenClosed = false
-        w.level = .floating
-        w.delegate = self
-        w.center()
-        w.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-        own = w
-        adopt(w, model: model)
-    }
-
-    /// Makes `w` the current composer window (also used by the offline guard checks).
-    func adopt(_ w: NSWindow, model: ComposerModel) {
-        w.delegate = self
-        allowClose = false
-        self.model = model
-        window = w
-    }
-
-    func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard sender === window, let model, !allowClose else { return true }
-        if model.committing {
-            NSSound.beep()
-            return false
-        }
-        guard model.isDirty else { return true }
-        let alert = NSAlert()
-        alert.messageText = "Discard this capture?"
-        alert.informativeText = "Your marks and comment haven't been committed yet."
-        alert.addButton(withTitle: "Keep Editing")
-        alert.addButton(withTitle: "Discard")
-        alert.buttons[1].hasDestructiveAction = true
-        // Discard applies only if this same window/model is still current.
-        let target = sender
-        let targetModel = model
-        alert.beginSheetModal(for: sender) { [weak self] response in
-            guard response == .alertSecondButtonReturn, let self,
-                  self.window === target, self.model === targetModel else { return }
-            self.forceClose(target)
-        }
-        return false
-    }
-
-    func windowWillClose(_ notification: Notification) {
-        if (notification.object as? NSWindow) === window {
-            window = nil
-            model = nil
-        }
-    }
-}
-
 /// Tools in the order people reach for them.
 private let toolOrder: [AnnotationType] = [.rect, .arrow, .highlight, .text]
 private let colorNames = ["Coral", "Amber", "Green", "Blue", "Purple"]
 
+extension FieldKind {
+    /// Reading labels for the review card.
+    var heading: String {
+        switch self {
+        case .shipped: return "Shipped"
+        case .decision: return "Decision"
+        case .why: return "Why"
+        case .blocker: return "Blocker"
+        case .next: return "Next"
+        }
+    }
+}
+
+/// One window, one model: a light review card by default, the full canvas +
+/// draft editor when the person asks for it.
 struct ComposerView: View {
+    @ObservedObject var model: ComposerModel
+    @EnvironmentObject var app: AppState
+    let requestClose: () -> Void
+    let finish: () -> Void
+
+    var body: some View {
+        Group {
+            switch model.mode {
+            case .card: CaptureCard(model: model, requestClose: requestClose, finish: finish)
+            case .editor: CaptureEditor(model: model, requestClose: requestClose, finish: finish)
+            }
+        }
+        .background(Theme.surface)
+        .onChange(of: model.projectId) { Task { await model.projectChanged(app.client) } }
+    }
+}
+
+// MARK: - Card
+
+private struct CaptureCard: View {
+    @ObservedObject var model: ComposerModel
+    @EnvironmentObject var app: AppState
+    let requestClose: () -> Void
+    let finish: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ComposerHeader(model: model)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 10)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    thumbnail
+                    AssistantDraft(model: model)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 8)
+            }
+            ContextInput(model: model, compact: true)
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
+            ComposerFooter(model: model, requestClose: requestClose, finish: finish)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 14)
+        }
+        .frame(minWidth: 600, minHeight: 540)
+    }
+
+    private var thumbnail: some View {
+        HStack {
+            Spacer(minLength: 0)
+            Image(nsImage: model.image)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .overlay(AnnotationLayer(annotations: model.annotations))
+                .modifier(CaptureHighlight(animateArrival: !model.arrivalPulsed) { model.arrivalPulsed = true })
+                .frame(maxHeight: 250)
+                .overlay(alignment: .bottomTrailing) {
+                    Button { model.editorFocusesDraft = false; model.mode = .editor } label: {
+                        Label(model.annotations.isEmpty ? "Edit screenshot" : "Edit marks (\(model.annotations.count))",
+                              systemImage: "pencil.tip.crop.circle")
+                    }
+                    .buttonStyle(QuietPillStyle())
+                    .background(Capsule().fill(Theme.raised.opacity(0.9)))
+                    .padding(8)
+                    .disabled(model.isLocked)
+                    .help("Optional: add boxes, arrows, highlights or labels")
+                }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 6)
+    }
+}
+
+/// "Captured" mark, source app and the project pill.
+private struct ComposerHeader: View {
+    @ObservedObject var model: ComposerModel
+    @EnvironmentObject var app: AppState
+    var trailing: AnyView? = nil
+
+    var body: some View {
+        HStack(spacing: 10) {
+            HStack(spacing: 6) {
+                Circle().fill(model.isPreview ? Color.orange : Color.accentColor).frame(width: 7, height: 7)
+                Text(model.isPreview ? "Preview" : "Captured").font(.callout.weight(.semibold))
+            }
+            Text(model.source.windowTitle.isEmpty ? model.source.appName : "\(model.source.appName) — \(model.source.windowTitle)")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer(minLength: 12)
+            projectPill
+            if let trailing { trailing }
+        }
+    }
+
+    @ViewBuilder
+    private var projectPill: some View {
+        if app.projects.count > 1 {
+            Menu {
+                ForEach(app.projects) { p in
+                    Button { model.projectId = p.id } label: {
+                        if p.id == model.projectId { Label(p.name, systemImage: "checkmark") } else { Text(p.name) }
+                    }
+                }
+            } label: {
+                Pill(text: app.projects.first { $0.id == model.projectId }?.name ?? "Project", systemImage: "folder")
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .disabled(model.isLocked)
+            .help("The project this Work Commit goes to. Switching re-drafts it for that project.")
+        } else {
+            Pill(text: app.projects.first { $0.id == model.projectId }?.name ?? (model.isPreview ? "Preview project" : "Project"),
+                 systemImage: "folder")
+                .help("The project this Work Commit goes to")
+        }
+    }
+}
+
+/// The AI's written commit, read like an assistant reply.
+private struct AssistantDraft: View {
+    @ObservedObject var model: ComposerModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            AIStatusLine(model: model)
+            if hasDraft {
+                Text(model.summary.isEmpty ? model.effectiveSummary : model.summary)
+                    .font(.system(size: 15, weight: .medium))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+                ForEach(FieldKind.allCases) { kind in
+                    let items = model.fields[keyPath: kind.keyPath].filter { !$0.text.trimmingCharacters(in: .whitespaces).isEmpty }
+                    if !items.isEmpty {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(kind.heading).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                            ForEach(items) { item in
+                                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                    Circle().fill(Color.secondary.opacity(0.5)).frame(width: 4, height: 4).offset(y: -2)
+                                    Text(item.text).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+                                    if let r = item.resolves, !r.isEmpty {
+                                        Pill(text: "resolves \(r.count)", systemImage: "checkmark.seal", tint: .green)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else if model.drafting {
+                placeholderLines
+            } else if model.manualReview {
+                Text("Nothing drafted yet. Use Edit draft to write it, or Commit with your context as the summary.")
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            ForEach(model.warnings, id: \.self) { w in
+                Label(w, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if hasDraft || model.manualReview {
+                Button { model.editorFocusesDraft = true; model.mode = .editor } label: {
+                    Label("Edit draft", systemImage: "square.and.pencil")
+                }
+                .buttonStyle(QuietPillStyle())
+                .disabled(model.isLocked)
+                .help("Change the summary or items. Your edits are kept if you update the draft.")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .panel()
+    }
+
+    private var hasDraft: Bool {
+        !model.summary.trimmingCharacters(in: .whitespaces).isEmpty || model.fieldCount > 0
+    }
+
+    private var placeholderLines: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach([0.85, 0.6, 0.7], id: \.self) { w in
+                GeometryReader { g in
+                    RoundedRectangle(cornerRadius: 4).fill(Theme.subtle).frame(width: g.size.width * w, height: 10)
+                }
+                .frame(height: 10)
+            }
+        }
+        .accessibilityLabel("AI is writing the draft")
+    }
+}
+
+/// Honest AI state: writing / written by provider / needs update / failed / not connected / manual / sample.
+private struct AIStatusLine: View {
+    @ObservedObject var model: ComposerModel
+
+    var body: some View {
+        HStack(spacing: 8) {
+            content
+            Spacer(minLength: 0)
+        }
+        .font(.callout)
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if model.isSample {
+            Pill(text: "SAMPLE · not written by AI", systemImage: "eye", tint: .orange)
+            Text("Preview fixture — AI and Commit are off.").foregroundStyle(.secondary)
+        } else if model.drafting {
+            ProgressView().controlSize(.small)
+            Text(model.appliedInput == nil ? "AI is writing your commit…" : "Updating the draft…").foregroundStyle(.secondary)
+        } else if let failure = model.aiFailure {
+            Image(systemName: "exclamationmark.triangle").foregroundStyle(.orange)
+            Text(failure).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        } else if model.manualReview {
+            Image(systemName: "hand.raised").foregroundStyle(.secondary)
+            Text("Manual review — you're writing this commit.").foregroundStyle(.secondary)
+        } else if let o = model.organizer {
+            switch o.mode {
+            case .notConfigured:
+                Image(systemName: "hand.raised").foregroundStyle(.secondary)
+                Text("No AI connected on this server. Continue manually to write it yourself.").foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            case .unavailable:
+                Image(systemName: "exclamationmark.triangle").foregroundStyle(.orange)
+                Text("AI couldn't finish this draft. Your capture is kept.").foregroundStyle(.secondary)
+            case .ai:
+                Image(systemName: "sparkles").foregroundStyle(.purple)
+                if model.needsUpdate {
+                    Text("Context changed — update the draft before committing.").foregroundStyle(.secondary)
+                } else {
+                    Text("Written by \(o.provider ?? "AI") · review it, then commit").foregroundStyle(.secondary)
+                }
+            }
+        } else if model.appliedInput == nil && !model.isPreview {
+            Image(systemName: "sparkles").foregroundStyle(.secondary)
+            Text(model.needsUpdate || !model.comment.isEmpty ? "Ready to draft with your context." : "No draft yet.")
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// Optional context for the AI. Return adds a new line.
+private struct ContextInput: View {
+    @ObservedObject var model: ComposerModel
+    var compact: Bool
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            TextEditor(text: $model.comment)
+                .font(.body)
+                .focused($focused)
+                .scrollContentBackground(.hidden)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 6)
+            if model.comment.isEmpty {
+                Text("Add context for the AI (optional) — what changed, why it matters")
+                    .foregroundStyle(.tertiary)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 6)
+                    .allowsHitTesting(false)
+            }
+        }
+        .frame(minHeight: compact ? 40 : 80, maxHeight: compact ? 84 : 140)
+        .padding(4)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Theme.raised))
+        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .strokeBorder(focused ? Color.accentColor.opacity(0.5) : Theme.hairline))
+        .disabled(model.isLocked)
+        .accessibilityLabel("Context for the AI")
+    }
+}
+
+// MARK: - Footer
+
+private struct ComposerFooter: View {
+    @ObservedObject var model: ComposerModel
+    @EnvironmentObject var app: AppState
+    let requestClose: () -> Void
+    let finish: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let e = model.error {
+                Label(e, systemImage: "xmark.octagon").font(.caption).foregroundStyle(.red)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if model.isLocked && model.result == nil && !model.committing {
+                Text("Retry resends exactly what was submitted — no new AI draft. To change it, start a new commit.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            if let r = model.result {
+                CommittedBanner(commit: r)
+            }
+            HStack(spacing: 8) {
+                Button("Cancel", action: requestClose)
+                    .buttonStyle(QuietPillStyle())
+                    .keyboardShortcut(.cancelAction)
+                    .disabled(model.committing)
+                if model.result == nil && !model.isLocked {
+                    Text("AI drafts · you review · Commit publishes")
+                        .font(.caption).foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                secondary
+                primary
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var secondary: some View {
+        if model.isLocked && model.result == nil && !model.committing {
+            Button("Edit as new commit") { model.editAsNew() }.buttonStyle(QuietPillStyle())
+        }
+        if model.offersManual {
+            Button("Continue manually") { model.continueManually() }
+                .buttonStyle(QuietPillStyle())
+                .help("Write and review this commit yourself, without AI")
+        }
+        if model.manualReview && !model.isLocked && model.result == nil && !model.drafting
+            && model.organizer?.mode != .notConfigured {
+            Button { Task { await model.draft(app.client) } } label: { Label("Retry AI", systemImage: "sparkles") }
+                .buttonStyle(QuietPillStyle())
+        }
+    }
+
+    private var primary: some View {
+        let action = model.primaryAction
+        return Button { perform(action) } label: {
+            HStack(spacing: 6) {
+                switch action {
+                case .commit: Text("Commit"); Image(systemName: "arrow.up")
+                case .retryCommit: Text("Retry commit"); Image(systemName: "arrow.clockwise")
+                case .updateDraft: Text("Update draft"); Image(systemName: "arrow.clockwise")
+                case .draftNow: Text("Draft with AI"); Image(systemName: "sparkles")
+                case .retryAI: Text("Retry AI"); Image(systemName: "arrow.clockwise")
+                case .continueManually: Text("Continue manually"); Image(systemName: "arrow.right")
+                case .writing: ProgressView().controlSize(.small); Text("Writing…")
+                case .committing: ProgressView().controlSize(.small); Text("Committing…")
+                case .done: Text("Done")
+                }
+            }
+        }
+        .buttonStyle(PrimaryPillStyle())
+        .keyboardShortcut(action == .done ? .defaultAction : KeyboardShortcut(.return, modifiers: .command))
+        .disabled(disabled(action))
+        .help(help(action))
+    }
+
+    private func disabled(_ action: PrimaryAction) -> Bool {
+        switch action {
+        case .writing, .committing: return true
+        case .done: return false
+        default: return model.isPreview
+        }
+    }
+
+    private func help(_ action: PrimaryAction) -> String {
+        if model.isPreview { return "Off in preview" }
+        switch action {
+        case .commit: return "Publish this reviewed Work Commit to the project (⌘↩)"
+        case .retryCommit: return "Resend exactly the same commit (⌘↩)"
+        case .updateDraft: return "Re-draft with your new context. Nothing is committed (⌘↩)"
+        case .draftNow, .retryAI: return "Ask the AI to write the draft. Nothing is committed (⌘↩)"
+        case .continueManually: return "Write and review this commit yourself (⌘↩)"
+        case .writing: return "The AI is writing the draft"
+        case .committing: return "Committing…"
+        case .done: return "Close"
+        }
+    }
+
+    private func perform(_ action: PrimaryAction) {
+        switch action {
+        case .commit, .retryCommit:
+            Task {
+                guard await model.commit(app.client) else { return }
+                await app.refresh()
+                try? await Task.sleep(for: .seconds(1.6))
+                finish()
+            }
+        case .updateDraft, .draftNow, .retryAI:
+            Task { await model.draft(app.client) }
+        case .continueManually:
+            model.continueManually()
+        case .done:
+            finish()
+        case .writing, .committing:
+            break
+        }
+    }
+}
+
+/// Shown only after a real Commit response: SHA + origin sync.
+private struct CommittedBanner: View {
+    let commit: WorkCommit
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var shown = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.title3)
+                .foregroundStyle(.green)
+                .scaleEffect(shown || reduceMotion ? 1 : 0.6)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Committed · #\(commit.sequence ?? 0)").font(.callout.weight(.semibold))
+                Text("\(commit.shortSha ?? "")\(commit.git?.remoteSynced == false ? " · origin not synced yet" : " · synced")")
+                    .font(.caption.monospaced()).foregroundStyle(.secondary)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .panel(radius: 10)
+        .onAppear {
+            if reduceMotion { shown = true } else { withAnimation(.spring(duration: 0.35, bounce: 0.4)) { shown = true } }
+        }
+    }
+}
+
+// MARK: - Editor (on demand)
+
+private struct CaptureEditor: View {
     @ObservedObject var model: ComposerModel
     @EnvironmentObject var app: AppState
     let requestClose: () -> Void
@@ -278,83 +457,60 @@ struct ComposerView: View {
     @State private var tool: AnnotationType = .rect
     @State private var color = annotationColors[0]
     @State private var labelText = ""
-    @FocusState private var commentFocused: Bool
+    @FocusState private var summaryFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
-            header
-            Divider()
+            ComposerHeader(model: model, trailing: AnyView(
+                Button { model.mode = .card } label: { Label("Done editing", systemImage: "chevron.down") }
+                    .buttonStyle(QuietPillStyle())
+                    .help("Back to the review card. Marks, context and draft edits are kept.")
+            ))
+            .padding(.horizontal, 20)
+            .padding(.bottom, 10)
             HStack(spacing: 0) {
                 canvasPane.disabled(model.isLocked)
-                Divider()
-                sidebar.frame(width: 340)
+                Rectangle().fill(Theme.hairline).frame(width: 1)
+                ScrollView { draftEditor.padding(18) }
+                    .frame(width: 350)
             }
+            ComposerFooter(model: model, requestClose: requestClose, finish: finish)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 14)
         }
-        .frame(minWidth: 900, minHeight: 600)
-        .task { await model.loadOpenItems(app) }
+        .frame(minWidth: 920, minHeight: 600)
         .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { commentFocused = true }
-        }
-    }
-
-    // MARK: Header
-
-    private var header: some View {
-        HStack(spacing: 12) {
-            Label(model.isPreview ? "Preview" : "Captured", systemImage: model.isPreview ? "eye" : "checkmark.circle.fill")
-                .font(.callout.weight(.semibold))
-                .foregroundStyle(model.isPreview ? Color.orange : Color.green)
-            Text(model.isPreview
-                 ? "Layout preview from a fixture image — not a real capture. Draft and Commit are off."
-                 : "Add a mark or tell your team what changed.")
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-            Spacer(minLength: 12)
-            projectControl
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-    }
-
-    @ViewBuilder
-    private var projectControl: some View {
-        if app.projects.count > 1 {
-            Picker(selection: $model.projectId) {
-                ForEach(app.projects) { p in Text(p.name).tag(p.id) }
-            } label: {
-                Label("Project", systemImage: "folder")
-            }
-            .fixedSize()
-            .disabled(model.isLocked)
-            .onChange(of: model.projectId) { Task { await model.projectChanged(app) } }
-            .help("The project this Work Commit goes to")
-        } else {
-            Label(app.currentProject?.name ?? (model.isPreview ? "Preview project" : "Project"), systemImage: "folder")
-                .font(.callout.weight(.medium))
-                .help("The project this Work Commit goes to")
+            if model.editorFocusesDraft { DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { summaryFocused = true } }
         }
     }
 
     // MARK: Canvas
 
     private var canvasPane: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 12) {
-                Picker("Tool", selection: $tool) {
-                    ForEach(toolOrder) { t in
-                        Label(t.label, systemImage: t.symbol).tag(t)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 4) {
+                ForEach(toolOrder) { t in
+                    Button { tool = t } label: {
+                        Label(t.label, systemImage: t.symbol)
+                            .font(.callout)
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 5)
+                            .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(tool == t ? Theme.selected : .clear))
+                            .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(tool == t ? Color.primary : Color.secondary)
+                    .accessibilityAddTraits(tool == t ? .isSelected : [])
+                    .help("\(t.label) tool")
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .fixedSize()
-                .help("Mark tool")
-
-                HStack(spacing: 6) {
+                Rectangle().fill(Theme.hairline).frame(width: 1, height: 18).padding(.horizontal, 6)
+                HStack(spacing: 7) {
                     ForEach(Array(annotationColors.enumerated()), id: \.element) { i, c in
                         Button { color = c } label: {
-                            Circle().fill(Color(hex: c)).frame(width: 18, height: 18)
-                                .overlay(Circle().stroke(Color.primary, lineWidth: c == color ? 2 : 0).padding(-3))
+                            Circle().fill(Color(hex: c)).frame(width: 12, height: 12)
+                                .overlay(Circle().stroke(Color.primary.opacity(0.6), lineWidth: c == color ? 1.5 : 0).padding(-3))
+                                .padding(3)
+                                .contentShape(Circle())
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("\(colorNames[i]) mark color")
@@ -364,8 +520,10 @@ struct ComposerView: View {
                 }
                 Spacer(minLength: 8)
                 Button { _ = model.annotations.popLast() } label: { Label("Undo", systemImage: "arrow.uturn.backward") }
+                    .buttonStyle(QuietPillStyle())
                     .help("Undo the last mark").disabled(model.annotations.isEmpty)
                 Button { model.annotations.removeAll() } label: { Label("Clear", systemImage: "trash") }
+                    .buttonStyle(QuietPillStyle())
                     .help("Remove all marks").disabled(model.annotations.isEmpty)
             }
             if tool == .text {
@@ -377,148 +535,75 @@ struct ComposerView: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
-            CaptureStage(image: model.image, annotations: $model.annotations, tool: tool, color: color, text: labelText)
+            AnnotationCanvas(image: model.image, annotations: $model.annotations, tool: tool, color: color, text: labelText)
+                .modifier(CaptureHighlight(animateArrival: !model.arrivalPulsed) { model.arrivalPulsed = true })
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            HStack(spacing: 6) {
-                Image(systemName: "app.badge").foregroundStyle(.secondary)
-                Text(model.source.windowTitle.isEmpty ? model.source.appName : "\(model.source.appName) — \(model.source.windowTitle)")
-                    .foregroundStyle(.secondary).lineLimit(1)
-                Spacer()
-                if model.annotations.isEmpty {
-                    Text(tool == .text ? "Click the screenshot to place a label." : "Drag on the screenshot to add a \(tool.label.lowercased()).")
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .font(.caption)
+                .padding(6)
+            Text("Marks are saved with the commit. The AI drafts from the screenshot and your context, not from marks.")
+                .font(.caption).foregroundStyle(.secondary)
         }
-        .padding(14)
+        .padding(16)
     }
 
-    // MARK: Sidebar
+    // MARK: Draft
 
-    private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    commentBox.disabled(model.isLocked)
-                    fieldsReview.disabled(model.isLocked)
-                }
-                .padding(16)
+    private var draftEditor: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Context for the AI").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                ContextInput(model: model, compact: false)
             }
-            Divider()
-            footer.padding(14)
-        }
-    }
-
-    private var commentBox: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("What changed?").font(.headline)
-            ZStack(alignment: .topLeading) {
-                TextEditor(text: $model.comment)
-                    .font(.body)
-                    .focused($commentFocused)
-                    .scrollContentBackground(.hidden)
-                    .padding(6)
-                if model.comment.isEmpty {
-                    Text("One sentence is enough — e.g. “Auth works now. Next: the handoff flow.”")
-                        .foregroundStyle(.tertiary)
-                        .padding(.horizontal, 11)
-                        .padding(.vertical, 6)
-                        .allowsHitTesting(false)
-                }
-            }
-            .frame(minHeight: 110, maxHeight: 180)
-            .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .textBackgroundColor)))
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(commentFocused ? Color.accentColor : Color.secondary.opacity(0.3),
-                                                               lineWidth: commentFocused ? 2 : 1))
-            HStack {
-                Button {
-                    Task { await model.draft(app) }
-                } label: {
-                    if model.drafting {
-                        HStack(spacing: 6) { ProgressView().controlSize(.small); Text("Drafting…") }
-                    } else {
-                        Label("Draft with AI", systemImage: "wand.and.stars")
-                    }
-                }
-                .disabled(model.isPreview || model.drafting || model.comment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                .keyboardShortcut("d", modifiers: .command)
-                .help(model.isPreview ? "Off in preview" : "Turn your screenshot and sentence into reviewable fields (⌘D)")
-                Spacer()
-                organizerBadge
-            }
-            Text("Return adds a new line. Commit publishes your update.")
-                .font(.caption2).foregroundStyle(.secondary)
-            ForEach(model.warnings, id: \.self) { w in
-                Label(w, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var organizerBadge: some View {
-        if let o = model.organizer {
-            switch o.mode {
-            case .notConfigured:
-                Label("Manual — no AI connected", systemImage: "hand.raised")
-                    .font(.caption).foregroundStyle(.secondary)
-                    .help("The server has no AI provider configured. Fields are what you confirm here.")
-            case .unavailable:
-                Label("AI unavailable — review by hand", systemImage: "exclamationmark.triangle")
-                    .font(.caption).foregroundStyle(.orange)
-                    .help("AI is configured but could not finish this draft. Your screenshot and comment are kept.")
-            case .ai:
-                Label(o.provider ?? "AI", systemImage: "sparkles").font(.caption).foregroundStyle(.purple)
-            }
-        }
-    }
-
-    private var fieldsReview: some View {
-        DisclosureGroup(isExpanded: $model.fieldsExpanded) {
-            VStack(alignment: .leading, spacing: 12) {
+            AIStatusLine(model: model)
+            Group {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("SUMMARY").font(.caption.bold()).foregroundStyle(.secondary)
-                    TextField(model.effectiveSummary, text: $model.summary).textFieldStyle(.roundedBorder)
+                    Text("Summary").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                    TextField(model.effectiveSummary, text: $model.summary, axis: .vertical)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 14, weight: .medium))
+                        .lineLimit(1...4)
+                        .focused($summaryFocused)
+                        .padding(8)
+                        .panel(radius: 8)
                 }
-                ForEach(FieldKind.allCases) { kind in fieldSection(kind) }
+                ForEach(FieldKind.allCases) { kind in
+                    if !model.fields[keyPath: kind.keyPath].isEmpty { fieldSection(kind) }
+                }
+                addItemMenu
             }
-            .padding(.top, 8)
-        } label: {
-            HStack(spacing: 6) {
-                Text("Review details").font(.subheadline.weight(.semibold))
-                if model.fieldCount > 0 {
-                    Text("\(model.fieldCount)").font(.caption.monospacedDigit())
-                        .padding(.horizontal, 6).padding(.vertical, 1)
-                        .background(Capsule().fill(Color.secondary.opacity(0.15)))
-                }
-                Spacer()
-                if !model.fieldsExpanded {
-                    Text("Shipped · Decision · Why · Blocker · Next").font(.caption2).foregroundStyle(.secondary)
-                }
-            }
+            .disabled(model.isLocked)
         }
+    }
+
+    private var addItemMenu: some View {
+        Menu {
+            ForEach(FieldKind.allCases) { kind in
+                Button(kind.heading) { model.fields[keyPath: kind.keyPath].append(.new()) }
+            }
+        } label: {
+            Label("Add item", systemImage: "plus")
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .help("Add a Shipped / Decision / Why / Blocker / Next item")
     }
 
     private func fieldSection(_ kind: FieldKind) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(kind.title).font(.caption.bold()).foregroundStyle(.secondary)
-                Spacer()
-                Button { model.fields[keyPath: kind.keyPath].append(.new()) } label: { Image(systemName: "plus.circle") }
-                    .buttonStyle(.borderless)
-                    .accessibilityLabel("Add \(kind.rawValue)")
-                    .help("Add \(kind.rawValue)")
-            }
+            Text(kind.heading).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
             ForEach($model.fields[dynamicMember: kind.keyPath]) { $item in
                 HStack(spacing: 6) {
-                    TextField(kind.placeholder, text: $item.text).textFieldStyle(.roundedBorder)
+                    TextField(kind.placeholder, text: $item.text, axis: .vertical)
+                        .textFieldStyle(.plain)
+                        .lineLimit(1...3)
+                        .padding(7)
+                        .panel(radius: 7)
                     if kind == .shipped { resolvesMenu($item) }
                     Button {
                         let id = item.id
                         model.fields[keyPath: kind.keyPath].removeAll { $0.id == id }
-                    } label: { Image(systemName: "minus.circle") }
+                    } label: { Image(systemName: "xmark").imageScale(.small) }
                     .buttonStyle(.borderless)
+                    .foregroundStyle(.secondary)
                     .accessibilityLabel("Remove \(kind.rawValue) item")
                     .help("Remove")
                 }
@@ -543,123 +628,12 @@ struct ComposerView: View {
                 ))
             }
         } label: {
-            Label(selected.isEmpty ? "Resolves…" : "Resolves \(selected.count)", systemImage: "checkmark.seal")
+            Image(systemName: selected.isEmpty ? "checkmark.seal" : "checkmark.seal.fill")
         }
         .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
         .fixedSize()
+        .accessibilityLabel(selected.isEmpty ? "Resolves…" : "Resolves \(selected.count)")
         .help("Explicitly mark an open blocker / next item as resolved by this")
-    }
-
-    // MARK: Footer
-
-    @ViewBuilder
-    private var footer: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if let e = model.error {
-                Label(e, systemImage: "xmark.octagon").font(.caption).foregroundStyle(.red)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            if model.isLocked && model.result == nil && !model.committing {
-                Text("Retry resends exactly what was submitted. To change it, start a new commit.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            if let r = model.result {
-                CommittedBanner(commit: r)
-            }
-            HStack {
-                Button("Cancel", role: .cancel, action: requestClose)
-                    .keyboardShortcut(.cancelAction)
-                    .disabled(model.committing)
-                Spacer()
-                if model.isLocked && model.result == nil && !model.committing {
-                    Button("Edit as new commit") { model.editAsNew() }
-                }
-                if model.result != nil {
-                    Button("Done", action: finish).keyboardShortcut(.defaultAction)
-                } else {
-                    Button {
-                        Task {
-                            await model.commit(app)
-                            if model.result != nil {
-                                try? await Task.sleep(for: .seconds(1.6))
-                                finish()
-                            }
-                        }
-                    } label: {
-                        if model.committing {
-                            HStack(spacing: 6) { ProgressView().controlSize(.small); Text("Committing…") }
-                        } else {
-                            Text(model.isLocked ? "Retry  ⌘↩" : "Commit  ⌘↩")
-                        }
-                    }
-                    .keyboardShortcut(.return, modifiers: .command)
-                    .buttonStyle(.borderedProminent)
-                    .disabled(model.isPreview || model.committing)
-                    .help(model.isPreview ? "Off in preview" : "Create the Work Commit (⌘↩)")
-                }
-            }
-        }
-    }
-}
-
-/// Shown only after a real Commit response: SHA + origin sync.
-private struct CommittedBanner: View {
-    let commit: WorkCommit
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var shown = false
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.title3)
-                .foregroundStyle(.green)
-                .scaleEffect(shown || reduceMotion ? 1 : 0.6)
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Committed · #\(commit.sequence ?? 0)").font(.callout.weight(.semibold))
-                Text("\(commit.shortSha ?? "")\(commit.git?.remoteSynced == false ? " · origin not synced yet" : " · synced")")
-                    .font(.caption.monospaced()).foregroundStyle(.secondary)
-            }
-        }
-        .padding(8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 8).fill(Color.green.opacity(0.12)))
-        .onAppear {
-            if reduceMotion { shown = true } else { withAnimation(.spring(duration: 0.35, bounce: 0.4)) { shown = true } }
-        }
-    }
-}
-
-/// The captured screenshot as the main stage: a soft fade/scale-in and one
-/// accent border pulse on arrival (view-only — never burned into the PNG).
-private struct CaptureStage: View {
-    let image: NSImage
-    @Binding var annotations: [Annotation]
-    let tool: AnnotationType
-    let color: String
-    let text: String
-
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var appeared = false
-    @State private var pulse = 0.0
-
-    var body: some View {
-        AnnotationCanvas(image: image, annotations: $annotations, tool: tool, color: color, text: text)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.accentColor.opacity(pulse), lineWidth: 3))
-            .shadow(color: .black.opacity(0.12), radius: 10, y: 3)
-            .opacity(appeared ? 1 : 0)
-            .scaleEffect(appeared || reduceMotion ? 1 : 0.97)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(4)
-            .onAppear {
-                if reduceMotion {
-                    appeared = true
-                    return
-                }
-                withAnimation(.easeOut(duration: 0.25)) { appeared = true }
-                pulse = 0.9
-                withAnimation(.easeOut(duration: 0.9).delay(0.15)) { pulse = 0 }
-            }
     }
 }

@@ -24,7 +24,7 @@ enum SelfTest {
             log("FAIL: model check — \(failure)")
             exit(1)
         }
-        log("✓ model checks (AI status labels, dirty/close guard, edit-as-new ids, preview)")
+        log("✓ model checks (AI status labels, AI-first review gating, generation/revision guards, failure/frozen, close guard, preview)")
         if CommandLine.arguments.contains("--offline") { log("PASS (offline)"); exit(0) }
         do {
             let session = try await client.session(code: arg("--code") ?? "may-demo")
@@ -86,6 +86,7 @@ enum SelfTest {
             log("✓ catchup: \(cu.commits.count) since #\(cu.sinceSequence ?? -1), analyzer=\(cu.analyzer?.provider ?? "?")")
             let comment2 = try await client.addComment(commit: c.id, body: "selftest comment")
             log("✓ comment: \(comment2.id)")
+            try await composerFlow(client: client, project: project, png: png, runTag: runTag, log: log)
             log("PASS")
             exit(0)
         } catch {
@@ -101,25 +102,30 @@ enum SelfTest {
         guard provider("manual", "ai_unavailable") == .unavailable else { return "ai_unavailable must not read as 'no AI connected'" }
         guard provider("deepseek", "completed") == .ai, provider("deepseek", "no_changes") == .ai else { return "configured provider" }
 
-        let m = ComposerModel(image: NSImage(size: NSSize(width: 4, height: 4)), png: Data(),
-                              source: Source(appName: "t", windowTitle: "", captureKind: "region"), projectId: "p")
-        guard !m.isDirty else { return "fresh composer must not be dirty" }
-        m.comment = "  "
-        guard !m.isDirty else { return "whitespace comment is not dirty" }
-        m.annotations = [Annotation(type: .rect, x: 0, y: 0, w: 0.1, h: 0.1, text: nil, color: "#F97066")]
-        guard m.isDirty else { return "a mark makes the composer dirty" }
-        m.annotations = []
+        func composer(_ project: String = "p", preview: Bool = false) -> ComposerModel {
+            ComposerModel(image: NSImage(size: NSSize(width: 4, height: 4)), png: Data([1, 2, 3]),
+                          source: Source(appName: "t", windowTitle: "", captureKind: preview ? "upload" : "region"),
+                          projectId: project, isPreview: preview)
+        }
+        // A real capture is unsent material from the moment it arrives.
+        let m = composer()
+        guard m.isDirty else { return "a fresh capture (and its AI draft) must count as unsent" }
+        guard m.mode == .card else { return "the capture opens as the light card" }
+        guard m.primaryAction == .draftNow, !m.reviewReady else { return "no commit before any draft" }
         m.fields.shipped = [.new("done")]
-        guard m.isDirty, m.fieldCount == 1 else { return "a field makes the composer dirty" }
-        guard !m.fieldsExpanded else { return "fields start folded" }
-
+        guard m.fieldCount == 1 else { return "field count" }
         let before = m.fields.shipped[0].id
         m.editAsNew()
         guard m.fields.shipped[0].id != before, m.fields.shipped[0].text == "done" else { return "edit-as-new must rebuild item ids, keep text" }
 
-        let pv = ComposerModel(image: NSImage(size: NSSize(width: 4, height: 4)), png: Data(),
-                               source: Source(appName: "t", windowTitle: "", captureKind: "upload"), projectId: "p", isPreview: true)
-        guard pv.isPreview else { return "preview flag" }
+        let pv = composer(preview: true)
+        guard pv.isPreview, !pv.isDirty else { return "preview flag / untouched fixture is not dirty" }
+        pv.comment = "x"
+        guard pv.isDirty else { return "preview edits count as dirty" }
+        pv.loadSample()
+        guard pv.isSample, !pv.summary.isEmpty, pv.beginDraft() == nil, !pv.reviewReady else { return "preview: labeled sample, no AI, no commit" }
+
+        if let failure = aiFlowChecks(composer) { return failure }
 
         // Isolation: selftest/preview never use the saved account or endpoint.
         let app = AppState.shared
@@ -154,6 +160,145 @@ enum SelfTest {
         newerModel.committing = false
         controller.forceClose(newer)
         guard !controller.isOpen else { return "forceClose(current) must close it" }
+        return nil
+    }
+
+    /// T14 against a (scratch) server through the real ComposerModel: arrival
+    /// draft with empty context, no Git write without explicit Commit, the
+    /// latest context is what commits, frozen retry never re-drafts, and an
+    /// unreachable AI keeps the material.
+    static func composerFlow(client: APIClient, project: String, png: Data, runTag: String,
+                             log: (String) -> Void) async throws {
+        func fail(_ m: String) -> APIError { APIError(status: 0, code: "composer", message: m) }
+        let source = Source(appName: "CmdShift3 selftest", windowTitle: "T14", captureKind: "region")
+        let count0 = try await client.commits(project: project).commits.count
+
+        let m = ComposerModel(image: NSImage(data: png) ?? NSImage(), png: png, source: source, projectId: project)
+        await m.arrive(client)
+        await m.arrive(client)   // arrival runs once per capture
+        guard m.draftRequestsSent == 1, m.appliedInput?.comment == "", m.organizer != nil else {
+            throw fail("arrival must draft once with empty context (sent=\(m.draftRequestsSent), failure=\(m.aiFailure ?? "-"))")
+        }
+        log("✓ arrival draft with empty context: provider=\(m.organizer?.provider ?? "?") status=\(m.organizer?.status ?? "?")")
+        guard try await client.commits(project: project).commits.count == count0 else { throw fail("a draft wrote a commit") }
+        if !m.reviewReady {
+            guard await !m.commit(client), m.frozen == nil else { throw fail("commit before review must be refused") }
+        }
+        guard try await client.commits(project: project).commits.count == count0 else { throw fail("unreviewed commit reached Git") }
+        log("✓ no Git write from draft or before review (feed still \(count0))")
+
+        let latest = "T14 latest context \(runTag)"
+        m.comment = latest
+        guard m.needsUpdate, !m.reviewReady || m.manualReview else { throw fail("context change must need an update") }
+        await m.draft(client)
+        guard m.appliedInput == m.currentInput, m.draftRequestsSent == 2 else { throw fail("update draft for the latest context") }
+        if !m.reviewReady {
+            guard m.primaryAction == .continueManually || m.primaryAction == .retryAI else { throw fail("no-AI path must offer manual") }
+            m.continueManually()
+            log("✓ no AI on this server → explicit Continue manually")
+        }
+        guard m.reviewReady, await m.commit(client), let r = m.result else { throw fail("reviewed commit: \(m.error ?? "-")") }
+        guard r.comment == latest else { throw fail("commit must carry the latest context") }
+        log("✓ reviewed commit #\(r.sequence ?? -1) sha=\(r.shortSha ?? "nil") carries the latest context")
+
+        await m.draft(client)
+        m.result = nil   // simulate a lost response → retry the frozen request
+        guard await m.commit(client), m.result?.git?.sha == r.git?.sha, m.draftRequestsSent == 2 else {
+            throw fail("frozen retry must resend the same request without AI")
+        }
+        guard try await client.commits(project: project).commits.count == count0 + 1 else { throw fail("retry duplicated the commit") }
+        log("✓ frozen retry: same SHA, no new AI request, one commit")
+
+        let dead = APIClient(baseURL: URL(string: "http://127.0.0.1:9")!, token: client.token)
+        let f = ComposerModel(image: NSImage(data: png) ?? NSImage(), png: png, source: source, projectId: project)
+        f.comment = "keep me"
+        await f.arrive(dead)
+        guard f.aiFailure != nil, f.comment == "keep me", f.png == png, !f.isLocked, f.primaryAction == .retryAI else {
+            throw fail("unreachable AI must keep the material and offer Retry AI")
+        }
+        log("✓ AI unreachable: material kept, Retry AI / Continue manually offered")
+    }
+
+    /// T14 AI-first state rules, network-free: generation/revision guards,
+    /// review gating, manual fallback, failure keeps material, frozen retry.
+    static func aiFlowChecks(_ composer: (String, Bool) -> ComposerModel) -> String? {
+        func ai(_ summary: String, _ shipped: String) -> DraftResponse {
+            var f = Fields()
+            f.shipped = [.new(shipped)]
+            return DraftResponse(summary: summary, fields: f, organizer: Provider(provider: "deepseek", status: "completed"), warnings: nil)
+        }
+
+        // A→B→A with overlapping requests: only the latest generation applies.
+        let m = composer("A", false)
+        guard let g1 = m.beginDraft() else { return "arrival draft must start" }
+        m.projectId = "B"
+        guard let g2 = m.beginDraft() else { return "B draft" }
+        m.projectId = "A"
+        guard let g3 = m.beginDraft() else { return "A again" }
+        guard !m.applyDraft(ai("old A", "x"), gen: g1.gen, input: g1.input) else { return "stale A (gen 1) applied" }
+        guard !m.applyDraft(ai("B", "y"), gen: g2.gen, input: g2.input) else { return "stale B applied after switching back" }
+        guard m.drafting else { return "latest request still in flight" }
+        guard m.applyDraft(ai("fresh A", "z"), gen: g3.gen, input: g3.input) else { return "latest A must apply" }
+        guard m.summary == "fresh A", m.fields.shipped.map(\.text) == ["z"] else { return "applied content" }
+        guard m.reviewReady, m.primaryAction == .commit else { return "a current AI draft is ready to review/commit" }
+
+        // Context edited mid-flight: the result is for old input → dropped.
+        guard let g4 = m.beginDraft() else { return "update draft" }
+        m.comment = "typed while drafting"
+        guard !m.applyDraft(ai("stale", "s"), gen: g4.gen, input: g4.input) else { return "result for edited context applied" }
+        guard !m.drafting, m.summary == "fresh A" else { return "dropped result must not change the draft" }
+        guard m.needsUpdate, !m.reviewReady, m.primaryAction == .updateDraft else { return "context change → Update draft, not Commit" }
+
+        // Human edits survive an update; the new draft becomes reviewable.
+        m.summary = "my own summary"
+        guard let g5 = m.beginDraft() else { return "update" }
+        guard m.applyDraft(ai("ai summary 2", "z2"), gen: g5.gen, input: g5.input) else { return "update must apply" }
+        guard m.summary == "my own summary" else { return "human-edited summary must be kept" }
+        guard !m.needsUpdate, m.reviewReady else { return "updated draft reviewable" }
+
+        // Project switch drops resolves and AI state.
+        m.fields.shipped[0].resolves = ["it_x"]
+        m.continueManually()
+        m.projectId = "B"
+        m.resetForProjectSwitch()   // projectChanged's state part (its re-draft is network)
+        guard m.fields.shipped.allSatisfy({ ($0.resolves ?? []).isEmpty }), m.organizer == nil, !m.manualReview, m.appliedInput == nil else {
+            return "project switch must clear resolves / AI / manual state"
+        }
+
+        // Not configured: no silent bypass — explicit Continue manually first.
+        let n = composer("A", false)
+        guard let gn = n.beginDraft() else { return "nc draft" }
+        n.applyDraft(DraftResponse(summary: nil, fields: Fields(), organizer: Provider(provider: "manual", status: "not_configured"), warnings: nil),
+                     gen: gn.gen, input: gn.input)
+        guard !n.reviewReady, n.primaryAction == .continueManually else { return "no AI → Continue manually before Commit" }
+        n.continueManually()
+        guard n.reviewReady, n.primaryAction == .commit else { return "manual review enables Commit" }
+
+        // AI unavailable / HTTP 429 / network: state is explicit, material kept.
+        for (err, needle) in [(APIError(status: 429, code: "rate_limited", message: "slow down"), "limit"),
+                              (APIError(status: 0, code: "network", message: "offline"), "reach")] {
+            let f = composer("A", false)
+            f.comment = "keep me"
+            f.annotations = [Annotation(type: .rect, x: 0, y: 0, w: 0.2, h: 0.2, text: nil, color: "#F97066")]
+            guard let gf = f.beginDraft() else { return "fail draft" }
+            f.failDraft(err, gen: gf.gen, input: gf.input)
+            guard let msg = f.aiFailure, msg.contains(needle) else { return "failure message for \(err.code)" }
+            guard f.comment == "keep me", f.annotations.count == 1, f.png == Data([1, 2, 3]), !f.isLocked else { return "failure must keep material" }
+            guard !f.reviewReady, f.primaryAction == .retryAI, f.offersManual else { return "failure → Retry AI / Continue manually" }
+        }
+        let u = composer("A", false)
+        guard let gu = u.beginDraft() else { return "unavailable draft" }
+        u.applyDraft(DraftResponse(summary: nil, fields: nil, organizer: Provider(provider: "manual", status: "ai_unavailable"), warnings: nil),
+                     gen: gu.gen, input: gu.input)
+        guard !u.reviewReady, u.primaryAction == .retryAI, u.offersManual else { return "ai_unavailable → Retry AI / Continue manually" }
+
+        // Frozen: no AI after the first write attempt; late drafts never apply.
+        let z = composer("A", false)
+        guard let gz = z.beginDraft() else { return "z draft" }
+        let frozenReq = z.freeze()
+        guard z.freeze().id == frozenReq.id else { return "freeze is stable" }
+        guard !z.applyDraft(ai("late", "l"), gen: gz.gen, input: gz.input) else { return "a draft applied after freezing" }
+        guard z.beginDraft() == nil, z.primaryAction == .retryCommit else { return "frozen retry must never re-draft" }
         return nil
     }
 
