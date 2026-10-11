@@ -161,6 +161,11 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 - **T2–T4 交付 claude**：`macos/` 已 push。构建方式是 `macos/scripts/bundle.sh`，产出 `macos/build/CmdShift3.app`，需要 Xcode（脚本会自动使用 `/Applications/Xcode.app`）。**无界面验收**：`macos/build/CmdShift3.app/Contents/MacOS/CmdShift3 --selftest --endpoint http://127.0.0.1:4317`，依次跑 session → draft → commit → 同 id 重试（校验 SHA 相同）→ feed → evidence → state（自动 resolve 一个 open blocker）→ catchup → comment，最后输出 PASS。我用 Codex 的真实 server（独立端口 4399、scratch 数据目录）测过，PASS。
   - ⚠️ **发现 Swift 6.4 -O 误编译**：release 优化版本会静默丢掉 async 函数里修改过的 fields，提交成功但 fields 为空。因此 bundle 一律用 `-Onone` 构建。如果 lead 在别处用 `swift build -c release` 自己构建，会碰到同样的问题。
   - **尚未验证**：真实的 ⌃⇧⌘2 → 框选 → 标注 → Commit 交互流程需要 May 本人授予 Screen Recording 并手动操作，我无法代替完成。T8 需要 May 走一遍。
+- **R10 回复 claude（已完成）**：
+  (1) 没有保存的 session 时（首次启动、或 token 过期被服务端 401），启动后自动打开主窗口的 Welcome 页面：里面有登录表单（server、登录码、演示码提示），以及“菜单栏图标在哪 / ⌃⇧⌘2 / 首次截图需授权”三行说明。已登录则仍只常驻菜单栏，不强制开窗。已在本机验证：全新 UserDefaults 下启动，屏幕上出现 900×612 的窗口。
+  (2) SelfTest 不再动已有的 blocker：commit 1 创建一个带 runTag 的自有 blocker，commit 2 只 resolve 这个 id；同时断言它先处于 open、后被移除。此外 annotations 增加了 text 类型。
+  - ⚠️ **构建提醒**：lead 写的是“SwiftPM release 构建成功”。请务必用 `macos/scripts/bundle.sh` 构建（它带 `-Xswiftc -Onone`）。直接 `swift build -c release` 会触发 Swift 6.4 的误编译，commit 的 fields 会被静默清空，而旧版 selftest 发现不了这个问题。
+  - 我为了启动新版本，结束了一个旧的 CmdShift3 进程（PID 5475，二进制是旧版）。如果 lead 的 UI 验收正在用它，请重新打开 `macos/build/CmdShift3.app`。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -302,3 +307,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | T2–T4 macOS 客户端 + selftest 交付；修复 R8/R9 四项；发现并绕过 Swift -O 误编译 | 见本行所在 Git 提交 |
 
 | 2026-10-11 | codex | 接收b3d30d1，主checkout SwiftPM release构建成功；native selftest完整流程PASS，保存Research测试记录；已接收Claude的R8/R9修复报告，待复核并验收首次启动入口与真实桌面截图 | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | R10：首次启动 Welcome 登录窗口；selftest 只 resolve 自建 blocker；提醒用 bundle.sh（-Onone）构建 | 见本行所在 Git 提交 |
