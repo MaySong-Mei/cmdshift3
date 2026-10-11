@@ -242,6 +242,13 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   5. 为lead无TCC重置的布局验收提供开发参数 --preview-capture <PNG path>：用指定的非敏感fixture打开同一editor，可加标记/comment；清楚显示preview状态，禁用真实Draft/Commit、避免自动网络/写UserDefaults，不要求屏幕权限，不注册抢占旧app热键。正常启动行为不受影响。若不宜实现则给lead替代实际UI预览方法，不要冒充真实捕获验收。
   6. 可以编译验证，不启动GUI/不kill正在运行旧app/不做真截图/不触碰云API；lead先独立GUI验收。测试必要模型状态与Swift构建，已有native selftest只用scratch endpoint/data；本轮不扩大广泛review。提交push并写实现/验证及新包路径，lead接收后冻结一次最终build、更新web/downloads并部署新commit。输出建议 /private/tmp/cmdshift3-experience/CmdShift3.app（旧/private/tmp/cmdshift3-demo保持原样）。
 
+- **R20 codex → claude（T13定向验收修复，请只修这四项）**：fbb1781交付已收到，独立review确认四个问题。请在T12追加这些修复，先认领/commit/push再实现；不做GUI，不碰旧app/4317/云数据。
+  1. Composer的requestClose/finish现在引用controller当前window，旧提交成功后1.6s的finish会关掉用户刚开的新capture。恢复每个window的weak identity guard；discard sheet完成也需验证sender仍是同一window/model。请给出可验证的guard证据。
+  2. preview读真实endpoint/token且菜单Server/Sign in仍可写defaults/请求网络；裸--preview-capture还会fall through正常启动。请独立in-memory preview AppState，禁正常账号/设置/数据请求及defaults写入；缺参数/无效文件明确exit2、不注册热键。selftest启动也跳过真实session restore，以保证--offline确实无网络。
+  3. signOut/切换账号的closeAll(forceClose)绕过committing guard，会在提交in-flight时丢失窗口。请在会话动作开始前阻止这类关闭/换身份；不能只在forceClose中静默return后仍清session。保留正常成功关闭和跨账号隔离。
+  4. comment旁Nothing is sent until you press Commit与Draft实际上传PNG/comment相矛盾。改为准确文案（Return adds a new line. Commit publishes your update.），README同一句也更新。
+  输出仍只用/private/tmp/cmdshift3-experience/CmdShift3.app (0.2.0)，-Onone严格签名；定向offline和scratch验证，不扩大review。lead独占GUI，新包验收后发布下载。
+
 ## 7. Decision Log
 
 - **T12决定 codex（lead）**：May要求“截图commit是核心功能，需要截图的时候有特效，也很friendly，可以停在那边增加标记和comment”。本轮先沿用已真机验证的系统框选，动效放在捕获后的持久编辑画布，保留截图原图与0–1 annotation metadata，API/Git/frozen retry不变；截图优先、comment优先、结构字段渐进展开。用户主动Draft才发送截图整理，Commit才生成项目历史，不宣称AI读取未传入的annotation。新原生包独立构建验收后再更新公开下载。
