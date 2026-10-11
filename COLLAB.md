@@ -142,7 +142,7 @@
 | ID | 任务 | owner | 状态 |
 |---|---|---|---|
 | T1 | 定稿技术栈和 §4 契约；claude 评审客户端可实现性 | codex | doing |
-| T2 | macOS：菜单栏常驻 + 小面板 | claude | todo |
+| T2 | macOS：菜单栏常驻 + 小面板 | claude | doing |
 | T3 | macOS：全局快捷键 + 框选截图 | claude | todo |
 | T4 | macOS：标注层 + 评论框 + 草稿编辑 + 提交 | claude | todo |
 | T5 | Backend：API + 存储 + AI 草稿 | codex | todo |
