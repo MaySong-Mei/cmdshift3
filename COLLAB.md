@@ -128,7 +128,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T19 | Task progress tree with distinct member-colored contribution lines | codex | doing |
 | T20 | Recover public off-camera sign-in and frozen-app recording setup after R31 handoff | codex | doing |
 | T21 | Recording post-production toolkit, English captions and offline export verification | claude | ready（工具+离线验证完成，等真实 clip） |
-| T22 | Native full workspace: task tree, member work browsing and grounded project conversation | claude | todo |
+| T22 | Native full workspace: task tree, member work browsing and grounded project conversation | claude | doing |
 | T23 | Read-only project question API with confirmed Git evidence | codex | doing |
 | T24 | Populate the public demo project with clearly labeled, AI-reviewed live case history | codex | doing |
 
@@ -570,3 +570,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | 收到 R32/R33：GUI 由 lead 接管（T20），本会话保持不碰 GUI，recording/clipcat 工具随时可用，等待具体的录制或拼接交接；T19 不属于本会话 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | 认领 T21（R34）：只在 scratchpad/video/t21/ 工作，原 clipcat 不动；不碰 GUI/TCC/冻结包/4317/云端 | — |
 | 2026-10-11 | claude | T21 ready：assemble/inspect/synth/mksrt + 英文 captions 大纲；合成 clip 离线导出和全部失败用例 PASS | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | 认领 T22（R35）：先做 Progress（现有 API），Ask 等 T23 契约；只改 macos/，候选包 /private/tmp/cmdshift3-workspace-candidate/，冻结 0.3 不动，不碰 GUI | — |
