@@ -225,6 +225,13 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   4. **脚本**（参照 docs/REAL_CASE_DEMO.md，约 3 分钟）：May 在 Terminal 跑真实 `npm test` → ⌃⇧⌘2 截取测试结果 → 0.3 卡片自动 DeepSeek 草稿 → review → Commit；Gary 在 Chrome（gary-demo）看到更新、评论，再在 web 上传审核截图并只 resolve 本 case 的 blocker；May 回来 Catch me up。
   5. **录屏**：`screencapture -v` 由本会话录（VS Code 已授 Screen Recording）。视频存本地，交给 May 审看后再决定是否用作提交素材；不会上传到任何地方。开录前 May 会收起无关窗口。
   第一次是试录。如果流程中暴露 0.3 的问题，会记在这里由 lead 决定，不会临时改代码。
+- **video paused / R31 claude → codex（May 指示：遇到问题就交还 Codex，请求交换任务）**：本会话**未开录**，没有产生任何视频、Work Commit 或公开数据。现在释放 GUI，并请求 lead 接手录制（T17/T18 后续）。阻塞点和可复用材料如下：
+  1. **阻塞 A：冻结的 0.3 包没有生效的 Screen Recording。** `/private/tmp/cmdshift3-ai-review/CmdShift3.app`（a07fbfed，ad-hoc，designated requirement = cdhash `08de0372…`）：用正常方式重启后按 ⌃⇧⌘2，`screencapture` 没有启动，app 弹出 “Allow Screen Recording”（`CGPreflightScreenCaptureAccess` 为 false）。May 说开关一直是开的，也按 “−/+ 重新添加” 试过，但重启 0.3 后仍然失败。推测列表里的条目对应的是旧签名，或是另一份拷贝（比如 lead 的 QA 副本）。我**不能**改 TCC，也不能运行 tccutil，这一步需要 May 亲自操作，或者由 lead 换一种方式（例如 lead 的 GUI 工具）确认具体是哪一项。System Settings 窗口在另一个桌面，我这边无法截图核对。
+  2. **阻塞 B：公开版的登录凭据只能由人输入。** R29 要求在镜头外登录 cmd3_demo_may / cmd3_demo_gary，并在 native 端输入 May 的个人 Mac code。我的规则不允许在非本地站点输入密码、token 或 code，所以我没有打开凭据文件，也没有登录。需要 May 本人登录，或者由 lead 处理。
+  3. **当前现场**：旧 0.1 app 已正常退出（热键已释放）；冻结的 0.3 正在运行（PID 见 `pgrep -f cmdshift3-ai-review`），仍连本地 4317、以 May 身份登录，没有任何未发送的 composer。我在 Chrome Browser 1 里有一个 MCP 标签页，停在 4317 的登录页。4317、云端、UserDefaults 都没有改动。
+  4. **已验证**：VS Code 宿主已经有 Screen Recording，`screencapture -v` 录制和 SIGINT 提前停止都能正常生成文件；Accessibility 已有；Chrome 扩展连的是 Browser 1。
+  5. **可复用工具**（都在本会话 scratchpad：`/private/tmp/claude-501/-Users-maymaymei-coding-cmdshift3/9b1495de-4ff6-4179-8eb6-b801b0117ee7/scratchpad/video/`）：`demo1`（clip 1 驱动：⌃⇧⌘2 → 拟人拖拽框选 → 等 0.3 卡片 → 等 AX 主按钮变成 “Commit” → 在 Context 里输入 → ⌘↩ Update draft → 再等 Commit → ⌘↩ Commit → 等卡片关闭；用法 `demo1 <pid> <x> <y> <w> <h> "<context>"`）；`clipcat`（把多段 .mov 拼成 1920 宽的 H.264 MP4，并导出 poster PNG；用法 `clipcat out.mp4 poster.png <sec> clip1.mov …`）。对应的 `.swift` 源码在同一目录。
+  请 lead 决定由谁、在哪个环境完成录制。如果需要本会话继续做非 GUI 部分（例如拼接、验证报告、API 核对 SHA），请在这里分配。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -526,3 +533,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude（本会话） | 代跑 R26 验证：禁网 offline PASS，scratch 完整 selftest PASS（a07fbfed） | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | R27：请求 lead 让出 GUI，推进第一次 demo 视频试录（0.3 候选包、4317、Real case 2） | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | 收到 R28 ok。**video setup**：正常退出旧 0.1 app（释放热键），启动冻结的 0.3（a07fbfed），请 May 确认 Screen Recording；尚未开录 | — |
+| 2026-10-11 | claude | **video paused**：0.3 的 Screen Recording 未生效，公开版凭据又只能由人输入；按 May 指示交还录制给 lead（R31），释放 GUI，并交出驱动和拼接工具 | 见本行所在 Git 提交 |
