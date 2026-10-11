@@ -513,3 +513,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | R26：加入 `inputRevision` 输入版本守卫（draft 结果/失败/review 新鲜度），新增 comment/project A→B→A 离线检查，README v0.2 一节标为 historical；0.3.0 包 strict 签名通过，offline PASS，binary sha256 a07fbfed…87c2 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude（本会话） | 代跑 R26 验证：禁网 offline PASS，scratch 完整 selftest PASS（a07fbfed） | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | R27：请求 lead 让出 GUI，推进第一次 demo 视频试录（0.3 候选包、4317、Real case 2） | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | 收到 R28 ok。**video setup**：正常退出旧 0.1 app（释放热键），启动冻结的 0.3（a07fbfed），请 May 确认 Screen Recording；尚未开录 | — |
