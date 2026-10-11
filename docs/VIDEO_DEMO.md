@@ -1,6 +1,38 @@
-# CmdShift3 v0.3 video demo
+# CmdShift3 v0.4 video demo
 
-Owner: the existing Claude Code recording session. Codex coordinates acceptance and publishing. Target: a 90–180 second English video using the actual Mac app. For the next take, use the dedicated public demo actors and private project prepared by lead at `https://cmdshift3-web-production.up.railway.app/`. Complete sign-in and Mac connection off-camera so the video starts with the project already open.
+Owner: May records the video herself. Codex prepares the accepted public release; the existing Claude Code session can assemble clips and captions afterward. Target: a 90–180 second English video using the actual Mac app. Use **Atlas Checkout Launch** at `https://cmdshift3-web-production.up.railway.app/`. Complete sign-in and Mac connection off-camera so the video starts with the project already open.
+
+## Current prepared-history take
+
+Use `/private/tmp/cmdshift3-workspace-candidate-b5/CmdShift3.app`, **0.4.0 build 5**, native source `a387d22f6c6bcefd2a51ba37c3195930b40556a8`, binary SHA256 `828f9a2c838fb5a37a682e5ff5d3a913af6ad3d2a0935389711ed0817186b3c7`. The same signed bundle is in the public download; do not rebuild it. May handles its Screen Recording permission and recording setup. The Mac full window includes Progress, People, Ask, project selection and account controls.
+
+Atlas already contains three operator-reviewed, genuine AI-generated Work Commits: May's prepared design inspection (`20d19de`), Gary's explicit approval/resolution (`3028a5c`), and May's prepared handoff (`437d6fb`). These are labeled demo roles and use a neutral fictional fixture. There are **0 open blockers, 1 next task, 2 completed tasks**. The remaining task is a fresh screenshot Work Commit for the checkout review. Keep this history; start recording with it visible.
+
+| Time | Show | English narration |
+|---|---|---|
+| 0:00–0:15 | Project context and Progress. Show the completed review, May/Gary colors and remaining task. | “Our team already has a shared history. I can see the review, its evidence, and the work still ahead.” |
+| 0:15–0:35 | Display the neutral checkout fixture. Press Control–Shift–Command–2 and physically select it. Show the captured highlight and automatic AI draft. | “A work update starts as quickly as a screenshot. AI organizes the evidence while I stay in my workflow.” |
+| 0:35–1:00 | Edit screenshot; mark the visible postal-code validation. Add a truthful short note, return and Update draft. | “I can add a mark or context, then review what AI wrote before anything is committed.” |
+| 1:00–1:20 | Read the actual draft and explicitly Commit. Show its real SHA and sync result. | “My reviewed update becomes a real Git record, with its screenshot and annotations.” |
+| 1:20–1:45 | Refresh the project; open the new evidence from Work or Progress. Browse Gary's prepared review through People. | “Tasks show where everyone's contribution fits, and I can inspect a teammate's work directly.” |
+| 1:45–2:15 | Web Catch me up: show Keewano indexed activity and source records. Ask “What did Gary review, and what still needs to happen?” | “Keewano retrieves our indexed activity. The app checks each record against Git, includes newer work, and gives me a sourced catch-up or answer.” |
+| 2:15–2:25 | End on the project tree and public URL. | “Commit your work. Everyone stays caught up.” |
+
+Suggested context after actually completing the capture and visual review:
+
+```text
+I captured this checkout demo and reviewed the visible postal-code validation message. I added a mark to the validation area. This completes the existing next task to record a fresh screenshot Work Commit for the checkout review. No implementation or automated test result is claimed.
+```
+
+Review the generated fields and resolve only that existing next task if the action was actually completed. A prepared image is not proof of implementation or tests. Do not create another copy of the prepared teammate-review task. The original fixture can be displayed from the local `work/ai-review-demo.png` file; the filmed capture must come from the real shortcut, not preview/upload/selftest.
+
+The three prepared records have passed real Keewano ingress and entity-scoped ordered Lua retrieval. Their SHAs, authors, timestamps and event counts match Git. Newly recorded work appears immediately through Git and may be outside indexed query coverage temporarily. Event counts describe recorded activity, not the current number of blockers. The public service generates future AI text in English; original historical records are preserved.
+
+Keep credentials and permission pages off-camera. Do not mark seen before the take if you want all prepared updates in Catch-up. Keep the finished video local for review; no submission or upload is part of this handoff.
+
+## Historical v0.3 script
+
+The script below is retained for reference. Its old bundle and empty-case setup do not override the current b5/Atlas/May-owned take above.
 
 The approved local **Real case 2** take at `http://127.0.0.1:4317/` remains valid. If it is already recording, finish it before switching environments; never switch the service or actor in the middle of a captured draft. State which environment the delivered take uses.
 

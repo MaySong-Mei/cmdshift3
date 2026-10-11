@@ -113,6 +113,9 @@ function normalizeDraft(result, knownIds) {
 }
 
 async function modelResponse({ instruction, content, schema, name, config, validate, beforeModelCall, maxPromptBytes }) {
+  if (['english', 'en'].includes((process.env.CMD3_AI_OUTPUT_LANGUAGE || '').trim().toLowerCase())) {
+    instruction += '\nOutput language override: Write generated summaries, work item text, warnings and answers in English, even when input comments, questions, screenshots or dialogue use another language. This overrides earlier language-selection rules. Preserve source IDs and member names exactly.';
+  }
   const deepseek = config.provider === 'deepseek';
   const base = config.base.replace(/\/+$/, '');
   const url = new URL(`${base}/${deepseek ? 'chat/completions' : 'responses'}`);

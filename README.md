@@ -32,7 +32,9 @@ Open **[CmdShift3](https://cmdshift3-web-production.up.railway.app/)** to create
 
 The public deployment uses independent username/password accounts and private projects. Create a project, save its background in the Project Context Card, invite teammates, and generate a personal access code to connect the Mac capture workbench. Each confirmed Work Commit still creates a real Git commit. Public mode uses separate persistent cloud data and rejects the published local demo codes.
 
-The v0.3 Mac app opens a compact review card with a highlighted screenshot and automatically asks AI to write the draft, even without a comment. Read the result and choose Commit to publish. Edit screenshot and Edit draft expand only when needed, preserving marks and edits when you return. Changed context requires Update draft and another review. A brief arrival pulse respects Reduce Motion; the static highlight stays visible. Closing unsent work asks whether to keep editing, and failed submissions retain the original request for an identical retry.
+The v0.4 Mac app opens a compact review card with a highlighted screenshot and automatically asks AI to write the draft, even without a comment. Read the result and choose Commit to publish. Edit screenshot and Edit draft expand only when needed, preserving marks and edits when you return. Changed context requires Update draft and another review. A brief arrival pulse respects Reduce Motion; the static highlight stays visible. Closing unsent work asks whether to keep editing, and failed submissions retain the original request for an identical retry. The full window also includes task progress with member colors, People, project questions with source records, and project/account controls.
+
+The public service generates AI text in English. Keewano retrieves indexed project activity for Catch-up, and every returned record is checked against project Git evidence before appearing in the summary. See [the integration details](docs/KEEWANO.md).
 
 See [deployment and onboarding](docs/DEPLOYMENT.md) for hosting, Mac setup, access controls and release checks. Vercel and Supabase are not required for this initial single-server release. The first release has no password recovery; keep your account password.
 
@@ -45,7 +47,8 @@ Copy `.env.example` to `.env` and fill in only the services you want. Never comm
 - `CMD3_HOST=0.0.0.0`: expose the demo server to a second device on your network. Use the server machine's address in the native client. Demo codes are public and this is not a production authentication system.
 - `CMD3_PORT` and `CMD3_DATA_DIR`: change the port or data directory.
 - `CMD3_REMOTE_PROJ_CMDSHIFT3` / `CMD3_REMOTE_PROJ_RESEARCH`: configure a dedicated empty Git remote for a project's work history. Credentials must already be available to Git. A failed push preserves the local commit and reports `remote_synced: false`; resending the identical submission retries synchronization. The default bare origin runs on the same machine and is not cloud deployment.
-- `KEEWANO_API_KEY`: optional typed event ingress adapter. `KEEWANO_PAT` is reserved for the separate query integration. No live Keewano write/query or managed-agent execution has been verified, and query-driven summaries are not implemented. The core demo does not claim sponsor integration.
+- `CMD3_AI_OUTPUT_LANGUAGE=English`: generate drafts, summaries and answers in English while retaining original comments, member names and evidence.
+- `KEEWANO_API_KEY`, `KEEWANO_PAT`, `KEEWANO_PROJECT_ID`: SDK-type event ingress and read-only indexed-history retrieval. The public Atlas demo has verified real writes and queries; Catch-up adds activity from rows matched to project Git records. Missing or unavailable indexed history keeps the normal Git-backed summary. Hosted Keewano agents are not invoked. See [setup and data boundaries](docs/KEEWANO.md).
 
 Current state uses explicit `shipped.resolves` references to close earlier blocker/next items. Omitting a blocker from a later update never resolves it. Viewing catch-up does not mark it read; the user confirms the checkpoint explicitly.
 

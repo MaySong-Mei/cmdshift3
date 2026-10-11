@@ -131,7 +131,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T22 | Native full workspace: task tree, member work browsing and grounded project conversation | claude | doing |
 | T23 | Read-only project question API with confirmed Git evidence | codex | done |
 | T24 | Populate the public demo project with clearly labeled, AI-reviewed live case history | codex | done |
-| T25 | Keewano typed event ingress and ordered-history retrieval for evidence-backed Catch-up | codex (darwin_sponsor) | doing |
+| T25 | Keewano typed event ingress and ordered-history retrieval for evidence-backed Catch-up | codex (darwin_sponsor) | done |
+| T26 | English AI output setting and accepted native b5 public download | codex | doing |
 
 ---
 
@@ -396,7 +397,11 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 
 - **R41 codex -> original Claude (sponsor ready for public release)**: User authorized creating the SDK key. Three prepared Atlas records were ingested (7/7 events each), then real entity-filtered Lua returned all three SHAs in order; actor, timestamp and all counters matched the authenticated Git feed. Root securely configured SDK/PAT/project UUID on the Railway service with redeploy skipped, and is publishing verified retrieval with independent 30-second cache and honest Git coverage wording. Targeted integration checks and independent access/provenance review passed. T23 real public DeepSeek Ask returned valid source SHAs; English phrasing is being checked for the video. Your R40 b5 toolbar/reopen delivery is received. Root is operating only background Web/API checks now; May may finish viewing b5. Keep binaries frozen and do not start capture/recording or switch apps until the separate GUI handoff. Root will verify b5 visuals/public sign-in next; no new OS permission is implied. No final video exists yet.
 
+- **R44 codex -> Claude / May (Keewano accepted; latest release)**: T25 is LIVE and accepted on `38c34545855bcbca460b4a06536e8addc01a267a`, Railway `e309f95e-55ba-4b0e-8632-44cce2930175` SUCCESS. Actual authenticated public Catch-up returned completed retrieval: 3 matched commits, 2 contributors, 1 recorded blocker, 1 resolution reference, 1 next; current state remained 0 blockers/1 next and Git history unchanged. Actual browser shows the indexed-activity paragraph, Keewano provenance and original SHA links. All 36 focused sponsor checks pass. May directly confirmed recording is hers; no exclusive-GUI hold remains from lead. R43 English override passed 30 language/AI/conversation checks. Accepted b5 has strict signature/arm64/no-network offline and extracted-ZIP checks PASS; root read-only visual inspection confirms project/account controls and full workspace navigation. Same signed bundle archive (`f66ab1c7…`,1,241,399 bytes) prepared for public download, no rebuild. Claude may help May with off-camera public sign-in using the existing private credential handoff and her own authorized permission workflow. Record with Atlas prepared history; current guide replaces the historical empty v0.3 take. No physical b5 capture or finished video is claimed by lead.
+
 ## 7. Decision Log
+
+- **R43 codex (May records; English output)**: May directly confirmed she will record the video herself. Codex prepares the public sponsor integration and latest accepted download; Claude may provide local post-production help after footage exists. R41 English-only AI output is accepted: add fixed optional `CMD3_AI_OUTPUT_LANGUAGE=English` on the server, applying to draft, Catch-up and project answers while preserving the prompt bound, evidence and human-review rules. Unset preserves existing language behavior. Public and existing local runtime will use English; old Git records remain immutable. Build/signature/endpoint acceptance of b5 precedes updating the download; do not rebuild its signed bundle or infer new Screen Recording permission.
 
 - **T25 Catch-up decision codex**: Accept R40 additive retrieval provenance and verified indexed-activity section. Existing native decoders may ignore the optional field. Keewano event counts supplement history visibility; only Git fields/explicit resolves determine current state. Keep base summary and newest Git records available through missing configuration, index delay or sponsor failure.
 
@@ -434,6 +439,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 - 2026-10-11 / codex: R25 accepted. Automatic screenshot drafting should provide a useful visible-evidence summary even without a comment. Human review remains mandatory; no screenshot-only inference of shipped work or resolved blockers. API v1 is unchanged.
 
 ## 8. Activity Log
+
+| 2026-10-11 | codex | T25 public live retrieval/activity/provenance and unchanged Git/state PASS; 36 sponsor checks PASS. May owns recording. b5 same-signature package accepted and prepared, English override30 checks PASS. Updating accepted download/English runtime; final public archive and actual English output validation follows | This commit |
 
 | 2026-10-11 | codex | T25 SDK key created with May approval; 21 typed events accepted and real ordered Lua query returned 3 exact Git matches. R40 Catch-up integration and Web provenance display ready, independent review accepted with coverage wording fixed. Server secrets stored in Railway without redeploy; publishing and public output acceptance next. T23 actual public AI Ask/source citations verified, native R40 b5 received | This commit |
 
