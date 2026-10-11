@@ -233,6 +233,15 @@ struct Provider: Codable, Hashable {
 
     /// True when the server says no AI/sponsor is connected (API v1 "manual").
     var isManual: Bool { (provider ?? "manual").lowercased() == "manual" }
+
+    enum Mode { case notConfigured, unavailable, ai }
+
+    /// `manual` + `ai_unavailable` means AI is configured but failed this time —
+    /// that must not be shown as "no AI connected".
+    var mode: Mode {
+        if (status ?? "").lowercased() == "ai_unavailable" { return .unavailable }
+        return isManual ? .notConfigured : .ai
+    }
 }
 
 struct DraftResponse: Decodable {

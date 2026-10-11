@@ -118,12 +118,23 @@ struct SignInForm: View {
             Text("Commit your work. Everyone stays caught up.").font(.caption).foregroundStyle(.secondary)
             TextField("Server", text: $app.endpoint).textFieldStyle(.roundedBorder)
             HStack {
-                TextField("Login code", text: $code).textFieldStyle(.roundedBorder)
+                SecureField(app.isLocalEndpoint ? "Login code" : "Personal Mac code", text: $code).textFieldStyle(.roundedBorder)
                     .onSubmit { Task { await app.signIn(code: code) } }
                 Button("Sign in") { Task { await app.signIn(code: code) } }
                     .disabled(code.isEmpty || app.signingIn)
             }
-            Text("Demo codes: may-demo, gary-demo").font(.caption2).foregroundStyle(.secondary)
+            if app.isLocalEndpoint {
+                Text("Local demo codes: may-demo, gary-demo").font(.caption2).foregroundStyle(.secondary)
+            } else {
+                HStack(spacing: 4) {
+                    Text("Get your personal code on the web:").font(.caption2).foregroundStyle(.secondary)
+                    Button("Connect Mac app ↗") {
+                        if let url = URL(string: app.endpoint) { NSWorkspace.shared.open(url) }
+                    }
+                    .buttonStyle(.link)
+                    .font(.caption2)
+                }
+            }
         }
     }
 }

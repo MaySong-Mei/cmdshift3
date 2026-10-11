@@ -33,6 +33,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { await SelfTest.run() }
             return
         }
+        if let path = AppState.previewCapturePath {
+            // Layout review only: no hotkey, so a running real app keeps ⌃⇧⌘2.
+            AppState.shared.openPreview(path: path)
+            return
+        }
         hotKey = HotKey { AppState.shared.startCapture() }
     }
 }
@@ -49,7 +54,7 @@ struct MenuBarLabel: View {
             if app.unseenCount > 0 { Text("\(app.unseenCount)") }
         }
         .onAppear {
-            guard !CommandLine.arguments.contains("--selftest"), !app.hasSavedSession else { return }
+            guard !CommandLine.arguments.contains("--selftest"), !app.isPreview, !app.hasSavedSession else { return }
             openWindow(id: "main")
             NSApp.activate(ignoringOtherApps: true)
         }

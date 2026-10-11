@@ -13,7 +13,19 @@ enum MainTab: String, Hashable {
 final class AppState: ObservableObject {
     static let shared = AppState()
 
-    static let defaultEndpoint = "http://127.0.0.1:4317"
+    /// New installs connect to the public service; a saved endpoint
+    /// (e.g. the local 4317 demo) keeps being used.
+    static let defaultEndpoint = "https://cmdshift3-web-production.up.railway.app"
+    static let localEndpoint = "http://127.0.0.1:4317"
+
+    /// `--preview-capture <png>`: open the editor on a fixture for layout review,
+    /// with no network, no hotkey and no UserDefaults writes.
+    static let previewCapturePath: String? = {
+        let a = CommandLine.arguments
+        guard let i = a.firstIndex(of: "--preview-capture"), i + 1 < a.count else { return nil }
+        return a[i + 1]
+    }()
+    var isPreview: Bool { Self.previewCapturePath != nil }
 
     @Published var endpoint: String {
         didSet {
@@ -67,13 +79,27 @@ final class AppState: ObservableObject {
         if let front = NSWorkspace.shared.frontmostApplication, front.processIdentifier != getpid() {
             lastExternalApp = front
         }
-        if client.token != nil { Task { await restore() } }
+        if client.token != nil && Self.previewCapturePath == nil { Task { await restore() } }
+    }
+
+    /// Opens the composer on a fixture PNG (see `previewCapturePath`).
+    func openPreview(path: String) {
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)), let image = NSImage(data: data) else {
+            print("preview-capture: cannot read PNG at \(path)")
+            exit(2)
+        }
+        let source = Source(appName: "Preview fixture", windowTitle: URL(fileURLWithPath: path).lastPathComponent, captureKind: "upload")
+        ComposerController.shared.open(image: image, png: data, source: source, app: self, preview: true)
     }
 
     var currentProject: Project? { projects.first { $0.id == projectId } }
     var unseenCount: Int { catchup?.commits.count ?? 0 }
     var isSignedIn: Bool { user != nil }
     var hasSavedSession: Bool { client.token != nil }
+    var isLocalEndpoint: Bool {
+        let host = URL(string: endpoint)?.host?.lowercased() ?? ""
+        return host == "127.0.0.1" || host == "localhost" || host.hasSuffix(".local")
+    }
 
     // MARK: Session
 
@@ -218,7 +244,7 @@ final class AppState: ObservableObject {
 
     /// Hotkey / panel entry point: system region picker → composer window.
     func startCapture() {
-        guard !capturing else { return }
+        guard !capturing, !isPreview else { return }
         if ComposerController.shared.isOpen {
             ComposerController.shared.bringToFront()
             return

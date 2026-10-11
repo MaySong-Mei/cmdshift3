@@ -54,8 +54,9 @@ struct CatchupView: View {
                             .font(.title2.bold())
                         Spacer()
                         if let a = c.analyzer {
-                            Label(a.isManual ? "Factual summary — no AI connected" : (a.provider ?? "AI"),
-                                  systemImage: a.isManual ? "list.bullet.clipboard" : "sparkles")
+                            Label(a.mode == .notConfigured ? "Factual summary — no AI connected"
+                                    : a.mode == .unavailable ? "Factual summary — AI unavailable right now" : (a.provider ?? "AI"),
+                                  systemImage: a.mode == .ai ? "sparkles" : "list.bullet.clipboard")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                     }

@@ -16,9 +16,16 @@ enum SelfTest {
     }
 
     static func run() async {
-        let endpoint = arg("--endpoint") ?? AppState.defaultEndpoint
+        // Never default to the public service: a selftest writes real commits.
+        let endpoint = arg("--endpoint") ?? AppState.localEndpoint
         let client = APIClient(baseURL: URL(string: endpoint)!, token: nil)
         func log(_ s: String) { print(s); fflush(stdout) }
+        if let failure = modelChecks() {
+            log("FAIL: model check — \(failure)")
+            exit(1)
+        }
+        log("✓ model checks (AI status labels, dirty/close guard, edit-as-new ids, preview)")
+        if CommandLine.arguments.contains("--offline") { log("PASS (offline)"); exit(0) }
         do {
             let session = try await client.session(code: arg("--code") ?? "may-demo")
             client.token = session.token
@@ -85,6 +92,35 @@ enum SelfTest {
             log("FAIL: \(error.localizedDescription)")
             exit(1)
         }
+    }
+
+    /// Pure, network-free checks of composer/model state. Returns the first failure.
+    static func modelChecks() -> String? {
+        func provider(_ p: String?, _ st: String?) -> Provider.Mode { Provider(provider: p, status: st).mode }
+        guard provider("manual", "not_configured") == .notConfigured else { return "manual/not_configured" }
+        guard provider("manual", "ai_unavailable") == .unavailable else { return "ai_unavailable must not read as 'no AI connected'" }
+        guard provider("deepseek", "completed") == .ai, provider("deepseek", "no_changes") == .ai else { return "configured provider" }
+
+        let m = ComposerModel(image: NSImage(size: NSSize(width: 4, height: 4)), png: Data(),
+                              source: Source(appName: "t", windowTitle: "", captureKind: "region"), projectId: "p")
+        guard !m.isDirty else { return "fresh composer must not be dirty" }
+        m.comment = "  "
+        guard !m.isDirty else { return "whitespace comment is not dirty" }
+        m.annotations = [Annotation(type: .rect, x: 0, y: 0, w: 0.1, h: 0.1, text: nil, color: "#F97066")]
+        guard m.isDirty else { return "a mark makes the composer dirty" }
+        m.annotations = []
+        m.fields.shipped = [.new("done")]
+        guard m.isDirty, m.fieldCount == 1 else { return "a field makes the composer dirty" }
+        guard !m.fieldsExpanded else { return "fields start folded" }
+
+        let before = m.fields.shipped[0].id
+        m.editAsNew()
+        guard m.fields.shipped[0].id != before, m.fields.shipped[0].text == "done" else { return "edit-as-new must rebuild item ids, keep text" }
+
+        let pv = ComposerModel(image: NSImage(size: NSSize(width: 4, height: 4)), png: Data(),
+                               source: Source(appName: "t", windowTitle: "", captureKind: "upload"), projectId: "p", isPreview: true)
+        guard pv.isPreview else { return "preview flag" }
+        return nil
     }
 
     /// Small generated PNG so the selftest needs no screen-recording permission.

@@ -33,8 +33,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleDisplayName</key><string>CmdShift3</string>
   <key>CFBundleExecutable</key><string>CmdShift3</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.1.0</string>
-  <key>CFBundleVersion</key><string>1</string>
+  <key>CFBundleShortVersionString</key><string>${CMD3_VERSION:-0.2.0}</string>
+  <key>CFBundleVersion</key><string>${CMD3_BUILD:-2}</string>
   <key>LSMinimumSystemVersion</key><string>15.0</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>
