@@ -133,7 +133,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T24 | Populate the public demo project with clearly labeled, AI-reviewed live case history | codex | done |
 | T25 | Keewano typed event ingress and ordered-history retrieval for evidence-backed Catch-up | codex (darwin_sponsor) | done |
 | T26 | English AI output setting and accepted native b5 public download | codex | done |
-| T27 | Native Commit tab with durable local pre-commit screenshot drafts | claude | doing |
+| T27 | Native Commit tab with durable local pre-commit screenshot drafts | claude | done（候选 0.5.0 待 lead 验收） |
 
 ---
 
@@ -274,6 +274,13 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   - **更正**：我在 `1724125` 写的“我 kill 0.3 导致丢稿”**不成立**。May 确认她用的是系统 ⌘⇧3/⌘⇧4，从没打开过 CmdShift3 composer，所以没有 CmdShift3 草稿丢失。我收回那段自查结论。教训照样保留：今后切换 app 之前，必须先读出全部窗口标题，确认没有 composer。
   - **正确 build 已安装**：按 May 要求，把已验收的 b5 **原样**（ditto，未重建）安装到 `/Applications/CmdShift3.app`。binary `828f9a2c…`，cdhash `cc3cfb5f…`，与 b5 和公开下载完全相同，strict 签名通过，现已运行。仓库里的旧 0.1 构建 `macos/build/CmdShift3.app` 会被 Spotlight 搜到、容易误开，已**移到** scratch archive（可还原，未删除）；它当时正在运行，已退出。`/Applications` 这一份目前仍没有 Screen Recording，需要 May 本人在列表里打开它；我不碰 TCC。
   - **T27 ETA 约 45 分钟**。候选包路径：`/private/tmp/cmdshift3-capture-inbox-candidate/CmdShift3.app`（0.5.0）。不替换 b5 / `/Applications` 中的安装。范围：按 endpoint+user+project 隔离的 Application Support 持久草稿收件箱（PNG + 带版本号的 metadata，原子写入，不存 token）；主窗口新增独立 Commit tab（缩略图/状态/项目/时间，可恢复，提供 New capture 和 **Import Screenshot**，通过文件选择导入，不自动扫描 Desktop）；关闭编辑器 = 保存回收件箱，Discard 单独确认；commit id 和 frozen request 持久化，重试不会重复写 Git；只有 Commit 成功才移出收件箱；preview/selftest 使用临时目录隔离，并加针对性检查。
+- **T27 交付 claude（R45，候选包 0.5.0，待 lead 验收）**：`68e1b44`，只改了 `macos/`，API 不变。候选包：`/private/tmp/cmdshift3-capture-inbox-candidate/CmdShift3.app`（0.5.0 build 6，binary sha256 前缀 `aeca3258e98f5368`，-Onone，strict 签名）。`/Applications/CmdShift3.app`（b5，`828f9a2c…`）**未替换**；权限、defaults、4317、云端、GUI 都没有动。
+  - **持久化**：`DraftStore` 存在 `~/Library/Application Support/CmdShift3/Drafts/<sha256(server|account) 前 32 位>/<draftId>/`，内容是 `capture.png` 加带版本号的 `draft.json`。原子写入，目录权限 0700，metadata 上限 2MB，**不存 token / Mac code / 密码**。列表按 server+账号分目录；读取时会再校验 userId、scope、版本和 PNG 是否存在，损坏的条目直接跳过；Commit tab 再按当前项目过滤，并提示其他项目里还有几条。
+  - **生命周期**：capture 到达后、在发 AI 请求之前就先落盘；之后每次编辑 400ms 防抖自动保存；freeze 时**同步**落盘，然后才发出请求。关闭编辑器（**Save for later** / Esc / ✕）= 保存回收件箱；**Discard…** 需要单独确认才删除。只有 Commit 成功（返回 result）才移出收件箱。AI 失败、取消、网络错误或 commit 失败都保留。新的 capture 或 Import 会先把当前这份 stash（保存并关闭），提交进行中则拒绝并把它置前。登出或切账号时也会先保存再关闭。
+  - **恢复**：resume 不会自己发 AI 请求。为同一输入写过的 AI 草稿恢复后直接可 review；comment 或项目变了就显示 Update draft；从没 draft 过的显示 Draft with AI，要用户点。已 frozen 的只能 **Retry commit**，id 和内容都不变，不能再发起 draft；Edit as new 的逻辑保持原样。
+  - **Commit tab**：放在主窗口第一项，带数量 badge。每行显示缩略图、标题、状态（Ready to review / Needs update / AI couldn't write / Commit failed — retry 等）、项目、来源、时间，提供 Open 或 Show 和 Discard…；有空状态说明，并明确告诉用户系统 ⌘⇧3/⌘⇧4 截图不会进 CmdShift3；有 **New capture** 和 **Import Screenshot…**（用 NSOpenPanel 显式选择 png/jpeg/heic/tiff，转成 PNG 并控制体积，**不会自动扫描 Desktop**）。menu bar 面板会显示 “N captures waiting to commit”。
+  - **验证**：(1) 禁网 offline PASS，新增临时目录检查：两条 capture、编辑后重载、账号/server 隔离、已 draft 的恢复后可 review 且不发 AI、改了 comment 需要 update、freeze 先落盘、恢复后只能 retry 同一个 id、损坏条目被跳过、stash 会保存并关闭、删除；并确认隔离启动**不会创建真实的 Drafts 目录**（跑完后检查确实不存在）。(2) scratch 4399 完整 selftest PASS，新增：frozen capture 落盘后恢复两次各自 commit，得到**同一个 SHA，feed 只多 1 条**，AI 请求为 0；原有 progress、ask、frozen retry 也都通过。scratch 已关闭。
+  - 未做：GUI 目视检查（Commit tab、Save for later / Discard 的交互）由 lead 或 May 验收。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -644,3 +651,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | 收到 R43/R44：b5 已验收并作为公开下载（同一签名包，未重建），AI 输出固定为英文，Keewano 已上线。本机 b5 正在运行；May 正在授 Screen Recording（前一次授权的条目指向了别的 build，重启后测试仍失败，已请 May 打开 b5 那一项）。之后我协助 May 在镜头外完成公开版登录（凭据由 May 本人输入），录好后做后期 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | 认领 T27（R45，紧急）。**丢稿原因自查**：May 说“启动吧”时，我用 kill -TERM 退出了 0.3（PID 87551）来启动 b5，退出前**没有检查是否有打开的 composer**；SIGTERM 不会触发 windowShouldClose 的未提交确认，而草稿只存在内存里（截图临时 PNG 读取后就删除了），所以这份草稿**无法恢复**（没有写 Git，server 上也没有存）。今后在没有确认 composer 状态前，不再 SIGTERM 退出 app。T27 就是为了根治这个问题 | — |
 | 2026-10-11 | claude | 更正“丢稿”结论（May 用的是系统截图）；b5 原样安装到 /Applications，旧 0.1 repo build 已归档；T27 ETA 约 45 分钟，候选包 /private/tmp/cmdshift3-capture-inbox-candidate（0.5.0） | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | T27 68e1b44：持久化 Commit 收件箱（落盘/自动保存/freeze 先写盘/只有成功 commit 才移除/Import Screenshot）；候选包 0.5.0（aeca3258）禁网 offline 和 scratch（恢复两次 → 一次 commit）均 PASS | 见本行所在 Git 提交 |
