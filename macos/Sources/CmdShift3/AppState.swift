@@ -3,6 +3,8 @@ import SwiftUI
 
 extension Notification.Name {
     static let cmd3NeedsSignIn = Notification.Name("cmd3NeedsSignIn")
+    /// Reopening the app (Dock/Finder) should bring up the full workspace.
+    static let cmd3OpenWorkspace = Notification.Name("cmd3OpenWorkspace")
 }
 
 enum MainTab: String, Hashable {

@@ -37,6 +37,31 @@ struct MainView: View {
             }
             .navigationTitle(app.currentProject?.name ?? "CmdShift3")
             .toolbar {
+                if app.isSignedIn {
+                    ToolbarItem(placement: .navigation) {
+                        // Same project switch as the menu bar panel (AppState.projectId).
+                        Picker(selection: Binding(get: { app.projectId ?? "" }, set: { app.projectId = $0 })) {
+                            ForEach(app.projects) { p in Text(p.name).tag(p.id) }
+                        } label: {
+                            Label("Project", systemImage: "folder")
+                        }
+                        .help("Switch project")
+                        .disabled(app.projects.count < 2)
+                    }
+                    ToolbarItem {
+                        Menu {
+                            Text("Signed in as \(app.user?.name ?? "")")
+                            Text(app.endpoint).font(.caption)
+                            if let e = app.lastError { Text(e) }
+                            Divider()
+                            // Existing guarded sign-out (refuses while a commit is in flight).
+                            Button("Sign out") { Task { await app.signOut() } }
+                        } label: {
+                            Label(app.user?.name ?? "Account", systemImage: "person.crop.circle")
+                        }
+                        .help("Account")
+                    }
+                }
                 ToolbarItem {
                     Button { app.startCapture() } label: { Label("New Work Commit", systemImage: "camera.viewfinder") }
                         .help("New Work Commit (\(HotKey.displayString))")

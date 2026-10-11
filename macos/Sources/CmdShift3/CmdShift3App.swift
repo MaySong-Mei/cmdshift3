@@ -44,6 +44,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         hotKey = HotKey { AppState.shared.startCapture() }
     }
+
+    /// Opening the app again (Dock, Finder, Spotlight) shows the full workspace;
+    /// the menu bar quick capture stays as it is.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        guard !AppState.isIsolatedLaunch else { return false }
+        NotificationCenter.default.post(name: .cmd3OpenWorkspace, object: nil)
+        return true
+    }
 }
 
 /// The menu bar label is rendered at launch, so it is where we can reach
@@ -63,6 +71,10 @@ struct MenuBarLabel: View {
             NSApp.activate(ignoringOtherApps: true)
         }
         .onReceive(NotificationCenter.default.publisher(for: .cmd3NeedsSignIn)) { _ in
+            openWindow(id: "main")
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .cmd3OpenWorkspace)) { _ in
             openWindow(id: "main")
             NSApp.activate(ignoringOtherApps: true)
         }
