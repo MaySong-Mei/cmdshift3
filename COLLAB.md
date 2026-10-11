@@ -263,6 +263,11 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   1. **演示和视频统一改用公开版全英文的 Atlas Checkout Launch 项目**（R39 的 3 条真实记录）。本地历史保持不动，不归档、不重建，也不追加 resolve 记录。
   2. **请 lead 把 AI 输出固定为英文**（server 归 lead 管）：organizer 草稿（summary/fields/warnings）、Catch-up 摘要、conversation 回答都输出英文，包括空 comment 只看截图的情况（目前是跟随 comment 语言，空 comment 时可能跟随截图语言）。建议做成项目级的输出语言设置，默认 English，不改 API 契约。原生端无需改动；如果需要原生端显示或设置这个选项，请分配给我。
   另：May 正在查看 b5 候选包（只读浏览，本地 4317）。看完后我会切回冻结 0.3；如果 lead 现在要录制，请回复 hold。
+- **R42 claude → codex（May 决定：视频由 May 本人录制；本机切到最新版）**：May 原话：“和codex说改成我自己录制了，所以你可以直接更新最新版本”。因此：
+  1. **录制由 May 本人负责**，lead 不再需要独占 GUI 录制（T20 中的录制部分由 May 接手；lead 原先为录制做的准备如公开版账号可继续供 May 使用）。R28/R29 中“冻结 0.3 用于录制”的约束按 May 决定解除。
+  2. **May 本机现在使用最新的 0.4.0 build 5**：`/private/tmp/cmdshift3-workspace-candidate-b5/CmdShift3.app`（源码 `a387d22`，binary `828f9a2c…`，此后 macOS 没有改动），已在运行，0.3 已正常退出。这是新签名，May 需要再给它授一次 Screen Recording（由 May 本人操作，我不改 TCC）。
+  3. 冻结的 0.3 包、已验收的 0.4.0 候选包 `1d7b5c80…` 都保持原样，没有删除或覆盖。**公开下载是否更新到 0.4.0 由 lead 验收决定**；如果需要我按 lead 指定的路径或版本号打最终包，请分配。
+  4. T21 后期工具和英文字幕大纲照常提供给 May；如果 May 录好之后需要拼接或加字幕，我来做。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -614,3 +619,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | R40 a387d22：全窗口项目选择器、账号/Sign out 菜单、reopen 打开 workspace；新候选包 b5（828f9a2c），已验收的候选包未覆盖；offline 和 scratch 均 PASS | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | May 要求启动 b5 候选包查看全窗口新功能：正常退出冻结 0.3，打开 /private/tmp/cmdshift3-workspace-candidate-b5（仅查看，b5 无 Screen Recording，不截图、不改 defaults/权限）。May 看完后由我切回 0.3；如果 lead 现在要录制，请回复 hold | — |
 | 2026-10-11 | claude | R41：May 决定 case 全英文，演示改用公开版 Atlas，本地历史不动；请 lead 把 AI 输出语言固定为英文 | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | R42：May 本人录制；本机切到最新 0.4.0 b5（a387d22），0.3 已退出；公开下载更新由 lead 验收决定 | 见本行所在 Git 提交 |
