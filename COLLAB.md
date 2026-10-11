@@ -128,6 +128,9 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T19 | Task progress tree with distinct member-colored contribution lines | codex | doing |
 | T20 | Recover public off-camera sign-in and frozen-app recording setup after R31 handoff | codex | doing |
 | T21 | Recording post-production toolkit, English captions and offline export verification | claude | ready（工具+离线验证完成，等真实 clip） |
+| T22 | Native full workspace: task tree, member work browsing and grounded project conversation | claude | todo |
+| T23 | Read-only project question API with confirmed Git evidence | codex | doing |
+| T24 | Populate the public demo project with clearly labeled, AI-reviewed live case history | codex | doing |
 
 ---
 
@@ -353,7 +356,13 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   4. Root keeps GUI exclusive and handles ordinary public demo sign-in and app permission repair. Root found the enabled Screen Recording entry points to your old `/Users/maymaymei/coding/cmdshift3/macos/build/CmdShift3.app` v0.1, not frozen v0.3. May explicitly approved correcting v0.3 permission; macOS is waiting for her Touch ID/system password. Both public demo accounts are now signed in in separate Codex IAB tabs. Do not use synthetic GUI `demo1`, edit TCC, touch frozen native code/binary/defaults, restart 4317/cloud, or operate the screen now.
   5. Update only your T21 status and activity/handoff entries in COLLAB, commit/push after pulling; do not change root's tree files or docs. Mark ready with actual helper/export evidence, then wait for root's recording handoff. No upload/submission.
 
+- **R35 codex -> original Claude (T21 accepted; T22 assigned)**: Independently inspected your synthetic export and sources. T21 toolkit readiness accepted; actual footage/final video remain pending. The helper retains only the first audio track, so inspect real clips and explicitly select/mix or reject multiple source audio tracks before assembly. May now confirms the Mac is the full app, with project conversation and teammates' task progress; Web is a shared viewing subset. Please start T22 in `macos/` only: full-window navigation for Work/Progress/Ask, project -> recorded task -> member-colored evidence, contributor browsing and existing detail/SHA/discussion. Reuse current authenticated APIs; completion only from shipped/explicit resolves. Root is preparing a minimal grounded question API under T23; wait for its approved contract before wiring Ask, but start the existing-API progress view now. Preserve the quick capture flow. Build any candidate separately (e.g. `/private/tmp/cmdshift3-workspace-candidate/`), keep frozen v0.3 binary/signature/defaults untouched and do not change permissions or operate GUI. Read current tree semantics in web/app.js but do not edit web/server/root docs. Claim your task and push your own COLLAB updates. No release or sponsor claims.
+- **R35 setup update codex**: May completed the OS authentication step. Root selected `/private/tmp/cmdshift3-ai-review/CmdShift3.app` (file preview version 0.3.0), added it in Screen Recording and clicked Quit & Reopen. The correct frozen app is running; settings shows the CmdShift3 switch enabled. Actual v0.3 capture and native public sign-in still need verification: root's menu-only native app binding cannot access a window, and the menu-bar lookup timed out. No rebuild/TCC reset/defaults mutation, no product video or new Work Commit was produced by these checks. Both browser demo actors were signed in off-camera. Root keeps GUI until a separate recording handoff; do not run the old demo1 driver.
+- **R36 codex (T19 implementation accepted; T23/T24 started)**: T19 task tree passes 10 focused checks and independent review. Browser acceptance on an isolated labeled fixture shows May's task with Gary's explicit completion nested beneath it, distinct member lines, source SHA/capture detail and remaining next task. Root will publish this web-only change. May requests existing live-case history for the demo; T24 will use clearly labeled prepared demo roles and actual product/validation artifacts, genuine AI drafts, human/operator review and real Git commits in the dedicated public demo project. Do not represent prepared history as a newly recorded physical capture. T23 will add a read-only, membership-scoped project question API; exact contract follows before implementation. No new native package is released by this commit.
+
 ## 7. Decision Log
+
+- **Full-workspace decision codex (May steering)**: The Mac full window is the primary workspace for capture, project conversation, task progress and evidence; the Web app is a shared subset for browsing progress and collaboration. Menu-bar quick capture remains the highest-frequency action. Multiuser progress is task-organized with separate member-colored contribution lines and direct evidence links. Preloaded demo cases must identify prepared roles/history and leave a real next action for the live take.
 
 - **T14决定 codex（lead，May新确认优先）**：AI是默认Commit撰写者，截图即准备草稿，人review并点击Commit后才生成远程Git；标记/edit按需展开。轻量assistant卡与capture高光替代默认大表单。此决定取代T12主动Draft才整理的交互；草稿不写Git、原图/annotation分开、冻结重试/权限隔离不变。现有PNG+空comment API足够，无契约修改。
 
@@ -383,6 +392,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 - 2026-10-11 / codex: R25 accepted. Automatic screenshot drafting should provide a useful visible-evidence summary even without a comment. Human review remains mandatory; no screenshot-only inference of shipped work or resolved blockers. API v1 is unchanged.
 
 ## 8. Activity Log
+
+| 2026-10-11 | codex | Accepted T21 offline toolkit after independent metadata/source review; assigned Claude T22 native full-workspace progress/conversation. T19 browser fixture evidence/detail PASS, 10 focused checks PASS, web release pending. Started T23 grounded question API and T24 labeled live-case history. Correct v0.3 added/restarted in Screen Recording; actual capture/native public login remain unverified | This commit |
 
 | 2026-10-11 | codex | R34 assigns original Claude T21 local video assembly/captions/export verification; GUI remains with lead. Read-only Finder proof confirms enabled permission is old v0.1 at coding checkout. May approved exact v0.3 repair; OS authentication pending. Public owner/reviewer signed in through normal UI off-camera | This commit |
 

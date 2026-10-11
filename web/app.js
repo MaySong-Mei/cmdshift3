@@ -13,6 +13,7 @@ const state = {
   detailId: null, detailEpoch: 0, commentRequest: 0, catchupRequest: 0, commentPosting: false, composer: null,
   mode: 'unknown', publicRegistration: false, authEpoch: 0,
   context: null, contextError: '', contextRequest: 0, contextExpanded: false, workspaceDialogEpoch: 0,
+  workView: 'feed', highlightMine: true, progressColors: new Map(), progressCollapsed: new Set(),
 };
 let toastTimer;
 
@@ -163,6 +164,7 @@ async function switchProject(id) {
   const project = state.projects.find(item => item.id === id); if (!project) return;
   state.epoch++; state.stream?.abort(); clearImages();
   state.project = project; state.commits = []; state.catchup = null; state.through = 0;
+  state.progressCollapsed.clear();
   state.context=null;state.contextError='';state.contextExpanded=false;state.contextRequest++;
   state.projectState = {shipped:[],decisions:[],blockers:[],next:[]};
   state.connected = false; state.loading = true; state.error = '';
@@ -196,8 +198,9 @@ function renderShell() {
     bindWorkspaceActions();return;
   }
   const team=publicMode?`<span id="team-count">${Number.isInteger(project.member_count)?`${project.member_count} ${project.member_count===1?'member':'members'}`:''}</span>`:project.id==='proj_cmdshift3'?'<div class="stack">'+avatar({name:'May'})+avatar({name:'Gary'})+'</div><span>2 teammates</span>':avatar(state.user);
-  app.innerHTML=`<div class="shell">${sidebarMarkup()}<main class="main"><header class="topbar"><div class="breadcrumb">Workspace <span aria-hidden="true" style="margin:0 10px">/</span><strong id="project-breadcrumb">${escapeHTML(project.name)}</strong></div><div class="connection" id="connection"><span class="connection-dot" aria-hidden="true"></span><span>Connecting…</span></div></header><div class="workspace"><div class="project-heading"><div><div class="eyebrow" style="margin-bottom:5px">THE SHARED PICTURE</div><h1 id="project-name">${escapeHTML(project.name)}</h1><p id="project-description">${escapeHTML(project.description||'Every meaningful change, with the context behind it.')}</p></div><div class="row"><div class="team row">${team}</div><button class="button accent" id="new-commit"><span aria-hidden="true">＋</span> New commit</button></div></div>${publicMode?'<section id="project-context" aria-label="Project context"></section>':''}<div id="project-error"></div><div class="workspace-grid"><section aria-labelledby="feed-title"><div class="feed-head"><h2 id="feed-title">Work history <span class="feed-count" id="feed-count"></span></h2><span class="eyebrow">LATEST FIRST</span></div><div class="feed-list" id="feed-list"><div class="loading">Loading your project…</div></div></section><aside class="state-column" aria-label="Current project state"><div id="state-box"></div><div id="catchup-box"></div><div class="provider-note"><span class="status-symbol" aria-hidden="true"></span><span id="provider-note">Confirmed work updates the project state. Catch-up follows the evidence behind your team's updates.</span></div></aside></div></div></main></div>`;
+  app.innerHTML=`<div class="shell">${sidebarMarkup()}<main class="main"><header class="topbar"><div class="breadcrumb">Workspace <span aria-hidden="true" style="margin:0 10px">/</span><strong id="project-breadcrumb">${escapeHTML(project.name)}</strong></div><div class="connection" id="connection"><span class="connection-dot" aria-hidden="true"></span><span>Connecting…</span></div></header><div class="workspace"><div class="project-heading"><div><div class="eyebrow" style="margin-bottom:5px">THE SHARED PICTURE</div><h1 id="project-name">${escapeHTML(project.name)}</h1><p id="project-description">${escapeHTML(project.description||'Every meaningful change, with the context behind it.')}</p></div><div class="row"><div class="team row">${team}</div><button class="button accent" id="new-commit"><span aria-hidden="true">＋</span> New commit</button></div></div>${publicMode?'<section id="project-context" aria-label="Project context"></section>':''}<div id="project-error"></div><div class="workspace-grid"><section aria-labelledby="feed-title"><div class="feed-head"><h2 id="feed-title"><span id="work-view-title">Work history</span> <span class="feed-count" id="feed-count"></span></h2><div class="work-view-switch" role="group" aria-label="Project view"><button data-work-view="feed" aria-pressed="true">Feed</button><button data-work-view="tree" aria-pressed="false">Progress tree</button></div></div><div class="feed-list" id="feed-list"><div class="loading">Loading your project…</div></div></section><aside class="state-column" aria-label="Current project state"><div id="state-box"></div><div id="catchup-box"></div><div class="provider-note"><span class="status-symbol" aria-hidden="true"></span><span id="provider-note">Confirmed work updates the project state. Catch-up follows the evidence behind your team's updates.</span></div></aside></div></div></main></div>`;
   bindWorkspaceActions();$('#new-commit').addEventListener('click',openComposer);
+  $$('[data-work-view]').forEach(button=>button.addEventListener('click',()=>{state.workView=button.dataset.workView;renderProject();}));
   renderProject();renderContextCard();
 }
 
@@ -225,6 +228,7 @@ function applyProjectMetadata(project) {
   if(nav)nav.innerHTML=`<span class="project-dot" aria-hidden="true"></span>${escapeHTML(state.project.name)}`;
   const count=$('#team-count');
   if(count&&Number.isInteger(state.project.member_count))count.textContent=`${state.project.member_count} ${state.project.member_count===1?'member':'members'}`;
+  if(state.workView==='tree'&&!state.loading)renderProgressTree();
 }
 
 async function loadProjectContext(epoch=state.epoch) {
@@ -366,12 +370,96 @@ function openMacConnection() {
   });
 }
 
+// Task links come only from confirmed item identities and explicit shipped.resolves.
+function progressTreeData(commits, projectId, currentUserId, members = []) {
+  const records = commits.filter(commit=>commit.project_id===projectId).slice().sort((a,b)=>a.sequence-b.sequence);
+  const tasks=[], taskById=new Map(), supporting=[], contributors=new Map();
+  for(const member of members)if(member.id)contributors.set(member.id,{id:member.id,name:member.name||'Project member'});
+  const evidence=(commit,item,role)=>({
+    commit_id:commit.id,item_id:item?.id||null,text:item?.text||commit.summary||commit.comment||'Work commit',
+    summary:commit.summary||commit.comment||'Work commit',role,author:commit.author,
+    git_sha:commit.git?.sha||'',remote_synced:Boolean(commit.git?.remote_synced),created_at:commit.created_at,
+    source_app:commit.source?.app_name||'Capture',mine:commit.author?.id===currentUserId,
+  });
+  for(const commit of records){
+    if(commit.author?.id)contributors.set(commit.author.id,{id:commit.author.id,name:commit.author.name||'Project member'});
+    const fields=commit.fields||{};
+    for(const kind of ['blocker','next'])for(const item of fields[kind]||[]){
+      const task={id:item.id,text:item.text,kind,status:kind==='blocker'?'blocked':'open',recorded_by:commit.author,sequence:commit.sequence,evidence:[evidence(commit,item,'Task recorded')]};
+      tasks.push(task);taskById.set(item.id,task);
+    }
+    for(const item of fields.shipped||[]){
+      const targets=[...new Set(item.resolves||[])].map(id=>taskById.get(id)).filter(task=>task&&task.sequence<commit.sequence);
+      if(targets.length){
+        for(const task of targets){task.status='completed';task.evidence.push(evidence(commit,item,'Completed work'));}
+      }else{
+        tasks.push({id:item.id,text:item.text,kind:'shipped',status:'completed',recorded_by:commit.author,sequence:commit.sequence,evidence:[evidence(commit,item,'Shipped work')]});
+      }
+    }
+    const facts=['decision','why'].flatMap(kind=>(fields[kind]||[]).map(item=>({kind,text:item.text})));
+    const hasTaskItems=['blocker','next','shipped'].some(kind=>fields[kind]?.length);
+    if(facts.length||!hasTaskItems)supporting.push({...evidence(commit,null,'Supporting record'),facts});
+  }
+  return {
+    tasks:tasks.sort((a,b)=>({blocked:0,open:1,completed:2}[a.status]-{blocked:0,open:1,completed:2}[b.status])||b.sequence-a.sequence),
+    supporting:supporting.reverse(),members:[...contributors.values()].sort((a,b)=>a.id.localeCompare(b.id)),
+    commit_count:records.length,mine_count:records.filter(commit=>commit.author?.id===currentUserId).length,
+  };
+}
+
+function progressMemberColors(members, registry) {
+  const palette=['#526eab','#ae6945','#6e8753','#9b618d','#477f84','#9e7b32','#856fb0','#b15e6b'];
+  const used=new Set(registry.values());
+  for(const member of members){
+    if(registry.has(member.id))continue;
+    let hash=2166136261;
+    for(const char of member.id)hash=Math.imul(hash^char.charCodeAt(0),16777619)>>>0;
+    let color;
+    for(let offset=0;offset<palette.length;offset++){
+      const candidate=palette[(hash+offset)%palette.length];
+      if(!used.has(candidate)){color=candidate;break;}
+    }
+    if(!color){
+      let hue=(hash%3600)/10;
+      color=`hsl(${hue} 42% 42%)`;
+      while(used.has(color)){hue=(hue+137.5)%360;color=`hsl(${hue} 42% 42%)`;}
+    }
+    registry.set(member.id,color);used.add(color);
+  }
+  return registry;
+}
+
+function progressEvidenceMarkup(record, colors, highlightMine, supporting = false) {
+  const color=colors.get(record.author?.id)||'#777e76';
+  return `<li class="progress-evidence ${highlightMine&&record.mine?'my-contribution':''}" style="--member-color:${color}"><button class="progress-evidence-card" data-open-commit="${escapeHTML(record.commit_id)}"><span class="progress-record-top"><span class="progress-author">${escapeHTML(record.author?.name||'Project member')}</span><span class="progress-role">${escapeHTML(record.role)}</span>${record.mine?'<span class="progress-yours">Your contribution</span>':''}</span><span class="progress-record-text">${escapeHTML(record.text)}</span>${supporting&&record.facts.length?`<span class="progress-facts">${record.facts.map(fact=>`${escapeHTML(FIELD_LABELS[fact.kind])}: ${escapeHTML(fact.text)}`).join(' · ')}</span>`:''}<span class="progress-record-source"><span>${escapeHTML(record.source_app)} · ${escapeHTML(relativeTime(record.created_at))}</span><span class="sha" title="${escapeHTML(record.git_sha)}">${escapeHTML(record.git_sha.slice(0,7))}</span><span>${record.remote_synced?'Origin synced':'Sync pending'}</span><span class="progress-open">View capture ↗</span></span></button></li>`;
+}
+
+function renderProgressTree() {
+  if(!state.project||!$('#feed-list'))return;
+  const tree=progressTreeData(state.commits,state.project.id,state.user?.id,state.context?.members||[]);
+  const colors=progressMemberColors(tree.members,state.progressColors);
+  const project=state.project;
+  const statusLabels={blocked:'Blocked',open:'Up next',completed:'Completed'};
+  const counts=Object.fromEntries(['blocked','open','completed'].map(status=>[status,tree.tasks.filter(task=>task.status===status).length]));
+  $('#feed-list').innerHTML=`<section class="progress-tree" aria-label="Project tasks and contributions"><div class="progress-tools"><p>Follow each task to the work behind it.</p><label><input type="checkbox" id="highlight-my-work" ${state.highlightMine?'checked':''}> Highlight my work</label></div><div class="progress-root"><div class="eyebrow">SHARED PROJECT</div><h3>${escapeHTML(project.name)}</h3>${project.context||project.description?`<p>${escapeHTML(project.context||project.description)}</p>`:''}<div class="progress-root-meta">${project.phase?`<span>${escapeHTML(project.phase)}</span>`:''}<span>${tree.commit_count} confirmed work ${tree.commit_count===1?'commit':'commits'}</span><span>${tree.mine_count} by you</span></div></div><div class="progress-legend" aria-label="Member colors">${tree.members.map(member=>`<span style="--member-color:${colors.get(member.id)}"><i aria-hidden="true"></i>${escapeHTML(member.name)}${member.id===state.user?.id?' · You':''}</span>`).join('')}</div><div class="progress-overview"><span><i class="progress-status-dot blocked" aria-hidden="true"></i>${counts.blocked} blocked</span><span><i class="progress-status-dot open" aria-hidden="true"></i>${counts.open} up next</span><span><i class="progress-status-dot completed" aria-hidden="true"></i>${counts.completed} completed</span></div><ol class="progress-tasks">${tree.tasks.map(task=>`<li class="progress-task" style="--member-color:${colors.get(task.recorded_by?.id)||'#777e76'}"><details data-progress-task="${escapeHTML(task.id)}" ${state.progressCollapsed.has(task.id)?'':'open'}><summary><span class="progress-task-title">${escapeHTML(task.text)}</span><span class="progress-status ${task.status}">${statusLabels[task.status]}</span><span class="progress-task-byline">${task.kind==='shipped'?'Shipped':'Recorded'} by <span class="progress-author">${escapeHTML(task.recorded_by?.name||'Project member')}</span> · ${task.evidence.length} ${task.evidence.length===1?'record':'records'}</span></summary><ol class="progress-contributions">${task.evidence.map(record=>progressEvidenceMarkup(record,colors,state.highlightMine)).join('')}</ol></details></li>`).join('')}${!tree.tasks.length?'<li class="progress-no-tasks"><p>No tasks recorded yet.</p><small>Confirmed blockers, next steps and shipped work will appear here. Captures remain available below.</small></li>':''}${tree.supporting.length?`<li class="progress-support"><details data-progress-task="supporting" ${state.progressCollapsed.has('supporting')?'':'open'}><summary><span class="progress-task-title">Captures, decisions & context</span><span class="progress-task-byline">${tree.supporting.length} supporting ${tree.supporting.length===1?'record':'records'}</span></summary><ol class="progress-contributions">${tree.supporting.map(record=>progressEvidenceMarkup(record,colors,state.highlightMine,true)).join('')}</ol></details></li>`:''}</ol><p class="progress-footnote">Colors show who contributed. A task becomes completed through shipped work or an explicit resolution.</p></section>`;
+  $('#highlight-my-work').addEventListener('change',event=>{state.highlightMine=event.target.checked;renderProgressTree();});
+  $$('[data-progress-task]',$('#feed-list')).forEach(details=>details.addEventListener('toggle',()=>{
+    if(!details.isConnected)return;
+    if(details.open)state.progressCollapsed.delete(details.dataset.progressTask);else state.progressCollapsed.add(details.dataset.progressTask);
+  }));
+  $$('[data-open-commit]',$('#feed-list')).forEach(button=>button.addEventListener('click',()=>openDetail(button.dataset.openCommit)));
+}
+
 function renderProject() {
   if (!state.project || !$('#feed-list')) return;
   $('#project-error').innerHTML = state.error ? `<div class="error-banner" role="alert"><span>${escapeHTML(state.error)}</span><button id="refresh-retry">Retry</button></div>` : '';
   $('#refresh-retry')?.addEventListener('click',() => refreshProject(state.epoch));
   $('#feed-count').textContent = state.commits.length ? `${state.commits.length}` : '';
+  $('#work-view-title').textContent=state.workView==='tree'?'Progress tree':'Work history';
+  $$('[data-work-view]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.workView===state.workView)));
+  $('#feed-list').classList.toggle('showing-tree',state.workView==='tree');
   if (state.loading) $('#feed-list').innerHTML = '<div class="loading">Loading your project…</div>';
+  else if(state.workView==='tree')renderProgressTree();
   else if (!state.commits.length) {
     $('#feed-list').innerHTML = `<div class="empty-state"><div class="empty-icon" aria-hidden="true">⌘</div><h3>Your first update starts here.</h3><p>Capture something you worked on, add a little context, and share it with your team.</p><button id="first-commit" class="button secondary">Make a work commit</button></div>`;
     $('#first-commit').addEventListener('click',openComposer);
