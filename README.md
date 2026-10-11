@@ -14,7 +14,7 @@ npm start
 
 Open **http://127.0.0.1:4317** in two browser tabs. Sign in with `may-demo` and `gary-demo`; each tab keeps its own session. Both users belong to CmdShift3, while only May belongs to Research. These are intentionally labeled demo accounts.
 
-Build and launch the native app using the instructions in [macos/README.md](macos/README.md). It connects to the same service. The browser also has an upload-and-annotate composer for testing the complete workflow.
+Build and launch the native app using the instructions in [macos/README.md](macos/README.md). For the local demo, enter `http://127.0.0.1:4317` as the server; fresh installs default to the public service. The browser also has an upload-and-annotate composer for testing the complete workflow.
 
 Data persists in `.data/`, outside the application source. Each project has an independent working Git repository and local bare origin. A commit tracks `capture.png`, `annotations.json` and `deliverable.json`; the API returns its actual SHA. Retrying the same submission ID and payload returns the same commit.
 
@@ -30,7 +30,9 @@ See the [three-minute demo walkthrough](docs/DEMO.md), [real collaboration case]
 
 Open **[CmdShift3](https://cmdshift3-web-production.up.railway.app/)** to create your account. Download the **[Mac app](https://cmdshift3-web-production.up.railway.app/downloads/CmdShift3.zip)** from the same service.
 
-The public deployment uses independent username/password accounts and private projects. Create a project, save its background in the Project Context Card, invite teammates, and generate a personal access code to connect the existing Mac app. Each confirmed Work Commit still creates a real Git commit. Public mode uses separate persistent cloud data and rejects the published local demo codes.
+The public deployment uses independent username/password accounts and private projects. Create a project, save its background in the Project Context Card, invite teammates, and generate a personal access code to connect the Mac capture workbench. Each confirmed Work Commit still creates a real Git commit. Public mode uses separate persistent cloud data and rejects the published local demo codes.
+
+The v0.2 Mac workbench keeps the capture open for Box, Arrow, Highlight and Text annotations plus a comment. A gentle arrival effect respects Reduce Motion. AI details stay folded until needed; closing unsaved work asks whether to keep editing, and failed submissions retain the original material for retry.
 
 See [deployment and onboarding](docs/DEPLOYMENT.md) for hosting, Mac setup, access controls and release checks. Vercel and Supabase are not required for this initial single-server release. The first release has no password recovery; keep your account password.
 

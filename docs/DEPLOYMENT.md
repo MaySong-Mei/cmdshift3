@@ -4,7 +4,7 @@ The public release lets each person create an account, create a private project,
 
 Public service: **[cmdshift3-web-production.up.railway.app](https://cmdshift3-web-production.up.railway.app/)**. [Download the Mac app](https://cmdshift3-web-production.up.railway.app/downloads/CmdShift3.zip).
 
-The initial deployment is pinned to tested source commit `ec7aea29fc42202668cbd8e17ee759b6366189fa`. Later source pushes do not automatically replace it; deploy a newly verified commit explicitly.
+The initial deployment used tested source commit `ec7aea29fc42202668cbd8e17ee759b6366189fa`. Releases are pinned to verified source commits; later source pushes do not automatically deploy. The current download is the v0.2.0 capture workbench.
 
 ## Hosting layout
 
@@ -27,7 +27,7 @@ The default Git origin is on the cloud volume, so the hosted service retains gen
 
 Create an account with a username, display name and password of at least 12 characters. Store the password: this first public release has no password recovery. Create a project and fill in its background, phase and deadline. Generate a project invitation and share it with a teammate, who creates their own account and joins using that code.
 
-Use **Connect Mac** to generate a personal access code. Download the Mac app, open it, and enter the deployed service URL and personal code. The current app requires Apple Silicon and macOS 15+. It is ad-hoc signed; macOS may require explicit approval in Privacy & Security. Grant Screen Recording when prompted. Use Control–Shift–Command–2 to capture, annotate, add context, prepare a draft and confirm the Commit. The web composer also supports screenshot upload for people without the Mac app.
+Use **Connect Mac** to generate a personal access code. Download the Mac app, open it, and enter the deployed service URL and personal code. The current app requires Apple Silicon and macOS 15+. It is ad-hoc signed; macOS may require explicit approval in Privacy & Security. Grant Screen Recording when prompted. Quit an earlier CmdShift3 version before opening v0.2.0. A new ad-hoc signature may require fresh Screen Recording approval; quit and reopen after granting it. Use Control–Shift–Command–2 to capture. The screenshot gently appears and stays in the workbench while you add Box, Arrow, Highlight or Text marks and write your comment. Return adds a line. Draft with AI (⌘D) sends the screenshot and comment for editable organization; review the details and choose Commit (⌘↩) to publish. Closing unsaved work asks Keep Editing / Discard. Failed submissions retain all material for retry. The web composer also supports screenshot upload for people without the Mac app.
 
 Keep personal Mac codes and project invitations private. A Mac code logs in as its account owner; a project invitation only joins a private project after the recipient signs in.
 
@@ -40,3 +40,7 @@ The first release has bounded signup, writes, storage and AI usage. The initial 
 Context history and comments are application records. Both AI stages receive the confirmed project background as context; project goals and phase never prove completed progress. Catch-up summarizes confirmed Work Commits and preserves their source SHAs. Keewano and Anthropic remain unconnected.
 
 Hosting references: [Railway persistent volumes](https://docs.railway.com/volumes), [Dockerfiles](https://docs.railway.com/builds/dockerfiles), and [deployment configuration](https://docs.railway.com/config-as-code/reference).
+
+## Native v0.2 acceptance
+
+The captured workbench was checked on a neutral fixture: all four mark tools, multiline comments, annotation alignment when the toolbar changes, persistent editing, and Keep Editing after close/Esc passed. The production app passed offline model/window/session guards, archive integrity and strict signature checks; Claude also passed isolated scratch-server integration. A fixture preview is not a new physical screenshot acceptance. The earlier frozen package passed a real local hotkey → capture → mark → DeepSeek → Git Commit flow. The final v0.2 bundle is frozen after verification; do not rebuild it while a user is granting Screen Recording.
