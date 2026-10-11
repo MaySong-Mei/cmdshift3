@@ -117,6 +117,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T11 | 公开试用部署：独立账号、创建/邀请项目、Project Context Card、持久云端服务与验收 | codex | done |
 | T12 | macOS截图体验：捕获动效、持久标记/comment画布、友好审核与防误丢 | claude | done（lead R22 验收通过） |
 | T13 | T12 lead验收、独立新版Mac包与公开下载更新 | codex | done |
+| T14 | AI默认撰写→review→Commit：轻量捕获卡、可选编辑、Codex风格与高光 | claude | todo |
+| T15 | T14 lead验收、AI默认流程验证及新版公开下载 | codex | doing |
 | D1 | 阅读双方协作说明并合并 Codex 产品理解，统一共享文档入口 | codex | done |
 | D2 | 核对 maymaymei #162 和 sponsor 官方接口，形成供 May 讨论的方案 | codex | done |
 | D3 | 核对 agent 归档整理能否直接交给 KeewanoDB | codex | done |
@@ -262,7 +264,17 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 
 - **R23 codex（T12验收接受 / T13完成）**：57e3cc66ec563519a828760a7bf5708884de5b5f已明确pin部署，Railway 5f910cfb-fef9-4845-bddc-3cde837b8eba SUCCESS。公网ZIP与候选hash/835964 bytes一致；现存QA context v3、2 members、原SHA a3f3caab13cc3b524bba73d44c0b14bacf2bdf11、member comment、capture重新读取全PASS，无新增账户/AI/WorkCommit。数据卷仍/data同一volume；server/web代码未变，仅新增验收原生工作台下载。T12接受、T13 done。证据素材为中性fixture预览；不宣称0.2包已重新走物理capture。请继续保持冻结；0.2用户自行授Screen Recording后可试。旧4317、旧运行app/UserDefaults未改。英文quickstart/独立0.2 zip/工作台图片在Codex outputs。
 
+- **R24 codex → claude（T14开工，May纠正核心流程）**：May：“ai整理一般是肯定包括的，截图浮现编辑时可选的。截图要有高光提示。风格可以和codex ui差不多，目前太像传统工具了。”补充：“最终commit是由ai撰写的，没问题之后review之后提交远程。”请认领T14。此任务解除新路径构建冻结；macos/及自己的COLLAB由你负责，lead负责server/web/docs/验收发布。
+  1. 主流程截图→自动AI撰写→可读draft供人review→明确Commit才写远程Git。正常capture打开就自动一次draft，支持PNG+空comment（后端已支持，无API变化），不能要求额外点Draft，也不能直接跳过AI；capture/AI返回不自动commit。Preview禁止真实AI/Commit。
+  2. 默认用600–760宽的轻量assistant浮卡，不默认1280px大工作台：带明显Captured高光的截图缩略图、项目pill、AI整理状态、AI生成summary和可读items（不展示空类别），可选的小context/comment输入和唯一主要Commit动作。Edit screenshot / Edit draft按需展开同一model/window的持久画布；Done editing回轻卡，所有标记/comment/AI edits保留。系统框选保持可靠，捕获缩略图/画布做高光，不宣称改了系统十字准星。
+  3. 接近Codex安静assistant UI：暖白/浅灰与深色适配、留白、细边界/低阴影、正文级AI回应、小icon/pill、收起传统分栏表单。主按钮单色深色/反色箭头，去大蓝色segments和密集控件/粗分割线；annotation工具轻量icon+label、subtle灰选中、颜色小点。高光是持续可见淡accent outline/glow+一次短pulse；Reduce Motion保留静态高光，效果不烧进PNG。范围是capture/review/editor，不重写Dashboard。
+  4. AI请求绑定monotonic generation和输入revision（project/comment），仅应用当前generation/revision/identity且未frozen的结果，覆盖A→B→A、comment中途编辑、重叠request；人编辑的summary/fields保留。默认一次arrival draft，避免每键/打字停顿扣AI额度；comment/project改动标needsUpdate。需要更新时主按钮Update draft只重新整理、回review，绝不能生成后连带POST commits；新的review内容再由用户明确Commit。项目切换重新整理，不带旧resolves/AI状态；人工修改生成字段属于review，不强制AI覆盖。
+  5. AI未配置/不可用/HTTP429/网络异常明确状态，原材料保留，可Retry AI。保留manual fallback则必须明确Continue manually进入人工review后才能Commit，不静默绕过默认AI。首次write冻结payload/id后retry绝不重新AI，Edit as new仍重建work/item ids。保留window identity、dirty确认、committing/session前后守卫、最小化热键恢复；capture/AI草稿本身也算未提交材料。
+  6. AI仍读取原PNG+comment+项目context；annotations随Commit保存，不声称AI已看未发送marks。0.3.0新包只输出/private/tmp/cmdshift3-ai-review/CmdShift3.app，-Onone/strict签名；不碰旧demo/T12包、UserDefaults、4317、云数据；不GUI、不kill，lead独占。preview中性fixture用于compact↔editor验收；若静态sample draft必须显著sample标识。编译+offline/new-state checks+scratch integration只对scratch endpoint（arrival空comment/无确认不写Git/最新comment/失败保留/frozen retry）。不扩大review。尽快push可验收UI/行为，补README和交接。
+
 ## 7. Decision Log
+
+- **T14决定 codex（lead，May新确认优先）**：AI是默认Commit撰写者，截图即准备草稿，人review并点击Commit后才生成远程Git；标记/edit按需展开。轻量assistant卡与capture高光替代默认大表单。此决定取代T12主动Draft才整理的交互；草稿不写Git、原图/annotation分开、冻结重试/权限隔离不变。现有PNG+空comment API足够，无契约修改。
 
 - **T12决定 codex（lead）**：May要求“截图commit是核心功能，需要截图的时候有特效，也很friendly，可以停在那边增加标记和comment”。本轮先沿用已真机验证的系统框选，动效放在捕获后的持久编辑画布，保留截图原图与0–1 annotation metadata，API/Git/frozen retry不变；截图优先、comment优先、结构字段渐进展开。用户主动Draft才发送截图整理，Commit才生成项目历史，不宣称AI读取未传入的annotation。新原生包独立构建验收后再更新公开下载。
 
@@ -287,6 +299,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | 2026-10-11 | lead 确认 Claude 负责 macOS，Codex 负责契约、后端、Dashboard 与验收；接受 Q5 稳定 id 和显式 resolves 方向，详细契约由 T1 定稿 | codex |
 
 ## 8. Activity Log
+
+| 2026-10-11 | codex | May纠正AI默认撰写、review后提交、标记编辑可选；启动T14/R24给Claude，T15验收发布。确认后端已有PNG+空comment draft，无需API变更 | 见本行所在 Git 提交 |
 
 | 2026-10-11 | codex | May授权优化核心截图体验；启动T12给Claude（R19），T13由lead负责。只读检查确认现有persistent composer可用但工具/表单拥挤；保留已验收旧包与云服务，准备新版独立验收 | 见本行所在 Git 提交 |
 
