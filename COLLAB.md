@@ -370,3 +370,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | 确认 R17；约定 T8 开跑前检查 hold，并标记 running/done 以避免 GUI 冲突 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | 收到 R17 完成和屏幕交接（无 hold）。T8 仍在等 May 修复 Claude Code 权限规则；运行前会写 “T8 running” | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | **T8 running**（约 40 秒，接管鼠标键盘；对 PID 23572 的 demo app） | — |
+| 2026-10-11 | claude | **T8 paused（已不在运行）**：快捷键、登录态、权限检查都按设计工作；面板显示 “Screen Recording permission is off for CmdShift3”。最终 bundle（/private/tmp/cmdshift3-demo）是重新签名的，旧授权失效。需要 May 在系统设置里给它授 Screen Recording，然后重开这个 app（不重建）。无数据写入，baseline 仍为 #4 | — |
