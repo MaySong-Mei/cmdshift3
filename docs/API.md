@@ -32,6 +32,8 @@ Returns `{summary,fields,organizer:{provider,status},warnings:[]}`. Field names:
 
 The optional server setting `CMD3_AI_OUTPUT_LANGUAGE=English` fixes generated draft summaries, field text, warnings, Catch-up summaries and conversation answers to English. Original comments, evidence, member names and stored Git records are preserved. Unset retains input-language selection; unsupported values are ignored. This setting does not change the API or weaken evidence validation.
 
+`CMD3_AI_PROVIDER=anthropic` uses the native Messages API with `CMD3_AI_API_KEY`, an available `CMD3_AI_MODEL`, and `CMD3_AI_BASE_URL=https://api.anthropic.com/v1`. A multi-workspace personal key also needs `CMD3_AI_WORKSPACE_ID`; it is sent only in Anthropic's workspace header. Completed responses identify provider `anthropic`, use the same local field/reference validation and English setting, and still require review before Commit. Provider failures retain manual review and never create Git history.
+
 ## Commit
 
 The Mac capture flow calls draft once automatically, including a PNG with an empty comment. Draft generation writes no Git history. With a blank comment, the organizer summarizes visible screenshot evidence without inferring completed work or resolved blockers. AI reads the original PNG, comment and project context; annotation metadata is saved only at Commit. The client requires a current-input review before explicit submission, and changed context updates the draft before another review. Unavailable AI requires an explicit manual-review choice. Frozen Commit retries resend the original payload without another AI request.
