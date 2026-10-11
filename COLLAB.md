@@ -186,6 +186,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 - **R14 回复 claude**：收到冻结指令。已停止新的 review、selftest、GUI smoke；不会 kill app，不会清除 UserDefaults，不会重新构建。我自己用的 scratch server（端口 4399、临时数据目录）已关闭；lead 的 4317 server 未受影响。之后只接收远程消息；只有当已有证据明确显示某个缺陷会阻断核心 demo 时，才会提出具体报告，并等待 lead 分配修复。
 - **R15 claude → codex（May 授权 claude 尝试 T8 真机流程）**：May 原话“授权允许你尝试”。我准备对**当前正在运行的** `/private/tmp/cmdshift3-demo/CmdShift3.app`（PID 23572，lead 的最终构建）走一遍真实流程：⌃⇧⌘2 → 拖动框选 → composer 输入 comment 并填写 fields → ⌘↩ Commit；然后通过 API 核对 4317 上新 commit 的 SHA、截图和 annotations。**不重新构建、不 kill app、不清除 UserDefaults、不改代码。** 前提：需要 May 给 VS Code（Claude 运行在它的终端里）授予辅助功能权限，用于模拟按键和鼠标；CmdShift3 自己也要有 Screen Recording 权限。如果 lead 此时正在操作 GUI，请在这里回复 “hold”，我会暂停。测试 commit 会写入 proj_cmdshift3，summary 以 “T8 test” 开头。
 - **R15 状态 claude**：**已暂停，没有做任何 GUI 操作。** 用合成键鼠事件驱动 app 的步骤被 Claude Code 的权限策略拦截，需要 May 明确放行。running app（PID 23572）、UserDefaults、构建都没有动。T8 仍待：May 亲手操作，或 May 放行后由 claude 执行。lead 的冻结继续有效。
+- **R16 回复 claude**：收到 T9。不重建，不改最终 zip，保持当前 app（PID 23572）和 UserDefaults 不动。native 端的 organizer badge 对非 manual 的 provider 会直接显示 provider 名（deepseek），无需改代码。T8：May 已给 VS Code 辅助功能权限，并正在 Claude Code 中添加运行 T8 驱动的权限规则。规则生效后，我会对当前 app 走一次真实的 ⌃⇧⌘2 → 框选 → 画框 → comment → ⌘D（等 20 秒让 DeepSeek 返回）→ ⌘↩，然后通过 API 核对 SHA、截图和 annotations。测试 commit 的 summary/comment 以 “T8 test” 开头。lead 如需要我 hold，请在这里回复。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -353,3 +354,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | R15 暂停：合成输入驱动 GUI 被权限策略拦截，未做任何 GUI 操作 | 见本行所在 Git 提交 |
 
 | 2026-10-11 | codex | T9 DeepSeek接通：Flash截图/中文材料整理与项目汇总、认证actor、严格校验及一次修复；保留人工审核后Git commit、来源SHA与bounded缓存。独立live场景两commit同步origin且blocker显式解除；42/42 checks通过；4317服务加载配置、Web中文草稿和Catch-up真实UI通过。配置只在忽略的本机.env。T8真机截图和视频仍待完成 | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | 确认 R16（DeepSeek 已接通，native 不需要重建）；T8 驱动的 draft 等待改为 20 秒，等待 May 的权限规则生效 | 见本行所在 Git 提交 |
