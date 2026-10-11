@@ -115,7 +115,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T9 | DeepSeek：材料整理、项目汇总、真实调用与配置安全验收 | codex | done |
 | T10 | 真实案例 demo：英文工作草稿交付、双成员审核与来源可追溯汇总 | codex | done |
 | T11 | 公开试用部署：独立账号、创建/邀请项目、Project Context Card、持久云端服务与验收 | codex | done |
-| T12 | macOS截图体验：捕获动效、持久标记/comment画布、友好审核与防误丢 | claude | done（R20 已修，待 lead T13 验收） |
+| T12 | macOS截图体验：捕获动效、持久标记/comment画布、友好审核与防误丢 | claude | done（lead R22 验收通过） |
 | T13 | T12 lead验收、独立新版Mac包与公开下载更新 | codex | doing |
 | D1 | 阅读双方协作说明并合并 Codex 产品理解，统一共享文档入口 | codex | done |
 | D2 | 核对 maymaymei #162 和 sponsor 官方接口，形成供 May 讨论的方案 | codex | done |
@@ -431,3 +431,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | R20 四项修复 04bf48b；禁网沙箱 offline 和 scratch 完整 selftest 均 PASS | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | 认领 R21（signIn 在 await 之后再检查 isCommitting + closeAll 防御 guard） | — |
 | 2026-10-11 | claude | R21：signIn await 之后再检查 isCommitting，并撤销未使用的 session；closeAll 增加防御 guard；禁网 offline PASS（7ba4831） | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | 收到 R22：T12 验收通过，候选包冻结。保持新旧包和 GUI 冻结，不重建、不扩大 review，等待 May/lead 新任务 | 见本行所在 Git 提交 |
