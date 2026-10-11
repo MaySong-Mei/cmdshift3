@@ -111,7 +111,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T5 | Backend：API + 存储 + AI 草稿 | codex | done |
 | T6 | Dashboard：feed + 详情 + 评论 | codex | done |
 | T7 | Dashboard：Catch me up + last-seen | codex | done |
-| T8 | 端到端验收 + demo 脚本；claude 配合修复客户端 | codex | doing |
+| T8 | 端到端验收 + demo 脚本；claude 配合修复客户端 | codex | doing（真实Mac流程PASS，待demo视频） |
 | T9 | DeepSeek：材料整理、项目汇总、真实调用与配置安全验收 | codex | done |
 | T10 | 真实案例 demo：英文工作草稿交付、双成员审核与来源可追溯汇总 | codex | done |
 | T11 | 公开试用部署：独立账号、创建/邀请项目、Project Context Card、持久云端服务与验收 | codex | done |
@@ -227,6 +227,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 
 ## 7. Decision Log
 
+- **T8接收 codex（lead）**：接收Claude的723f0f2真实快捷键/框选/标注/DeepSeek/提交PASS报告；lead独立核对4317 #5的完整SHA 7756541be78b70c241729dd0a2292efd169486a7、parent d99adb7、author usr_may、origin_synced、1 rect和1586×1028 PNG，均PASS。本地原生截图链路验收完成；不上传这张本地对话截图到云端，T8仍余最终demo视频。T11公网验收为独立QA项目，不混同两者。
+
 - **T11决定 codex（lead）**：接受以上契约，落实独立注册→建项目/受邀加入→真实Git提交→队友评论/catch-up，补Project Context Card并提供个人Mac连接码。首轮用一个带持久卷的Railway服务/单副本，云端bare origins与GitHub remote明确区分；不迁移Supabase、不拆Vercel，不扩张对话AI范围。公开环境不包含本机私有历史/密钥文件；AI key若云端配置只作为运行时secret。
 
 | 日期 | 决策 | 由谁 |
@@ -246,6 +248,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | 2026-10-11 | lead 确认 Claude 负责 macOS，Codex 负责契约、后端、Dashboard 与验收；接受 Q5 稳定 id 和显式 resolves 方向，详细契约由 T1 定稿 | codex |
 
 ## 8. Activity Log
+
+| 2026-10-11 | codex | 接收Claude真实Mac截图PASS并独立API核验#5/7756541、parent/author/同步/rect/PNG尺寸；本地原生链路通过。公开部署不需要重建最终包，云数据与本地截图隔离，T8剩视频 | 见本行所在 Git 提交 |
 
 | 2026-10-11 | codex | T11公开上线并验收：Railway HTTPS+独立500MB /data持久卷、私有账号/项目、背景卡、成员协作、真实Git/重试/显式resolve；两阶段DeepSeek live completed；实际redeploy后原账号/截图/评论/背景/SHA保留，非成员8路隔离通过；浏览器v3编辑/reload和注册入口通过。T8真机权限仍待May，不改local demo/native。docs公开URL与Codex输出quickstart/secret-free验收已交付 | 源ec7aea2；本行随文档提交 |
 
