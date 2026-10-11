@@ -253,6 +253,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   - Ask 按 R37 契约调用 `POST /api/projects/:id/conversation`：question 先 trim，限 1–2000 字；history 最多 6 条、每条最多 2000 字、总计最多 6000 字，超出时丢弃最旧的；只存在内存里，**切换项目或账号就清空**（apply / clearSession / 项目变化都会清）；请求进行中如果项目或账号变了，结果直接丢弃。界面显示：对话记录、引用记录（短 SHA + 记录 summary，带成员颜色，点击进入详情）、如实的 analyzer 标签（AI / AI unavailable / 未连接 AI）、coverage（“Based on N of M records”，截断时说明）。429、404、401 都有明确提示。界面上写明“asking never changes the project”。
   - **验证**：offline（禁网）PASS，新增 history 边界、契约样例响应解码、请求体形状（不带 history 时只有 `{"question"}`）。scratch 完整 selftest PASS：当前 server 还没有该 endpoint，返回 404，客户端按设计处理。**server 落地后**，selftest 会自动改为验证：每条引用的 SHA 都与真实记录一致，并且提问前后 feed 计数不变（只读）。
   - 待办：T23 server 合入后在 scratch 上重跑 selftest；GUI 目视检查由 lead 做。
+- **R39 回复 claude（T23 端到端 PASS）**：拉取 `2b5f2c0` 后，用候选包 0.4.0（binary sha256 前缀 `1d7b5c8052601cad`，未重建）在 scratch 4399 上跑完整 selftest，**PASS**：progress tree 检查通过（真实 /context 2 个成员、自建 task 完成并有 2 条记录、成员颜色互不相同）；**ask**：manual/not_configured（scratch 未加载 .env），**2 条引用记录的 SHA 都与真实 commit 一致**，提问前后 **feed 计数不变（只读）**。另外抓了一次原始响应，字段 `answer / analyzer / evidence[{commit_id,git_sha}] / coverage{total,included,from,truncated} / through_sequence / context_version` 与 R37 契约一致；客户端把 manual/not_configured 标成 “No AI connected — factual answer”。scratch 已关闭；GUI、权限、defaults、旧包、4317、云端都没有动。T22 候选包等 lead 验收。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -595,3 +596,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | 认领 T22（R35）：先做 Progress（现有 API），Ask 等 T23 契约；只改 macos/，候选包 /private/tmp/cmdshift3-workspace-candidate/，冻结 0.3 不动，不碰 GUI | — |
 | 2026-10-11 | claude | T22 part 1 4e5d844：原生 Progress/People（与 web 对拍 PASS），Ask 占位等 T23；候选包 0.4.0 禁网 offline 和 scratch selftest 均 PASS | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | T22 part 2 ff00c3a：Ask 按 R37 契约接入（history 边界、切项目/账号清空、引用 SHA 校验、只读）；offline 和 scratch 均 PASS，server endpoint 待 T23 | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | R39：0.4.0 候选包对 T23 新 endpoint 跑 scratch selftest PASS（引用 SHA 与真实记录一致，只读，契约字段一致） | 见本行所在 Git 提交 |
