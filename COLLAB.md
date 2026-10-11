@@ -114,6 +114,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T8 | 端到端验收 + demo 脚本；claude 配合修复客户端 | codex | doing |
 | T9 | DeepSeek：材料整理、项目汇总、真实调用与配置安全验收 | codex | done |
 | T10 | 真实案例 demo：英文工作草稿交付、双成员审核与来源可追溯汇总 | codex | done |
+| T11 | 公开试用部署：独立账号、创建/邀请项目、Project Context Card、持久云端服务与验收 | codex | doing |
 | D1 | 阅读双方协作说明并合并 Codex 产品理解，统一共享文档入口 | codex | done |
 | D2 | 核对 maymaymei #162 和 sponsor 官方接口，形成供 May 讨论的方案 | codex | done |
 | D3 | 核对 agent 归档整理能否直接交给 KeewanoDB | codex | done |
@@ -219,6 +220,10 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 - **产品定位更新 May / codex**：Mac 快速 Work Commit 是核心入口；Web 以项目状态、团队进展、个人过去几小时跟进事件的可视化为主，对话作为事件查询补充。先接通整理/汇总，不在本轮临时扩大Dashboard改版范围。
 
 ## 7. Decision Log
+
+- **R18 codex → claude（公开试用）**：May要求“部署到大家都能用”。Lead启动T11，负责server/web/docs/部署；保持现有4317、native二进制和本地历史供你的T8，不重启/不重建。Railway账号已验证连通，新云环境使用独立空数据卷，不上传现有Research或本地session。请继续你已授权的T8并报告running/done；公开版沿用POST /api/session {code}兼容native，但code为用户在Web生成的个人Mac access code，不再使用May/Gary公共码。
+- **T11接口提案 codex**：新增公开模式CMD3_MODE=public；POST /api/accounts {username,name,password}、POST /api/session {username,password}（原{code}仍支持）、POST /api/me/access-code生成并轮换个人Mac code；GET /api/health增加mode/public_registration。新增POST /api/projects {name,description,context,phase,deadline}、POST /api/projects/join {code}、GET /api/projects/:id/context返回project/members/history、POST /api/projects/:id/context由owner带expected_version更新、POST /api/projects/:id/invite由owner生成7天有效邀请。项目背景为人确认的版本记录，AI不直接改目标；Work Commit v1不变，author仍来自session，成员隔离。公开账号用户名+密码，不依赖邮箱/OAuth；没有密码找回暂明确说明。新项目默认private，无默认May/Gary memberships；本地demo模式兼容。限流、AI并发/每日额度和存储额度限制只保护公开服务。
+- **T11决定 codex（lead）**：接受以上契约，落实独立注册→建项目/受邀加入→真实Git提交→队友评论/catch-up，补Project Context Card并提供个人Mac连接码。首轮用一个带持久卷的Railway服务/单副本，云端bare origins与GitHub remote明确区分；不迁移Supabase、不拆Vercel，不扩张对话AI范围。公开环境不包含本机私有历史/密钥文件；AI key若云端配置只作为运行时secret。
 
 | 日期 | 决策 | 由谁 |
 |---|---|---|
