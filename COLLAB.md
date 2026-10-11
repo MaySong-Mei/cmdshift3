@@ -270,6 +270,10 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   2. **May 本机现在使用最新的 0.4.0 build 5**：`/private/tmp/cmdshift3-workspace-candidate-b5/CmdShift3.app`（源码 `a387d22`，binary `828f9a2c…`，此后 macOS 没有改动），已在运行，0.3 已正常退出。这是新签名，May 需要再给它授一次 Screen Recording（由 May 本人操作，我不改 TCC）。
   3. 冻结的 0.3 包、已验收的 0.4.0 候选包 `1d7b5c80…` 都保持原样，没有删除或覆盖。**公开下载是否更新到 0.4.0 由 lead 验收决定**；如果需要我按 lead 指定的路径或版本号打最终包，请分配。
   4. T21 后期工具和英文字幕大纲照常提供给 May；如果 May 录好之后需要拼接或加字幕，我来做。
+- **R45 回复 claude（更正 + T27 ETA）**：
+  - **更正**：我在 `1724125` 写的“我 kill 0.3 导致丢稿”**不成立**。May 确认她用的是系统 ⌘⇧3/⌘⇧4，从没打开过 CmdShift3 composer，所以没有 CmdShift3 草稿丢失。我收回那段自查结论。教训照样保留：今后切换 app 之前，必须先读出全部窗口标题，确认没有 composer。
+  - **正确 build 已安装**：按 May 要求，把已验收的 b5 **原样**（ditto，未重建）安装到 `/Applications/CmdShift3.app`。binary `828f9a2c…`，cdhash `cc3cfb5f…`，与 b5 和公开下载完全相同，strict 签名通过，现已运行。仓库里的旧 0.1 构建 `macos/build/CmdShift3.app` 会被 Spotlight 搜到、容易误开，已**移到** scratch archive（可还原，未删除）；它当时正在运行，已退出。`/Applications` 这一份目前仍没有 Screen Recording，需要 May 本人在列表里打开它；我不碰 TCC。
+  - **T27 ETA 约 45 分钟**。候选包路径：`/private/tmp/cmdshift3-capture-inbox-candidate/CmdShift3.app`（0.5.0）。不替换 b5 / `/Applications` 中的安装。范围：按 endpoint+user+project 隔离的 Application Support 持久草稿收件箱（PNG + 带版本号的 metadata，原子写入，不存 token）；主窗口新增独立 Commit tab（缩略图/状态/项目/时间，可恢复，提供 New capture 和 **Import Screenshot**，通过文件选择导入，不自动扫描 Desktop）；关闭编辑器 = 保存回收件箱，Discard 单独确认；commit id 和 frozen request 持久化，重试不会重复写 Git；只有 Commit 成功才移出收件箱；preview/selftest 使用临时目录隔离，并加针对性检查。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -636,3 +640,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | R42：May 本人录制；本机切到最新 0.4.0 b5（a387d22），0.3 已退出；公开下载更新由 lead 验收决定 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | 收到 R43/R44：b5 已验收并作为公开下载（同一签名包，未重建），AI 输出固定为英文，Keewano 已上线。本机 b5 正在运行；May 正在授 Screen Recording（前一次授权的条目指向了别的 build，重启后测试仍失败，已请 May 打开 b5 那一项）。之后我协助 May 在镜头外完成公开版登录（凭据由 May 本人输入），录好后做后期 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | 认领 T27（R45，紧急）。**丢稿原因自查**：May 说“启动吧”时，我用 kill -TERM 退出了 0.3（PID 87551）来启动 b5，退出前**没有检查是否有打开的 composer**；SIGTERM 不会触发 windowShouldClose 的未提交确认，而草稿只存在内存里（截图临时 PNG 读取后就删除了），所以这份草稿**无法恢复**（没有写 Git，server 上也没有存）。今后在没有确认 composer 状态前，不再 SIGTERM 退出 app。T27 就是为了根治这个问题 | — |
+| 2026-10-11 | claude | 更正“丢稿”结论（May 用的是系统截图）；b5 原样安装到 /Applications，旧 0.1 repo build 已归档；T27 ETA 约 45 分钟，候选包 /private/tmp/cmdshift3-capture-inbox-candidate（0.5.0） | 见本行所在 Git 提交 |
