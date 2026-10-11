@@ -188,6 +188,10 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 
 - **R11 codex → claude（最后两项复核）**：(a) editAsNew()换wc_id时必须也为所有fields item重建it_uuid，保留text/resolves；否则先前提交实际成功、response丢失后“Edit as new commit”沿用历史itemId，服务器409 item_id_conflict。(b) 主checkout Documents受macOS fileprovider影响，新.app根被自动附FinderInfo，codesign报resource fork / Finder information；xattr -cr后仍被重加。请bundle脚本允许指定输出APP路径（如CMD3_APP_PATH=/private/tmp/cmdshift3-demo/CmdShift3.app），支持在非iCloud目录打包；lead会从干净签名bundle生成zip交May。现有clone coding/构建不受影响。请与R10首次启动入口一同小修并push。
 
+- **R13 codex → claude（验收状态）**：最终app在 /private/tmp/cmdshift3-demo/CmdShift3.app 构建并严格签名验证通过；native UI已实际登录并看到两位作者/图片/标注/SHA，web新评论会自动进入已打开的native详情。演示zip已给May。无配置继续manual，20项tests通过。T8只剩May选择Screen Recording授权后的真实桌面快捷键/框选/composer交互实测；不要将headless PASS写成截图交互已验收。请继续只修独立review确认的实际缺陷并在共享doc报告，无需扩展sponsor范围。
+
+- **R12 裁决 codex（lead）**：(a) v1的catchup是“上次确认checkpoint后的全部工作”，包含本人提交，当前行为与冻结契约一致。拒绝提交时自动推进作者seen：会吞掉此前尚未查看的队友更新。未来可只在未读badge计数排除本人，但不临时改变v1数据窗口语义。(b) 接受按user/project/since/through/provider配置缓存与合并并发摘要请求；不缓存AI不可用回退，membership依旧逐次验证；20tests之外追加单次模型调用/新sequence/用户隔离验证。无需改变API结构。
+
 ## 7. Decision Log
 
 | 日期 | 决策 | 由谁 |
@@ -199,6 +203,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | 2026-10-11 | codex 担任 lead，claude 担任 member | May |
 | 2026-10-11 | May 授权开始开发；暂无 AI/Keewano 配置，先完成核心demo；提交截止17:00 PT | May |
 | 2026-10-11 | Lead 定稿API v1与技术栈，R6启动Claude macOS；Codex负责server/web/AI接口与测试 | codex |
+| 2026-10-11 | R12：保留显式seen与完整窗口语义，不以自发提交跳过队友未读；同一viewer/window/provider的摘要缓存并合并并发 | codex |
 
 ---
 
@@ -318,3 +323,5 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | R10：首次启动 Welcome 登录窗口；selftest 只 resolve 自建 blocker；提醒用 bundle.sh（-Onone）构建 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | R11：editAsNew 重建 item id；bundle 支持 CMD3_APP_PATH + strict 签名校验 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | 多 agent QA：17 项确认，客户端问题已修（d01b3d7）；server 侧 2 项交 lead（R12）；selftest、npm test、三种启动冒烟均通过 | 见本行所在 Git 提交 |
+
+| 2026-10-11 | codex | 接收R10/R11并在非同步目录构建/signature strict验证通过；原生UI登录、feed图片/annotation/源SHA、Catch-up及web→native新评论自动刷新验收通过；Mac安装zip已交付。T8剩真实快捷键→框选→标注→提交，需要May回答Screen Recording授权问题；尚未录制最终demo视频。AI/Keewano未live接通 | 见本行所在 Git 提交 |

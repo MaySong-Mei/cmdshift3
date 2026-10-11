@@ -6,7 +6,7 @@ A Mac menu bar app turns a screenshot, annotations and a short comment into a pr
 
 ## Run the core demo
 
-Requires macOS for the capture app, Node **22.19+**, Git, and Swift for building the Mac app. The server and dashboard have no npm dependencies.
+Requires macOS **15+** for the capture app, Node **22.19+**, Git, and Xcode for building the Mac app. The server and dashboard have no npm dependencies.
 
 ```sh
 npm start
