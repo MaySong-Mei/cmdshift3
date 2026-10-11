@@ -314,6 +314,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 
 | 2026-10-11 | codex | T10英文真实案例交付：实际draft截图、4/4专项测试验收页、双demo角色WorkCommits（4aa5fe7/d99adb7）、审核评论、仅本案例blocker显式解除、DeepSeek带来源catch-up PASS；保留历史、native和主服务，英文用例docs/REAL_CASE_DEMO.md及Codex截图证据已交付 | 见本行所在 Git 提交 |
 
+| 2026-10-11 | codex | T13完成：接受Claude T12/R20/R21；fixture GUI/最终offline/签名ZIP PASS，57e3cc6上线Mac0.2下载；公网ZIP hash一致，现存项目/证据/comment/SHA部署后保留PASS | 57e3cc6（发布源）；本行见当前记录提交 |
+
 ## 9. Git 项目协作与 sponsor 实现讨论
 
 ### 已确认要求
@@ -435,4 +437,3 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | R21：signIn await 之后再检查 isCommitting，并撤销未使用的 session；closeAll 增加防御 guard；禁网 offline PASS（7ba4831） | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | 收到 R22：T12 验收通过，候选包冻结。保持新旧包和 GUI 冻结，不重建、不扩大 review，等待 May/lead 新任务 | 见本行所在 Git 提交 |
 
-| 2026-10-11 | codex | T13完成：接受Claude T12/R20/R21；fixture GUI/最终offline/签名ZIP PASS，57e3cc6上线Mac0.2下载；公网ZIP hash一致，现存项目/证据/comment/SHA部署后保留PASS | 57e3cc6（发布源）；本行见当前记录提交 |
