@@ -2,20 +2,31 @@ import AppKit
 import CoreGraphics
 
 enum Capture {
+    enum Outcome {
+        case captured(Data)
+        case cancelled
+        case failed(String)
+    }
+
     /// Runs the system's interactive screenshot UI (same as ⌘⇧4: drag a region,
-    /// or press Space to pick a window). Returns nil if the user pressed Esc.
-    static func interactive() async -> Data? {
+    /// or press Space to pick a window). Esc leaves no file → .cancelled.
+    static func interactive() async -> Outcome {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("cmdshift3-\(UUID().uuidString).png")
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
         process.arguments = ["-i", "-x", "-t", "png", url.path]
-        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
-            process.terminationHandler = { _ in cont.resume() }
-            do { try process.run() } catch { cont.resume() }
+        let launchError: String? = await withCheckedContinuation { (cont: CheckedContinuation<String?, Never>) in
+            process.terminationHandler = { _ in cont.resume(returning: nil) }
+            do { try process.run() } catch { cont.resume(returning: error.localizedDescription) }
         }
         defer { try? FileManager.default.removeItem(at: url) }
-        return try? Data(contentsOf: url)
+        if let launchError { return .failed("Could not start screencapture: \(launchError)") }
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            return process.terminationStatus == 0 ? .cancelled : .failed("screencapture exited with status \(process.terminationStatus).")
+        }
+        guard let data = try? Data(contentsOf: url), !data.isEmpty else { return .failed("The screenshot file could not be read.") }
+        return .captured(data)
     }
 
     /// App name + frontmost window title, used as free context for the draft.

@@ -172,8 +172,9 @@ final class AppState: ObservableObject {
             lastError = "Sign in from the menu bar before committing."
             return
         }
-        if !CGPreflightScreenCaptureAccess() {
-            CGRequestScreenCaptureAccess()
+        guard CGPreflightScreenCaptureAccess() || CGRequestScreenCaptureAccess() else {
+            showScreenRecordingAlert()
+            return
         }
         let front = NSWorkspace.shared.frontmostApplication
         let app = (front?.processIdentifier == getpid()) ? lastExternalApp : front
@@ -184,10 +185,46 @@ final class AppState: ObservableObject {
         Task {
             defer { capturing = false }
             try? await Task.sleep(for: .milliseconds(150))
-            guard let raw = await Capture.interactive() else { return }
-            let png = Capture.pngWithinLimit(raw)
-            guard let image = NSImage(data: png) else { return }
-            ComposerController.shared.open(image: image, png: png, source: source, app: self)
+            switch await Capture.interactive() {
+            case .cancelled:
+                return
+            case .failed(let message):
+                showAlert(title: "Screenshot failed", message: message)
+            case .captured(let raw):
+                let png = Capture.pngWithinLimit(raw)
+                guard let image = NSImage(data: png) else {
+                    showAlert(title: "Screenshot failed", message: "The captured image could not be decoded as PNG.")
+                    return
+                }
+                ComposerController.shared.open(image: image, png: png, source: source, app: self)
+            }
         }
+    }
+
+    private func showScreenRecordingAlert() {
+        lastError = "Screen Recording permission is off for CmdShift3."
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "Allow Screen Recording"
+        alert.informativeText = """
+        CmdShift3 needs Screen Recording to capture your work.
+
+        System Settings → Privacy & Security → Screen Recording → turn on CmdShift3, then quit and reopen CmdShift3.
+        """
+        alert.addButton(withTitle: "Open System Settings")
+        alert.addButton(withTitle: "Cancel")
+        if alert.runModal() == .alertFirstButtonReturn,
+           let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    private func showAlert(title: String, message: String) {
+        lastError = "\(title): \(message)"
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.runModal()
     }
 }

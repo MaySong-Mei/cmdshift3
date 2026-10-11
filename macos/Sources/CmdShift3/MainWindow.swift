@@ -231,7 +231,11 @@ struct CommitDetailView: View {
         }
         .task {
             if let path = commit.evidence?.imageUrl { image = await app.image(path: path) }
-            comments = (try? await app.client.comments(commit: commit.id)) ?? []
+            // Poll while the detail is visible; .task cancels this on disappear.
+            while !Task.isCancelled {
+                if let latest = try? await app.client.comments(commit: commit.id) { comments = latest }
+                try? await Task.sleep(for: .seconds(4))
+            }
         }
     }
 
@@ -241,7 +245,7 @@ struct CommitDetailView: View {
         Task {
             do {
                 let c = try await app.client.addComment(commit: commit.id, body: body)
-                comments.append(c)
+                if !comments.contains(where: { $0.id == c.id }) { comments.append(c) }
                 draft = ""
                 error = nil
             } catch {

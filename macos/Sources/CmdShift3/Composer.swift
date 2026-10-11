@@ -11,7 +11,10 @@ struct OpenItem: Identifiable, Hashable {
 @MainActor
 final class ComposerModel: ObservableObject {
     /// Generated once per composer and reused on retry (API v1 idempotency).
-    let commitId = "wc_" + UUID().uuidString.lowercased()
+    private(set) var commitId = "wc_" + UUID().uuidString.lowercased()
+    /// Frozen on first submit so a retry resends exactly the same payload.
+    @Published private(set) var frozen: CommitRequest?
+    var isLocked: Bool { frozen != nil }
     let image: NSImage
     let png: Data
     let source: Source
@@ -37,17 +40,30 @@ final class ComposerModel: ObservableObject {
     }
 
     func loadOpenItems(_ app: AppState) async {
-        guard let s = try? await app.client.state(project: projectId).state else { openItems = []; return }
+        let pid = projectId
+        guard let s = try? await app.client.state(project: pid).state else { if pid == projectId { openItems = [] }; return }
+        guard pid == projectId else { return }
         openItems = s.blockers.map { OpenItem(item: $0, kind: "BLOCKER") } + s.next.map { OpenItem(item: $0, kind: "NEXT") }
     }
 
+    /// Resolves references are project-scoped, so they cannot follow a project switch.
+    func projectChanged(_ app: AppState) async {
+        for i in fields.shipped.indices { fields.shipped[i].resolves = nil }
+        organizer = nil
+        warnings = []
+        openItems = []
+        await loadOpenItems(app)
+    }
+
     func draft(_ app: AppState) async {
+        let pid = projectId
         drafting = true
         error = nil
         defer { drafting = false }
         do {
-            let r = try await app.client.draft(DraftRequest(projectId: projectId, comment: comment, source: source,
+            let r = try await app.client.draft(DraftRequest(projectId: pid, comment: comment, source: source,
                                                             imageBase64: png.base64EncodedString()))
+            guard pid == projectId, !isLocked else { return }
             if let f = r.fields { fields = f }
             if let s = r.summary, !s.isEmpty { summary = s }
             organizer = r.organizer
@@ -69,15 +85,24 @@ final class ComposerModel: ObservableObject {
         committing = true
         error = nil
         defer { committing = false }
-        let req = CommitRequest(id: commitId, projectId: projectId, source: source,
-                                imageBase64: png.base64EncodedString(), annotations: annotations,
-                                comment: comment, summary: effectiveSummary, fields: fields.cleaned())
+        let req = frozen ?? CommitRequest(id: commitId, projectId: projectId, source: source,
+                                          imageBase64: png.base64EncodedString(), annotations: annotations,
+                                          comment: comment, summary: effectiveSummary, fields: fields.cleaned())
+        frozen = req
         do {
             result = try await app.client.commit(req)
             await app.refresh()
         } catch {
             self.error = error.localizedDescription
         }
+    }
+
+    /// Explicitly abandons the frozen attempt: unlocks editing under a fresh id.
+    /// If the earlier attempt did reach the server, that becomes a separate commit.
+    func editAsNew() {
+        frozen = nil
+        commitId = "wc_" + UUID().uuidString.lowercased()
+        error = nil
     }
 }
 
@@ -122,7 +147,7 @@ struct ComposerView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            canvasPane
+            canvasPane.disabled(model.isLocked)
             Divider()
             formPane.frame(width: 400)
         }
@@ -183,11 +208,22 @@ struct ComposerView: View {
         VStack(alignment: .leading, spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
+                    formFields.disabled(model.isLocked)
+                }
+                .padding(16)
+            }
+            Divider()
+            footer.padding(14)
+        }
+    }
+
+    @ViewBuilder
+    private var formFields: some View {
                     if app.projects.count > 1 {
                         Picker("Project", selection: $model.projectId) {
                             ForEach(app.projects) { p in Text(p.name).tag(p.id) }
                         }
-                        .onChange(of: model.projectId) { Task { await model.loadOpenItems(app) } }
+                        .onChange(of: model.projectId) { Task { await model.projectChanged(app) } }
                     } else if let p = app.currentProject {
                         Label(p.name, systemImage: "folder").font(.subheadline.weight(.medium))
                     }
@@ -223,12 +259,6 @@ struct ComposerView: View {
                     }
 
                     ForEach(FieldKind.allCases) { kind in fieldSection(kind) }
-                }
-                .padding(16)
-            }
-            Divider()
-            footer.padding(14)
-        }
     }
 
     @ViewBuilder
@@ -297,6 +327,10 @@ struct ComposerView: View {
                 Label(e, systemImage: "xmark.octagon").font(.caption).foregroundStyle(.red)
                     .textSelection(.enabled)
             }
+            if model.isLocked && model.result == nil && !model.committing {
+                Text("Retry resends exactly what was submitted. To change it, start a new commit.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             if let r = model.result {
                 Label("Committed \(r.shortSha ?? "") · #\(r.sequence ?? 0)\(r.git?.remoteSynced == false ? " · origin not synced yet" : "")",
                       systemImage: "checkmark.circle.fill")
@@ -305,6 +339,9 @@ struct ComposerView: View {
             HStack {
                 Button("Cancel", role: .cancel, action: close).keyboardShortcut(.cancelAction)
                 Spacer()
+                if model.isLocked && model.result == nil && !model.committing {
+                    Button("Edit as new commit") { model.editAsNew() }
+                }
                 if model.result != nil {
                     Button("Done", action: close).keyboardShortcut(.defaultAction)
                 } else {
@@ -317,7 +354,7 @@ struct ComposerView: View {
                             }
                         }
                     } label: {
-                        if model.committing { ProgressView().controlSize(.small) } else { Text("Commit  ⌘↩") }
+                        if model.committing { ProgressView().controlSize(.small) } else { Text(model.isLocked ? "Retry  ⌘↩" : "Commit  ⌘↩") }
                     }
                     .keyboardShortcut(.return, modifiers: .command)
                     .buttonStyle(.borderedProminent)
