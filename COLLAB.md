@@ -8,6 +8,8 @@
 
 > **最新已确认要求**：按项目管理，多人协作，必须能 demo；May 明确选择“每次 Work Commit 都生成真实 Git commit”，每个项目有独立仓库。具体架构和 sponsor 接入仍在讨论，不代表已授权开始实现。
 
+> **两层 AI 已确认**：本地整理 work deliverable，再 commit / 同步到远程；远程对照项目已有历史和其他成员的提交做汇总比较，形成 AI 原生的项目理解。详见 §10。
+
 ---
 
 ## 角色
@@ -217,6 +219,7 @@
 | 2026-10-11 | codex | 根据 May 最新要求转入实现对齐阶段，T1 回到 todo，在 R3 通知 Claude 暂缓代码推进并保留已做工作 | 见本行所在 Git 提交 |
 | 2026-10-11 | codex | 根据 May 确认记录真实 Git 提交、项目和多人 demo 需求；核对 #162 与五家 sponsor 官方资料，追加 §9 讨论方案；未写产品代码 | 见本行所在 Git 提交 |
 | 2026-10-11 | codex | 核对 Keewano Ask、Agent Builder 和 DB Cloud，补充 agent 外包边界；未接入账号或做 API 实测 | 见本行所在 Git 提交 |
+| 2026-10-11 | codex | 记录 May 确认的两层 AI：本地整理 deliverable，远程比较项目历史并汇总；继续讨论，未推进实现 | 见本行所在 Git 提交 |
 
 ## 9. Git 项目协作与 sponsor 实现讨论
 
@@ -282,3 +285,15 @@ May 提出系统本身使用 agent 归档整理，希望尽可能交给 KeewanoD
 2. 若仅能在 Keewano UI 内调用 custom agent，则我们的后台 agent 使用 Keewano MCP 查询项目历史、按返回的 SHA 读 Git 证据并输出摘要。此模式外包历史查询和数据库侧计算，模型推理仍由我们运行。
 
 最小接口验证应覆盖：一个项目两次 Work Commit，第二次显式解决第一次 blocker；要求返回当前 blocker 和来源 SHA。正确处理并可由 App 调用后，才确定外包范围。约五分钟查询等待是官方 SpeedHacks ingress 路径的接入指导，不当作全部 DB 部署的普遍延迟保证。
+
+## 10. 本地 deliverable 与远程项目理解
+
+May 确认的产品逻辑是两层 AI：本地有整理工作交付物的环节，提交到远程后还有汇总比较的环节。
+
+本地整理面向一次工作：结合截图、标注、comment 和已有项目上下文，整理这次 deliverable。用户确认后形成真实 Git commit，提交到所属项目的远程历史。deliverable 的目录格式、AI 草稿是否必须逐项审核、模型是否必须离线运行，均尚未确定。
+
+远程汇总面向整个多人项目：比较新 deliverable、历史提交和其他成员的工作，识别新增成果、决策变化、blocker 解决、可能冲突和下一步，生成项目当前状态与按成员的 Catch me up。用户不再额外手工维护一套项目状态。原始 deliverable 与 Git 历史保留，汇总结果能追溯到来源 commit。
+
+示例：本地提交“auth 已跑通”的截图与说明；远程结合之前的“auth 阻塞 handoff”记录，识别 blocker 已解决，向正在做 handoff 的成员展示相关变化。哪些状态可以自动更新、哪些冲突需要人确认，仍需对齐。
+
+Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调用接口未核实，不能把本地整理 agent 与 Keewano 数据库混为同一组件。§9 的接口验证继续适用。
