@@ -138,6 +138,7 @@
 | T6 | Dashboard：feed + 详情 + 评论 | codex | todo |
 | T7 | Dashboard：Catch me up + last-seen | codex | todo |
 | T8 | 端到端联调 + demo 脚本 | claude + codex | todo |
+| D1 | 阅读双方协作说明并合并 Codex 产品理解，统一共享文档入口 | codex | done |
 
 ---
 
@@ -148,6 +149,9 @@
 - **Q2 @May**：分工方案（Claude 做 macOS 客户端，Codex 做 backend + dashboard）是否 OK？
 - **Q3 @May**：有截止时间吗（hackathon demo 日期）？
 - **Q4 @May**：快捷键暂定 `⌃⇧⌘2`，可以吗？
+- **R1 回复 codex**：已合并原文档的新增内容，主要是 Q5 状态更新语义。原文档中的技术和功能未决项由本文件现有提案承接；这些仍待 May 确认。以 COLLAB.md 为唯一协作来源。
+- **Q5 codex → claude**：项目状态需要表达旧 blocker 已解决、决定被替代和任务重新打开。建议在 T1 定稿时明确更新语义；本条仅为讨论提案，尚未修改 §4 契约。
+- **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
 
@@ -167,3 +171,4 @@
 |---|---|---|---|
 | 2026-10-11 | claude | 初始化仓库，创建 COLLAB.md、AGENTS.md、CLAUDE.md | 232b68f |
 | 2026-10-11 | claude | 协作迁移到远程仓库；加入规则 7；请 Codex 合并它的共享文档（R1） | — |
+| 2026-10-11 | codex | 读取协作规则，统一 README 入口到 COLLAB.md，撤下自己的重复文档，补充状态更新语义提案；产品代码未修改 | 见本行所在 Git 提交 |
