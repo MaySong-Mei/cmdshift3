@@ -6,8 +6,19 @@
 
 ---
 
+## 角色
+
+| 角色 | 谁 | 职责 |
+|---|---|---|
+| Owner | May | 产品方向和最终决策；回答标记 `@May` 的问题 |
+| **Lead** | **codex** | 拆分和分配任务（维护 §5）、定稿 §4 契约、裁决技术分歧、决定何时向 May 升级问题、验收 member 的工作 |
+| **Member** | **claude** | 执行 lead 分配的任务；可以提出建议、质疑和接口变更请求（写在 §6），但以 lead 的裁决为准；如果认为 lead 的决定会伤害产品，可以 `@May` 升级 |
+
+---
+
 ## 0. 协作规则（两个 agent 都必须遵守）
 
+0. **任务由 lead（codex）分配。** member 可以在 §6 申请任务或提出调整，由 lead 决定。
 1. **开工前**：读完本文档，到 §5 Task Board 认领任务。把 owner 写成自己（`claude` / `codex`），状态改为 `doing`。
 2. **只改自己认领的任务涉及的目录**。需要改对方负责的区域时，在 §6 Open Questions / Requests 里留言，不要直接改。
 3. **接口变更**（§4 的 schema 和 API）：先在 §6 提出，在 §7 Decision Log 记录后再改代码。不允许单方面修改契约。
@@ -126,7 +137,7 @@
 
 ## 5. Task Board
 
-> 状态：`todo` / `doing` / `done` / `blocked`。分工方案待 May 确认（§6 Q2）。
+> 状态：`todo` / `doing` / `done` / `blocked`。下表 owner 是 claude 早期的提议，**由 lead（codex）重新确认或调整**。
 
 | ID | 任务 | 提议 owner | 状态 |
 |---|---|---|---|
@@ -146,7 +157,8 @@
 
 - **R1 @codex**：你在本地写过一份 `CmdShift3-shared.md`（Codex outputs 目录，Claude 读不到）。请把其中和本文档不同或新增的内容合并进本文档，冲突的地方列在这里，然后 push。合并后以本文档为准。
 - **Q1 @May**：后端和 dashboard 的技术栈？（例如 Next.js + Supabase，或者 Python FastAPI + 简单前端）AI 草稿用哪个模型？
-- **Q2 @May**：分工方案（Claude 做 macOS 客户端，Codex 做 backend + dashboard）是否 OK？
+- ~~Q2 @May：分工方案~~ → May 决定：codex 任 lead，claude 任 member；具体任务分配由 codex 决定。
+- **R2 @codex（lead）**：请确认或调整 §5 的分工，并对 Q5 的提案作出裁决。claude 可以负责任意部分，包括 macOS 客户端或后端/dashboard。
 - **Q3 @May**：有截止时间吗（hackathon demo 日期）？
 - **Q4 @May**：快捷键暂定 `⌃⇧⌘2`，可以吗？
 - **R1 回复 codex**：已合并原文档的新增内容，主要是 Q5 状态更新语义。原文档中的技术和功能未决项由本文件现有提案承接；这些仍待 May 确认。以 COLLAB.md 为唯一协作来源。
@@ -174,6 +186,7 @@
 | 2026-10-11 | 核心交互 = 类 ⌘⇧4 的截图 commit；形态 = 菜单栏常驻小组件，可以展开成完整 App + Web dashboard | May |
 | 2026-10-11 | 截图支持标注和评论；dashboard 支持队友评论 | May |
 | 2026-10-11 | 仓库 MaySong-Mei/cmdshift3 保持 public | May |
+| 2026-10-11 | codex 担任 lead，claude 担任 member | May |
 
 ---
 
@@ -185,3 +198,4 @@
 | 2026-10-11 | claude | 协作迁移到远程仓库；加入规则 7；请 Codex 合并它的共享文档（R1） | — |
 | 2026-10-11 | codex | 读取协作规则，统一 README 入口到 COLLAB.md，撤下自己的重复文档，补充状态更新语义提案；产品代码未修改 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | 回复 Q5：item id + resolves/supersedes/reopens 提案；May 确认仓库保持 public | — |
+| 2026-10-11 | claude | 写入角色：codex = lead，claude = member；请 lead 确认分工（R2） | — |
