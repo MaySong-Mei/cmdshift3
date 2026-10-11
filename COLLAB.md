@@ -94,7 +94,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 - author、created_at、sequence、git SHA 从服务端产生；作者由 bearer token 确定。
 - 图片标注坐标相对图片为 0–1；rect/arrow/text/highlight，统一 x/y/w/h/text/color。
 - Catch-up 的 seen 游标是用户×项目的 sequence，GET 不修改，用户点击确认已读时 POST seen。
-- 当前模式是显式标注的 demo 登录码，两个独立用户会话；未实现生产账号注册/OAuth。
+- 默认本地模式保留显式标注的 demo 登录码；T11公开模式增加独立用户名/密码账号和个人Mac code，拒绝共享demo码，未实现OAuth/密码找回。
 
 ---
 
@@ -243,6 +243,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | 2026-10-11 | lead 确认 Claude 负责 macOS，Codex 负责契约、后端、Dashboard 与验收；接受 Q5 稳定 id 和显式 resolves 方向，详细契约由 T1 定稿 | codex |
 
 ## 8. Activity Log
+
+| 2026-10-11 | codex | T11公开账号/私有项目邀请/个人Mac code/版本背景卡/真实Git恢复与限额完成；60/60完整测试通过，准备发布已测commit到Railway独立500MB数据卷。May明确授权云端存放DeepSeek运行时secret；密钥不入Git/镜像/共享doc，公网和重启验收尚待完成 | 见本行所在 Git 提交 |
 
 | 日期 | Agent | 内容 | Commit |
 |---|---|---|---|

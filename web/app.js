@@ -11,6 +11,8 @@ const state = {
   catchup: null, through: 0, epoch: 0, stream: null, images: new Map(),
   connected: false, loading: true, error: '', refreshPending: false, refreshAgain: false,
   detailId: null, detailEpoch: 0, commentRequest: 0, catchupRequest: 0, commentPosting: false, composer: null,
+  mode: 'unknown', publicRegistration: false, authEpoch: 0,
+  context: null, contextError: '', contextRequest: 0, contextExpanded: false, workspaceDialogEpoch: 0,
 };
 let toastTimer;
 
@@ -95,6 +97,7 @@ function draftResultUpdate(current, result) {
 }
 
 function loginScreen(message='') {
+  if(state.mode==='public'){publicLoginScreen(message);return;}
   app.innerHTML = `<main class="login-screen">
     <section class="login-story"><div><div class="brand"><span class="brand-mark">⌘</span>CmdShift3</div><h1>Commit your work.<br>Everyone stays<br>caught up.</h1><p>A screenshot. A little context. A shared understanding of what happens next.</p>
     <div class="login-visual" aria-hidden="true"><div class="mini-window"><div class="window-dots"><i></i><i></i><i></i></div><div class="line"></div><div class="line"></div><div class="line" style="width:65%"></div><div class="line" style="width:90%"></div></div><div class="mini-commit"><span style="color:#bdc9b2">✓ Work committed</span><strong>The team is on the same page.</strong><span class="sha">Every update. A real Git commit.</span></div></div></div><p class="tiny">Made for the moments that move a project forward.</p></section>
@@ -105,17 +108,33 @@ function loginScreen(message='') {
   $$('[data-demo]').forEach(button => button.addEventListener('click', () => login(button.dataset.demo)));
 }
 
-async function login(code) {
-  if (!code) return;
+async function login(credentials, createAccount=false) {
+  if (!credentials) return;
+  const authEpoch=++state.authEpoch;
   $$('button', app).forEach(button => button.disabled = true); $('#login-error').textContent = '';
   try {
-    const result = await api('/api/session', {method:'POST',body:{code},token:null});
+    const result = await api(createAccount?'/api/accounts':'/api/session', {method:'POST',body:typeof credentials==='string'?{code:credentials}:credentials,token:null});
+    if(authEpoch!==state.authEpoch)return;
     state.token = result.token; sessionStorage.setItem('cmdshift3-token', result.token);
     state.user = result.user; state.projects = result.projects || [];
     await enterWorkspace();
   } catch (error) {
-    loginScreen(errorText(error));
+    if(authEpoch!==state.authEpoch)return;
+    if(state.mode==='public')publicLoginScreen(errorText(error),createAccount?'create':'signin',credentials.username||'');
+    else loginScreen(errorText(error));
   }
+}
+
+function publicLoginScreen(message='',view='signin',username='') {
+  const creating=view==='create';
+  app.innerHTML=`<main class="login-screen"><section class="login-story"><div><div class="brand"><span class="brand-mark">⌘</span>CmdShift3</div><h1>Commit your work.<br>Everyone stays<br>caught up.</h1><p>A screenshot. A little context. A shared understanding of what happens next.</p><div class="login-visual" aria-hidden="true"><div class="mini-window"><div class="window-dots"><i></i><i></i><i></i></div><div class="line"></div><div class="line"></div><div class="line" style="width:65%"></div></div><div class="mini-commit"><span style="color:#bdc9b2">✓ Work committed</span><strong>The team is on the same page.</strong><span class="sha">Every update. A real Git commit.</span></div></div></div><p class="tiny">Small updates. Shared progress.</p></section><section class="login-form-wrap"><div class="login-panel"><div class="eyebrow" style="margin-bottom:14px">EARLY ACCESS</div><h2>${creating?'Start a shared story.':'Welcome back.'}</h2><p>${creating?'Create your account, start a private project, and invite your team.':'See what changed, what is blocked, and what comes next.'}</p><div class="auth-tabs" role="tablist" aria-label="Account access"><button role="tab" aria-selected="${!creating}" data-auth-view="signin">Sign in</button>${state.publicRegistration?`<button role="tab" aria-selected="${creating}" data-auth-view="create">Create account</button>`:''}</div><form id="login-form">${creating?'<div class="form-field"><label for="account-name">Your name</label><input id="account-name" name="name" autocomplete="name" maxlength="80" required placeholder="How your teammates know you"></div>':''}<div class="form-field"><label for="account-username">Username</label><input id="account-username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="40" value="${escapeHTML(username)}" required placeholder="Your username"></div><div class="form-field"><label for="account-password">Password</label><input id="account-password" name="password" type="password" autocomplete="${creating?'new-password':'current-password'}" ${creating?'minlength="12"':''} maxlength="200" required placeholder="${creating?'At least 12 characters':'Your password'}"></div>${creating?'<p class="signup-note">Use at least 12 characters and save your password. Password recovery is not available in early access; no email is collected.</p>':''}<p id="login-error" class="form-error" role="alert">${escapeHTML(message)}</p><button class="button accent" type="submit">${creating?'Create account':'Sign in'} <span aria-hidden="true">↗</span></button></form><p class="login-footnote">Your projects are private to the members you invite.</p><a class="public-download" href="/downloads/CmdShift3.zip">Download the Mac app <span aria-hidden="true">↗</span></a></div></section></main>`;
+  $$('[data-auth-view]').forEach(button=>button.addEventListener('click',()=>{state.authEpoch++;publicLoginScreen('',button.dataset.authView,$('#account-username').value);}));
+  $('#login-form').addEventListener('submit',event=>{
+    event.preventDefault();
+    const body={username:$('#account-username').value.trim(),password:$('#account-password').value};
+    if(creating)body.name=$('#account-name').value.trim();
+    login(body,creating);
+  });
 }
 
 async function logout() {
@@ -124,8 +143,10 @@ async function logout() {
   state.token = null; state.user = null; sessionStorage.removeItem('cmdshift3-token');
   if(state.composer?.imageURL) URL.revokeObjectURL(state.composer.imageURL);
   state.composer = null;
+  state.project=null;state.projects=[];state.context=null;state.contextError='';state.catchup=null;state.commits=[];state.authEpoch++;
   sessionStorage.removeItem('cmdshift3-project');
   $$('dialog').forEach(dialog => dialog.close());
+  state.workspaceDialogEpoch++;$('#workspace-dialog').innerHTML='';
   loginScreen();
   if (token) api('/api/session/logout',{method:'POST',token}).catch(() => {});
 }
@@ -134,7 +155,7 @@ async function enterWorkspace() {
   if (!state.projects.length) state.projects = (await api('/api/projects')).projects || [];
   const saved = sessionStorage.getItem('cmdshift3-project');
   const project = state.projects.find(item => item.id === saved) || state.projects[0];
-  if (!project) {loginScreen('This account has no projects.'); return;}
+  if (!project) {state.epoch++;state.project=null;renderShell();return;}
   await switchProject(project.id);
 }
 
@@ -142,24 +163,207 @@ async function switchProject(id) {
   const project = state.projects.find(item => item.id === id); if (!project) return;
   state.epoch++; state.stream?.abort(); clearImages();
   state.project = project; state.commits = []; state.catchup = null; state.through = 0;
+  state.context=null;state.contextError='';state.contextExpanded=false;state.contextRequest++;
   state.projectState = {shipped:[],decisions:[],blockers:[],next:[]};
   state.connected = false; state.loading = true; state.error = '';
   state.refreshPending = false; state.refreshAgain = false;
   state.detailId = null; state.detailEpoch++;
   $$('dialog').forEach(dialog => dialog.close());
+  state.workspaceDialogEpoch++;$('#workspace-dialog').innerHTML='';
   sessionStorage.setItem('cmdshift3-project',id); renderShell();
   const epoch = state.epoch;
   await refreshProject(epoch);
   if (epoch === state.epoch && state.token) startStream(epoch);
 }
 
+function sidebarMarkup() {
+  const publicMode=state.mode==='public';
+  return `<aside class="sidebar" aria-label="Workspace navigation"><div class="brand"><span class="brand-mark">⌘</span>CmdShift3</div><p class="tagline">Work, together.</p><div class="eyebrow">YOUR PROJECTS</div><nav class="project-list">${state.projects.map(item=>`<button class="project-button ${item.id===state.project?.id?'active':''}" data-project="${escapeHTML(item.id)}" ${item.id===state.project?.id?'aria-current="page"':''}><span class="project-dot" aria-hidden="true"></span>${escapeHTML(item.name)}</button>`).join('')}</nav>${publicMode?'<div class="project-actions"><button data-create-project>＋ Create project</button><button data-join-project>↗ Join with invite</button></div>':''}<div class="sidebar-note">Small updates.<br>A shared project history.</div><div class="sidebar-bottom">${publicMode?'<button class="button secondary small" id="connect-mac">Connect Mac app <span aria-hidden="true">↗</span></button><a class="sidebar-download" href="/downloads/CmdShift3.zip">Download for Mac</a>':''}<span class="badge">${publicMode?'Early access':'Demo workspace'}</span><div class="session-card"><div class="row">${avatar(state.user)}<div><div class="user-name">${escapeHTML(state.user?.name)}</div><div class="user-kind">${publicMode?'Your account':'Project member'}</div></div></div><button class="sign-out" id="sign-out">Switch account / sign out</button></div></div></aside>`;
+}
+
+function bindWorkspaceActions() {
+  $$('[data-project]').forEach(button=>button.addEventListener('click',()=>{if(button.dataset.project!==state.project?.id)switchProject(button.dataset.project);}));
+  $('#sign-out').addEventListener('click',logout);
+  $$('[data-create-project]').forEach(button=>button.addEventListener('click',()=>openProjectForm()));
+  $$('[data-join-project]').forEach(button=>button.addEventListener('click',openJoinProject));
+  $('#connect-mac')?.addEventListener('click',openMacConnection);
+}
+
 function renderShell() {
-  const project = state.project;
-  app.innerHTML = `<div class="shell"><aside class="sidebar" aria-label="Workspace navigation"><div class="brand"><span class="brand-mark">⌘</span>CmdShift3</div><p class="tagline">Work, together.</p><div class="eyebrow">YOUR PROJECTS</div><nav class="project-list">${state.projects.map(item => `<button class="project-button ${item.id===project.id?'active':''}" data-project="${escapeHTML(item.id)}" ${item.id===project.id?'aria-current="page"':''}><span class="project-dot" aria-hidden="true"></span>${escapeHTML(item.name)}</button>`).join('')}</nav><div class="sidebar-note">Small updates.<br>A shared project history.</div><div class="sidebar-bottom"><span class="badge">Demo workspace</span><div class="session-card"><div class="row">${avatar(state.user)}<div><div class="user-name">${escapeHTML(state.user?.name)}</div><div class="user-kind">Project member</div></div></div><button class="sign-out" id="sign-out">Switch account / sign out</button></div></div></aside>
-    <main class="main"><header class="topbar"><div class="breadcrumb">Workspace <span aria-hidden="true" style="margin:0 10px">/</span><strong>${escapeHTML(project.name)}</strong></div><div class="connection" id="connection"><span class="connection-dot" aria-hidden="true"></span><span>Connecting…</span></div></header><div class="workspace"><div class="project-heading"><div><div class="eyebrow" style="margin-bottom:5px">THE SHARED PICTURE</div><h1>${escapeHTML(project.name)}</h1><p>${escapeHTML(project.description || 'Every meaningful change, with the context behind it.')}</p></div><div class="row"><div class="team row">${project.id==='proj_cmdshift3'?'<div class="stack">'+avatar({name:'May'})+avatar({name:'Gary'})+'</div><span>2 teammates</span>':avatar(state.user)}</div><button class="button accent" id="new-commit"><span aria-hidden="true">＋</span> New commit</button></div></div><div id="project-error"></div><div class="workspace-grid"><section aria-labelledby="feed-title"><div class="feed-head"><h2 id="feed-title">Work history <span class="feed-count" id="feed-count"></span></h2><span class="eyebrow">LATEST FIRST</span></div><div class="feed-list" id="feed-list"><div class="loading">Loading your project…</div></div></section><aside class="state-column" aria-label="Current project state"><div id="state-box"></div><div id="catchup-box"></div><div class="provider-note"><span class="status-symbol" aria-hidden="true"></span><span id="provider-note">Confirmed work updates the project state. Catch-up follows the evidence behind your team’s updates.</span></div></aside></div></div></main></div>`;
-  $$('[data-project]').forEach(button => button.addEventListener('click',() => {if (button.dataset.project!==state.project.id) switchProject(button.dataset.project);}));
-  $('#sign-out').addEventListener('click',logout); $('#new-commit').addEventListener('click',openComposer);
-  renderProject();
+  const project=state.project,publicMode=state.mode==='public';
+  if(!project){
+    app.innerHTML=`<div class="shell">${sidebarMarkup()}<main class="main"><header class="topbar"><div class="breadcrumb">Your workspace</div><span class="badge">Early access</span></header><div class="onboarding"><div class="eyebrow">A SHARED PICTURE STARTS HERE</div><h1>Bring your team into context.</h1><p>Create a private home for your project's work, decisions, and next steps. Or join a teammate's project with their invite code.</p><div class="onboarding-options"><button class="onboarding-card" data-create-project><span class="onboarding-icon" aria-hidden="true">＋</span><h2>Start a project</h2><p>Set the goal. Capture the work.<br>Keep everyone caught up.</p><strong>Create project <span aria-hidden="true">→</span></strong></button><button class="onboarding-card" data-join-project><span class="onboarding-icon" aria-hidden="true">↗</span><h2>Join your team</h2><p>Have an invite code?<br>Your shared history is waiting.</p><strong>Join a project <span aria-hidden="true">→</span></strong></button></div><p class="helper">Only project members can see its captures and conversations.</p></div></main></div>`;
+    bindWorkspaceActions();return;
+  }
+  const team=publicMode?`<span id="team-count">${Number.isInteger(project.member_count)?`${project.member_count} ${project.member_count===1?'member':'members'}`:''}</span>`:project.id==='proj_cmdshift3'?'<div class="stack">'+avatar({name:'May'})+avatar({name:'Gary'})+'</div><span>2 teammates</span>':avatar(state.user);
+  app.innerHTML=`<div class="shell">${sidebarMarkup()}<main class="main"><header class="topbar"><div class="breadcrumb">Workspace <span aria-hidden="true" style="margin:0 10px">/</span><strong id="project-breadcrumb">${escapeHTML(project.name)}</strong></div><div class="connection" id="connection"><span class="connection-dot" aria-hidden="true"></span><span>Connecting…</span></div></header><div class="workspace"><div class="project-heading"><div><div class="eyebrow" style="margin-bottom:5px">THE SHARED PICTURE</div><h1 id="project-name">${escapeHTML(project.name)}</h1><p id="project-description">${escapeHTML(project.description||'Every meaningful change, with the context behind it.')}</p></div><div class="row"><div class="team row">${team}</div><button class="button accent" id="new-commit"><span aria-hidden="true">＋</span> New commit</button></div></div>${publicMode?'<section id="project-context" aria-label="Project context"></section>':''}<div id="project-error"></div><div class="workspace-grid"><section aria-labelledby="feed-title"><div class="feed-head"><h2 id="feed-title">Work history <span class="feed-count" id="feed-count"></span></h2><span class="eyebrow">LATEST FIRST</span></div><div class="feed-list" id="feed-list"><div class="loading">Loading your project…</div></div></section><aside class="state-column" aria-label="Current project state"><div id="state-box"></div><div id="catchup-box"></div><div class="provider-note"><span class="status-symbol" aria-hidden="true"></span><span id="provider-note">Confirmed work updates the project state. Catch-up follows the evidence behind your team's updates.</span></div></aside></div></div></main></div>`;
+  bindWorkspaceActions();$('#new-commit').addEventListener('click',openComposer);
+  renderProject();renderContextCard();
+}
+
+function projectOwnerId(project=state.project) {return project?.owner_id||project?.owner?.id;}
+function ownsProject(project=state.project) {return Boolean(state.user&&projectOwnerId(project)===state.user.id);}
+function projectVersion(project=state.project) {return project?.version??project?.context_version??1;}
+function deadlineLabel(value) {
+  if(!value)return 'Not set';
+  // Date-only deadlines have no timezone and must not shift to the previous day.
+  const match=String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const date=match?new Date(Number(match[1]),Number(match[2])-1,Number(match[3])):new Date(value);
+  return Number.isFinite(date.getTime())?date.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}):String(value);
+}
+
+function applyProjectMetadata(project) {
+  const index=state.projects.findIndex(item=>item.id===project.id);
+  if(index!==-1)state.projects[index]={...state.projects[index],...project};
+  if(state.project?.id!==project.id)return;
+  state.project={...state.project,...project};
+  const name=$('#project-name'),description=$('#project-description'),breadcrumb=$('#project-breadcrumb');
+  if(name)name.textContent=state.project.name;
+  if(description)description.textContent=state.project.description||'Every meaningful change, with the context behind it.';
+  if(breadcrumb)breadcrumb.textContent=state.project.name;
+  const nav=$$('[data-project]').find(button=>button.dataset.project===project.id);
+  if(nav)nav.innerHTML=`<span class="project-dot" aria-hidden="true"></span>${escapeHTML(state.project.name)}`;
+  const count=$('#team-count');
+  if(count&&Number.isInteger(state.project.member_count))count.textContent=`${state.project.member_count} ${state.project.member_count===1?'member':'members'}`;
+}
+
+async function loadProjectContext(epoch=state.epoch) {
+  if(state.mode!=='public'||!state.project||epoch!==state.epoch)return;
+  const projectId=state.project.id,request=++state.contextRequest;
+  try{
+    const result=await api(`/api/projects/${encodeURIComponent(projectId)}/context`);
+    if(epoch!==state.epoch||projectId!==state.project?.id||request!==state.contextRequest)return;
+    state.context=result;state.contextError='';applyProjectMetadata(result.project);renderContextCard();
+    return result;
+  }catch(error){
+    if(epoch!==state.epoch||request!==state.contextRequest)return;
+    state.contextError=errorText(error);renderContextCard();
+  }
+}
+
+function renderContextCard() {
+  const node=$('#project-context');if(!node||!state.project)return;
+  const project=state.project,members=state.context?.members||[],history=state.context?.history||[];
+  const owner=members.find(member=>member.id===projectOwnerId(project))||project.owner;
+  const count=Number.isInteger(project.member_count)?project.member_count:state.context?members.length:null;
+  node.innerHTML=`<article class="context-card"><div class="context-card-head"><div><div class="eyebrow">PROJECT CONTEXT</div><p class="context-subtitle">The goal behind the work.</p></div><div class="row">${ownsProject()?'<button class="button secondary small" id="invite-team">Invite team <span aria-hidden="true">↗</span></button><button class="context-link" id="edit-context">Edit</button>':''}<button class="context-link" id="expand-context" aria-expanded="${state.contextExpanded}">${state.contextExpanded?'Less ↑':'Details ↓'}</button></div></div><div class="context-meta"><div><span>Owner</span><strong>${escapeHTML(owner?.name||(!state.context?'Loading…':'Not recorded'))}</strong></div><div><span>Team</span><strong>${count===null?'Loading…':`${count} ${count===1?'member':'members'}`}</strong></div><div><span>Phase</span><strong>${escapeHTML(project.phase||'Not set')}</strong></div><div><span>Deadline</span><strong>${escapeHTML(deadlineLabel(project.deadline))}</strong></div></div><p class="context-preview">${escapeHTML(project.context||'Add a shared goal, scope, and success criteria so everyone understands the work.')}</p>${state.contextError?`<div class="context-error form-error">${escapeHTML(state.contextError)} <button class="context-link" id="retry-context">Retry</button></div>`:''}${state.contextExpanded?`<div class="context-expanded"><section><h3>The team</h3><div class="context-members">${members.length?members.map(member=>`<span class="context-member">${avatar(member)}${escapeHTML(member.name)}${member.id===projectOwnerId(project)?'<small>Owner</small>':''}</span>`).join(''):'<span class="helper">Loading project members…</span>'}</div></section><section><h3>Context history <span class="helper">Human-confirmed versions</span></h3><div class="context-history">${history.length?[...history].sort((a,b)=>b.version-a.version).map(item=>`<details><summary><span>Version ${Number(item.version)}</span><span>${escapeHTML(item.updated_by?.name||'Project owner')} · ${escapeHTML(fullTime(item.updated_at))}</span></summary><div><strong>${escapeHTML(item.name)}</strong>${item.description?`<p>${escapeHTML(item.description)}</p>`:''}<p>${escapeHTML(item.context||'No background recorded.')}</p><small>Phase: ${escapeHTML(item.phase||'Not set')} · Deadline: ${escapeHTML(deadlineLabel(item.deadline))}</small></div></details>`).join(''):'<p class="helper">No context history available yet.</p>'}</div></section><p class="helper">Progress is derived from confirmed Work Commits below. The project goal and background change when its owner confirms an edit.</p></div>`:''}<div class="context-card-foot"><span>${project.updated_at?`Updated ${escapeHTML(relativeTime(project.updated_at))}`:'Shared project background'}</span><span>Version ${Number(projectVersion(project))}</span></div></article>`;
+  $('#expand-context').addEventListener('click',()=>{state.contextExpanded=!state.contextExpanded;renderContextCard();});
+  $('#retry-context')?.addEventListener('click',()=>loadProjectContext());
+  $('#edit-context')?.addEventListener('click',()=>openProjectForm(state.project));
+  $('#invite-team')?.addEventListener('click',openProjectInvite);
+}
+
+function openWorkspaceDialog(title,body,footer='') {
+  const dialog=$('#workspace-dialog');
+  const dialogEpoch=++state.workspaceDialogEpoch;
+  dialog.innerHTML=`<div class="dialog-header"><h2 id="workspace-dialog-title">${escapeHTML(title)}</h2><button class="icon-button" data-close aria-label="Close ${escapeHTML(title)}">×</button></div><div class="dialog-body">${body}</div>${footer?`<div class="dialog-footer">${footer}</div>`:''}`;
+  bindDialogClose(dialog);if(!dialog.open)dialog.showModal();
+  return {epoch:state.epoch,dialogEpoch,projectId:state.project?.id};
+}
+function workspaceDialogCurrent(ticket) {
+  return ticket.epoch===state.epoch&&ticket.dialogEpoch===state.workspaceDialogEpoch&&$('#workspace-dialog').open;
+}
+function projectFormFields(project={}) {
+  return `<div class="project-form-fields"><div class="form-field"><label for="project-form-name">Project name</label><input id="project-form-name" name="name" value="${escapeHTML(project.name)}" maxlength="120" required placeholder="What are you working on?"></div><div class="form-field"><label for="project-form-description">One-line description <span class="optional">Optional</span></label><input id="project-form-description" name="description" value="${escapeHTML(project.description)}" maxlength="500" placeholder="A little context at a glance"></div><div class="form-field"><label for="project-form-context">Goal and background <span class="optional">Optional</span></label><textarea id="project-form-context" name="context" maxlength="10000" rows="5" placeholder="Why this project exists, what is in scope, and what success looks like…">${escapeHTML(project.context)}</textarea></div><div class="project-form-meta"><div class="form-field"><label for="project-form-phase">Phase <span class="optional">Optional</span></label><input id="project-form-phase" name="phase" value="${escapeHTML(project.phase)}" maxlength="80" placeholder="e.g. Building"></div><div class="form-field"><label for="project-form-deadline">Deadline <span class="optional">Optional</span></label><input id="project-form-deadline" name="deadline" type="date" value="${escapeHTML(String(project.deadline||'').slice(0,10))}"></div></div></div>`;
+}
+function readProjectForm() {
+  return Object.fromEntries(['name','description','context','phase','deadline'].map(name=>[name,$(`#project-form-${name}`).value.trim()]));
+}
+
+function openProjectForm(project=null) {
+  const editing=Boolean(project),projectId=project?.id;
+  let expectedVersion=projectVersion(project);
+  const ticket=openWorkspaceDialog(editing?'Edit project context':'Create a project',`<p class="project-dialog-intro">${editing?'Keep the goal and constraints clear. Each saved edit becomes a new context version.':'Give your team a shared goal. You can add details and invite teammates after creating it.'}</p><form id="project-form">${projectFormFields(project||{})}<div id="project-conflict"></div><p class="form-error" id="workspace-error" role="alert"></p><button class="button accent" id="project-form-submit" type="submit">${editing?'Save context':'Create project'} <span aria-hidden="true">↗</span></button></form>`);
+  $('#project-form').addEventListener('submit',async event=>{
+    event.preventDefault();if(!workspaceDialogCurrent(ticket))return;
+    const body=readProjectForm(),button=$('#project-form-submit');
+    if(editing)body.expected_version=expectedVersion;
+    button.disabled=true;button.textContent=editing?'Saving…':'Creating…';$('#workspace-error').textContent='';
+    let conflict=false;
+    try{
+      const result=await api(editing?`/api/projects/${encodeURIComponent(projectId)}/context`:'/api/projects',{method:'POST',body});
+      if(!workspaceDialogCurrent(ticket))return;
+      if(editing){
+        applyProjectMetadata(result.project);$('#workspace-dialog').close();renderContextCard();loadProjectContext(ticket.epoch);toast('Project context saved.');
+      }else{
+        state.projects.push(result.project);$('#workspace-dialog').close();await switchProject(result.project.id);toast('Your project is ready. Invite your team when you are.');
+      }
+    }catch(error){
+      if(!workspaceDialogCurrent(ticket))return;
+      $('#workspace-error').textContent=errorText(error);
+      if(editing&&error.status===409){
+        conflict=true;button.textContent='Review the latest version first';
+        const loadLatest=async()=>{
+          try{
+            const latest=await api(`/api/projects/${encodeURIComponent(projectId)}/context`);
+            if(!workspaceDialogCurrent(ticket))return;
+            const current=latest.project;
+            $('#project-conflict').innerHTML=`<div class="context-conflict"><h3>Your edits are kept.</h3><p>Another context version was saved. Review version ${Number(projectVersion(current))} before saving your changes.</p><details open><summary>Latest project context</summary><strong>${escapeHTML(current.name)}</strong><p>${escapeHTML(current.description)}</p><p>${escapeHTML(current.context||'No background recorded.')}</p><small>Phase: ${escapeHTML(current.phase||'Not set')} · Deadline: ${escapeHTML(deadlineLabel(current.deadline))}</small></details><button type="button" class="button secondary small" id="acknowledge-context">I reviewed it — keep my edits</button></div>`;
+            $('#acknowledge-context').addEventListener('click',()=>{expectedVersion=projectVersion(current);$('#project-conflict').innerHTML='';$('#workspace-error').textContent='';button.disabled=false;button.textContent='Save context ↗';});
+          }catch(latestError){
+            if(!workspaceDialogCurrent(ticket))return;
+            $('#project-conflict').innerHTML='<button type="button" class="button secondary small" id="reload-latest-context">Load latest context</button>';
+            $('#workspace-error').textContent=errorText(latestError);$('#reload-latest-context').addEventListener('click',loadLatest);
+          }
+        };
+        await loadLatest();
+      }
+    }finally{
+      if(workspaceDialogCurrent(ticket)&&!conflict){button.disabled=false;button.textContent=editing?'Save context ↗':'Create project ↗';}
+    }
+  });
+  $('#project-form-name').focus();
+}
+
+function openJoinProject() {
+  const ticket=openWorkspaceDialog('Join your team','<p class="project-dialog-intro">Ask the project owner for an invite code. You will be able to see the project history and share your own work.</p><form id="join-project-form"><div class="form-field"><label for="project-invite-code">Project invite code</label><input id="project-invite-code" name="code" autocomplete="off" autocapitalize="none" spellcheck="false" required placeholder="Paste the code your teammate shared"></div><p class="form-error" id="workspace-error" role="alert"></p><button class="button accent" id="join-project-submit" type="submit">Join project <span aria-hidden="true">↗</span></button></form>');
+  $('#join-project-form').addEventListener('submit',async event=>{
+    event.preventDefault();const button=$('#join-project-submit');button.disabled=true;button.textContent='Joining…';$('#workspace-error').textContent='';
+    try{
+      const {project}=await api('/api/projects/join',{method:'POST',body:{code:$('#project-invite-code').value.trim()}});
+      if(!workspaceDialogCurrent(ticket))return;
+      const index=state.projects.findIndex(item=>item.id===project.id);if(index===-1)state.projects.push(project);else state.projects[index]=project;
+      $('#workspace-dialog').close();await switchProject(project.id);toast('You joined the project. Welcome to the shared picture.');
+    }catch(error){if(workspaceDialogCurrent(ticket)){$('#workspace-error').textContent=errorText(error);button.disabled=false;button.textContent='Join project ↗';}}
+  });
+  $('#project-invite-code').focus();
+}
+
+function bindCopyButton(button,readValue) {
+  button?.addEventListener('click',async()=>{
+    const value=readValue();if(!value)return;
+    try{await navigator.clipboard.writeText(value);toast('Copied.');}
+    catch{toast('Copy is unavailable here. Select the value and copy it.');}
+  });
+}
+
+function openProjectInvite() {
+  if(!ownsProject())return;
+  const projectId=state.project.id;
+  const ticket=openWorkspaceDialog('Invite your team',`<p class="project-dialog-intro">Invite teammates to ${escapeHTML(state.project.name)}. Anyone with the invite code can join this project after creating an account.</p><div id="invite-result"></div><p class="form-error" id="workspace-error" role="alert"></p><button class="button accent" id="generate-invite">Create invite code <span aria-hidden="true">↗</span></button>`);
+  $('#generate-invite').addEventListener('click',async()=>{
+    const button=$('#generate-invite');button.disabled=true;button.textContent='Creating…';$('#workspace-error').textContent='';
+    try{
+      const result=await api(`/api/projects/${encodeURIComponent(projectId)}/invite`,{method:'POST'});
+      if(!workspaceDialogCurrent(ticket))return;
+      $('#invite-result').innerHTML=`<div class="secret-result"><label for="generated-invite-code">Project invite code</label><div class="secret-row"><input id="generated-invite-code" readonly autocomplete="off" spellcheck="false" value="${escapeHTML(result.invite_code)}"><button class="button secondary small" id="copy-invite">Copy</button></div><p>Expires ${escapeHTML(fullTime(result.expires_at))}. Share it directly with your teammates.</p><p class="helper">Sign up at ${escapeHTML(location.origin)}, then choose “Join with invite.”</p></div>`;
+      bindCopyButton($('#copy-invite'),()=>$('#generated-invite-code')?.value);button.textContent='Create another invite';button.disabled=false;
+    }catch(error){if(workspaceDialogCurrent(ticket)){$('#workspace-error').textContent=errorText(error);button.disabled=false;button.textContent='Create invite code ↗';}}
+  });
+}
+
+function openMacConnection() {
+  const ticket=openWorkspaceDialog('Connect your Mac',`<p class="project-dialog-intro">Capture, annotate, and commit without leaving your work. Download the app, then connect it to your account.</p><ol class="mac-connect-steps"><li><a href="/downloads/CmdShift3.zip">Download CmdShift3 for Mac</a><span>Apple Silicon · macOS 15 or later</span></li><li>Open the app and enter this server address.<div class="secret-row"><input id="mac-server-address" aria-label="Mac server address" readonly value="${escapeHTML(location.origin)}"><button class="button secondary small" id="copy-mac-server">Copy</button></div></li><li>Create your personal access code below and use it to sign in.</li></ol><div id="mac-code-result"></div><p class="signup-note">Creating a new code replaces your previous Mac sign-in code. Keep this code private; it signs in to your account.</p><p class="form-error" id="workspace-error" role="alert"></p><button class="button accent" id="generate-mac-code">Create personal Mac code <span aria-hidden="true">↗</span></button>`);
+  bindCopyButton($('#copy-mac-server'),()=>$('#mac-server-address')?.value);
+  $('#generate-mac-code').addEventListener('click',async()=>{
+    const button=$('#generate-mac-code');button.disabled=true;button.textContent='Creating…';$('#workspace-error').textContent='';
+    try{
+      const result=await api('/api/me/access-code',{method:'POST'});
+      if(!workspaceDialogCurrent(ticket))return;
+      $('#mac-code-result').innerHTML=`<div class="secret-result"><label for="personal-mac-code">Personal Mac access code</label><div class="secret-row"><input id="personal-mac-code" readonly autocomplete="off" spellcheck="false" value="${escapeHTML(result.code)}"><button class="button secondary small" id="copy-mac-code">Copy</button></div><p>Paste it into the Mac app's sign-in form. It is shown here only while this panel is open.</p></div>`;
+      bindCopyButton($('#copy-mac-code'),()=>$('#personal-mac-code')?.value);button.disabled=false;button.textContent='Replace personal Mac code';
+    }catch(error){if(workspaceDialogCurrent(ticket)){$('#workspace-error').textContent=errorText(error);button.disabled=false;button.textContent='Create personal Mac code ↗';}}
+  });
 }
 
 function renderProject() {
@@ -201,10 +405,11 @@ function renderCatchupBox() {
 }
 
 async function refreshProject(epoch = state.epoch) {
-  if (epoch !== state.epoch) return;
+  if (epoch !== state.epoch || !state.project) return;
   if (state.refreshPending) {state.refreshAgain = true; return;}
   state.refreshPending = true;
   const projectId = state.project.id, token = state.token;
+  loadProjectContext(epoch);
   const catchupRequest=++state.catchupRequest;
   // History/state stay immediate even when a configured analyzer takes longer.
   api(`/api/projects/${projectId}/catchup`,{token}).then(catchup=>{
@@ -553,13 +758,21 @@ async function submitCommit() {
 
 $('#composer-dialog').addEventListener('cancel',event=>{if(state.composer?.busy){event.preventDefault();return;}readComposerInputs();});
 $('#detail-dialog').addEventListener('close',()=>{state.detailId=null;state.detailEpoch++;});
+$('#workspace-dialog').addEventListener('close',()=>{if(!$('#workspace-dialog').open){state.workspaceDialogEpoch++;$('#workspace-dialog').innerHTML='';}});
 window.addEventListener('beforeunload',()=>{state.stream?.abort();clearImages();if(state.composer?.imageURL)URL.revokeObjectURL(state.composer.imageURL);});
-document.addEventListener('keydown',event=>{if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='k'&&state.user&&!$$('dialog[open]').length){event.preventDefault();openComposer();}});
+document.addEventListener('keydown',event=>{if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='k'&&state.user&&state.project&&!$$('dialog[open]').length){event.preventDefault();openComposer();}});
 
 async function boot() {
+  app.innerHTML='<div class="loading" style="min-height:100vh;display:grid;place-items:center">Opening CmdShift3…</div>';
+  try{
+    const health=await api('/api/health',{token:null});state.mode=health.mode==='public'?'public':'demo';state.publicRegistration=health.public_registration===true;
+  }catch{
+    app.innerHTML='<main class="startup-error"><div class="brand"><span class="brand-mark">⌘</span>CmdShift3</div><h1>We could not open the workspace.</h1><p>Check your connection and try again.</p><button class="button accent" id="retry-boot">Try again ↗</button></main>';
+    $('#retry-boot').addEventListener('click',boot);return;
+  }
   if(!state.token){loginScreen();return;}
   app.innerHTML='<div class="loading" style="min-height:100vh;display:grid;place-items:center">Opening your workspace…</div>';
   try{const me=await api('/api/me');state.user=me.user;state.projects=me.projects||[];await enterWorkspace();}
-  catch(error){state.token=null;sessionStorage.removeItem('cmdshift3-token');loginScreen(error.status===401?'Your session expired. Choose an account to continue.':errorText(error));}
+  catch(error){state.token=null;sessionStorage.removeItem('cmdshift3-token');loginScreen(error.status===401?'Your session expired. Sign in to continue.':errorText(error));}
 }
 boot();
