@@ -13,7 +13,7 @@ Base URL: `http://127.0.0.1:4317`. UTF-8 JSON. Require `Authorization: Bearer <t
 
 `POST /api/draft`: `{project_id,comment,source,image_base64?}`. source is `{app_name,window_title,capture_kind}`; kind is `region|window|fullscreen|upload`. image_base64 is plain base64 PNG or a PNG data URL.
 
-Returns `{summary,fields,organizer:{provider,status},warnings:[]}`. Field names: shipped, decision, why, blocker, next; each is an array of `{id,text,resolves?:[]}`. Stable ids use `it_<uuid>`; draft ids persist into submit. Only shipped items can explicitly resolve earlier blocker/next IDs from this project. A missing field is an empty array. No inferred absence closes a blocker. Provider manual explicitly indicates no AI is connected; plain comment is preserved, never represented as verified completion.
+Returns `{summary,fields,organizer:{provider,status},warnings:[]}`. Field names: shipped, decision, why, blocker, next; each is an array of `{id,text,resolves?:[]}`. Stable ids use `it_<uuid>`; draft ids persist into submit. Only shipped items can explicitly resolve earlier blocker/next IDs from this project. A missing field is an empty array. No inferred absence closes a blocker. Provider `manual` indicates a manual result: `not_configured` means no AI is configured, while `ai_unavailable` preserves input after a provider failure. Provider `deepseek` or `openai` with `completed` indicates validated model output, still reviewed before Commit. Plain comment is preserved, never represented as verified completion.
 
 ## Commit
 
@@ -34,6 +34,8 @@ Every Work Commit creates a real Git commit containing `deliverables/<id>/captur
 ## Catch up and seen
 
 - `GET /api/projects/:id/catchup`: `{since_sequence,through_sequence,commits,summary,state,analyzer:{provider,status},evidence:[{commit_id,git_sha}]}`. AI optional; manual provider returns a factual readable summary from confirmed fields. Keewano disabled until configured; no claim of sponsor success.
+
+Configured empty catch-up windows return the configured provider with status `no_changes` and a factual empty-window message; no model request is made. A failed analysis returns `manual/ai_unavailable`. Successful DeepSeek/OpenAI summaries keep the same commit window and source evidence; repeat requests reuse a bounded 10-minute cache per user/project/window/provider.
 - `POST /api/projects/:id/seen` `{through_sequence}`: `{seen_sequence}`. Cursor monotonically advances, bounded by current project sequence. Scope is user and project. GET never advances it. Mark only up to the sequence actually viewed, preserving newer arrivals.
 - `GET /api/projects/:id/events`: SSE with bearer header. `event: ready` then `event: update` and JSON `{type:"commit|comment",project_id,commit_id,sequence}`. Heartbeat; reconnect client fetches current feed. Browser uses fetch stream with Authorization rather than leaking token in query string.
 

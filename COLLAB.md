@@ -6,7 +6,7 @@
 
 > **当前阶段：开发已获 May 授权。** May：“准备好指挥和协调claude，如果没有问题就可以开发了”。按今天 17:00 PT 提交倒排，先完成核心 demo。暂缓指令 R3/R4 已撤销。
 >
-> **已确认要求**：每项目独立仓库，每次 Work Commit 生成真实 Git commit；本地整理 deliverable，远程比较并汇总；多人协作、截图标注/comment、Dashboard、Catch me up。May 暂无 AI/Keewano 配置，先完成核心 demo，未连接的能力必须如实标注。
+> **已确认要求**：每项目独立仓库，每次 Work Commit 生成真实 Git commit；本地整理 deliverable，远程比较并汇总；多人协作、截图标注/comment、Dashboard、Catch me up。核心 demo 已交付；May 已授权接入 DeepSeek 整理/汇总，Keewano 尚无配置，未连接的能力必须如实标注。
 
 
 ---
@@ -112,7 +112,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T6 | Dashboard：feed + 详情 + 评论 | codex | done |
 | T7 | Dashboard：Catch me up + last-seen | codex | done |
 | T8 | 端到端验收 + demo 脚本；claude 配合修复客户端 | codex | doing |
-| T9 | DeepSeek：材料整理、项目汇总、真实调用与配置安全验收 | codex | doing |
+| T9 | DeepSeek：材料整理、项目汇总、真实调用与配置安全验收 | codex | done |
 | D1 | 阅读双方协作说明并合并 Codex 产品理解，统一共享文档入口 | codex | done |
 | D2 | 核对 maymaymei #162 和 sponsor 官方接口，形成供 May 讨论的方案 | codex | done |
 | D3 | 核对 agent 归档整理能否直接交给 KeewanoDB | codex | done |
@@ -206,10 +206,13 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 
 - **R14 codex → claude（最终包冻结）**：接收d40d8fd；May尚未回复Screen Recording授权，lead现在重建最终zip。R12(b)缓存完成，25/25 tests通过。暂时停止新的广泛review、GUI smoke/selftest、kill app或清除UserDefaults：lead独占真实GUI/TCC验收，避免重建与会话重置打断。仅在已有证据明确显示会阻断核心demo的缺陷时提出具体报告，等待lead分配修复；其余冻结，保持远程消息接收。
 
-## 7. Decision Log
-
 - **R15 codex → claude（DeepSeek）**：May 已提供并授权使用 DeepSeek API 来整理材料；lead 负责 server/lib/ai.mjs、配置与验证。密钥只放忽略的本机 .env，不进入共享doc/Git/浏览器，不转交Claude。现有请求结构不变，provider 字符串新增 deepseek；继续用户审核后才产生 Git commit。Claude 保持macOS构建/GUI冻结，仅报告当前provider字符串展示是否兼容，不需要操作GUI或重新编译。Anthropic后续再接。
+- **R15 实测修正 codex**：真实Flash截图+中文draft成功；带历史blocker的第二步返回错误字段语义并被validator拒绝，原始材料完整。Lead决定给内部organize输入增加认证actor(id/name)，只由server会话提供；提示明确“用户报告的已完成行动”可进入shipped并需人确认，截图不独立证明完成；resolved旧blocker不得再次列为当前blocker。public请求/响应结构不变，不放宽引用校验或自动修正历史。
+- **R15 JSON 修复决定 codex**：实测第二步已正确归属Gary且通过shipped.resolves解除旧项，但Flash在fields多输出warnings，严格校验拒绝。DeepSeek最多增加一次格式修复请求，仍须通过相同结构、长度和引用验证；HTTP错误/超时不重试，两次无效保留人工回退，不产生自动Git commit。
+- **R16 codex → claude（DeepSeek 已验收）**：T9完成。4317服务已重启并加载DeepSeek，截图+说明整理、May/Gary真实Git提交、显式解除旧blocker、带来源catch-up和缓存实测PASS；42/42自动检查通过，Web中文草稿/团队汇总UI通过。公共契约不变，现有native Provider字符串可显示deepseek，无需为本轮重新构建或改最终zip；密钥不共享。接收你的R15暂停记录，T8真实桌面流程/视频仍待完成；继续保持现有app和构建，避免未经协调重置现场。
 - **产品定位更新 May / codex**：Mac 快速 Work Commit 是核心入口；Web 以项目状态、团队进展、个人过去几小时跟进事件的可视化为主，对话作为事件查询补充。先接通整理/汇总，不在本轮临时扩大Dashboard改版范围。
+
+## 7. Decision Log
 
 | 日期 | 决策 | 由谁 |
 |---|---|---|
@@ -348,3 +351,5 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | codex | R12(b)缓存已提交b70d3dd；25/25后端/AI检查通过，4317服务重启后health正常。d40d8fd已重新构建、strict签名与最终zip完整性通过；补齐Draft fields与菜单栏Open CmdShift3演示步骤。最终包、中文指南、实际UI截图在Codex outputs。T8仍待May的Screen Recording答复和最终视频；已冻结Claude构建/GUI操作 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | R15：May 授权 claude 尝试 T8 真机流程；对 lead 的最终 app 只做操作，不重建，等待辅助功能授权 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | R15 暂停：合成输入驱动 GUI 被权限策略拦截，未做任何 GUI 操作 | 见本行所在 Git 提交 |
+
+| 2026-10-11 | codex | T9 DeepSeek接通：Flash截图/中文材料整理与项目汇总、认证actor、严格校验及一次修复；保留人工审核后Git commit、来源SHA与bounded缓存。独立live场景两commit同步origin且blocker显式解除；42/42 checks通过；4317服务加载配置、Web中文草稿和Catch-up真实UI通过。配置只在忽略的本机.env。T8真机截图和视频仍待完成 | 见本行所在 Git 提交 |

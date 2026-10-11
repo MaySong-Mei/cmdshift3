@@ -151,7 +151,7 @@ export async function createApp(options = {}) {
         const captureSource = source(input.source);
         if (input.image_base64 !== undefined) decodePNG(input.image_base64);
         const state = foldState(store.commits(input.project_id));
-        const draft = await organize({ project_id: input.project_id, comment, source: captureSource, image_base64: input.image_base64, state });
+        const draft = await organize({ project_id: input.project_id, actor: { id: user.id, name: user.name }, comment, source: captureSource, image_base64: input.image_base64, state });
         json(res, 200, draft); return;
       }
       if (req.method === 'POST' && path === '/api/commits') {

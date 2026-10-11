@@ -694,6 +694,31 @@ test('deeply nested JSON returns a client error without overflowing the idempote
   assert.equal((await f.submit(f.may.token, deliverable())).sequence, 1);
 });
 
+test('draft organizer uses the authenticated actor despite client identity claims and historical authors', async (t) => {
+  const organized = [];
+  const f = await fixture(t, {
+    organizeDeliverable: async (input) => {
+      organized.push(structuredClone(input));
+      return { summary: input.comment, fields: fields(), organizer: { provider: 'manual', status: 'not_configured' }, warnings: [] };
+    },
+  });
+  const earlier = await f.submit(f.may.token, deliverable({ fields: fields({ blocker: [item('May is waiting for authentication')] }) }));
+  const payload = {
+    project_id: PROJECT, comment: 'I fixed authentication.', source, image_base64: PNG.toString('base64'),
+    actor: f.may.user, author: f.may.user,
+  };
+  const result = await f.json('POST', '/api/draft', f.gary.token, payload);
+  assert.equal(result.summary, payload.comment);
+  assert.equal(organized.length, 1);
+  assert.deepEqual(organized[0].actor, f.gary.user, 'organizer must receive the bearer session actor, never the claimed actor');
+  assert.equal(organized[0].author, undefined, 'client author claims must not reach the organizer');
+  assert.equal(organized[0].project_id, PROJECT);
+  assert.deepEqual(organized[0].state.blockers[0].author, f.may.user, 'historical attribution remains separate from the current actor');
+  assert.equal(organized[0].state.blockers[0].commit_id, earlier.id);
+  await f.json('POST', '/api/draft', f.gary.token, { ...payload, project_id: RESEARCH }, 403);
+  assert.equal(organized.length, 1, 'nonmember requests must be rejected before organization');
+});
+
 test('draft requires membership and explicitly reports manual organization without inventing shipped work', async (t) => {
   const f = await fixture(t);
   const comment = 'Still investigating why the screenshot is blank.';
