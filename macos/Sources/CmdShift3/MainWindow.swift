@@ -6,6 +6,9 @@ struct MainView: View {
     var body: some View {
         NavigationSplitView {
             List(selection: Binding(get: { app.mainTab }, set: { if let t = $0 { app.mainTab = t } })) {
+                Label("Commit", systemImage: "tray.and.arrow.up")
+                    .badge(app.inboxForProject.count)
+                    .tag(MainTab.commit)
                 Label("Catch me up", systemImage: "sparkles")
                     .badge(app.unseenCount)
                     .tag(MainTab.catchup)
@@ -26,6 +29,7 @@ struct MainView: View {
                     WelcomeView()
                 } else {
                     switch app.mainTab {
+                    case .commit: CommitInboxView()
                     case .catchup: CatchupView()
                     case .feed: FeedView()
                     case .progress: ProjectProgressView()

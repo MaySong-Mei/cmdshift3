@@ -90,6 +90,31 @@ enum SelfTest {
             let colors = MemberColors().assign(tree.members)
             guard Set(colors.values).count == colors.count else { throw APIError(status: 0, code: "progress", message: "member colors not distinct") }
             log("✓ progress tree: own task completed with 2 records; \(tree.members.count) member(s) via /context=\(!ctxMembers.isEmpty), distinct colors")
+            // T27: a frozen capture saved to disk and restored twice commits exactly once.
+            do {
+                let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("cmd3-inbox-online-\(UUID().uuidString)")
+                defer { try? FileManager.default.removeItem(at: tmp) }
+                let store = DraftStore(root: tmp)
+                let m = ComposerModel(image: NSImage(data: png)!, png: png, source: source, projectId: project)
+                m.comment = "T27 inbox check \(runTag)"
+                m.continueManually()
+                m.fields.shipped = [.new("Inbox restore check \(runTag)")]
+                m.onFrozen = { try? store.save(m.snapshot(endpoint: endpoint, userId: session.user.id), png: png) }
+                _ = m.freeze()
+                guard let d = store.list(endpoint: endpoint, userId: session.user.id).first else {
+                    throw APIError(status: 0, code: "inbox", message: "frozen draft not on disk") }
+                let before = try await client.commits(project: project).commits.count
+                let r1 = ComposerModel.restore(d, png: store.png(for: d)!, image: NSImage(data: png)!)
+                guard await r1.commit(client), let sha1 = r1.result?.git?.sha else {
+                    throw APIError(status: 0, code: "inbox", message: r1.error ?? "restored commit failed") }
+                let r2 = ComposerModel.restore(d, png: store.png(for: d)!, image: NSImage(data: png)!)
+                guard await r2.commit(client), r2.result?.git?.sha == sha1 else {
+                    throw APIError(status: 0, code: "inbox", message: "second restore produced a different commit") }
+                let after = try await client.commits(project: project).commits.count
+                guard after == before + 1, r1.draftRequestsSent == 0, r2.draftRequestsSent == 0 else {
+                    throw APIError(status: 0, code: "inbox", message: "restored retries duplicated Git or re-drafted") }
+                log("✓ inbox: frozen capture restored twice → one commit \(sha1.prefix(7)), no AI request")
+            }
             do {
                 let feedBefore = try await client.commits(project: project).commits.count
                 let r = try await client.conversation(project: project, question: "What did this selftest change?", history: [])
@@ -159,6 +184,9 @@ enum SelfTest {
         guard pv.isSample, !pv.summary.isEmpty, pv.beginDraft() == nil, !pv.reviewReady else { return "preview: labeled sample, no AI, no commit" }
 
         if let failure = aiFlowChecks(composer) { return failure }
+
+        // T27 durable inbox (temporary directory only; the real Drafts folder is untouched).
+        if let failure = inboxChecks() { return failure }
 
         // T22 Ask: history bounds and contract-shaped response decoding.
         let longMsg = String(repeating: "x", count: 2500)
@@ -392,6 +420,87 @@ enum SelfTest {
         guard z.freeze().id == frozenReq.id else { return "freeze is stable" }
         guard !z.applyDraft(ai("late", "l"), gen: gz.gen, input: gz.input) else { return "a draft applied after freezing" }
         guard z.beginDraft() == nil, z.primaryAction == .retryCommit else { return "frozen retry must never re-draft" }
+        return nil
+    }
+
+    static func inboxChecks() -> String? {
+        guard AppState.shared.draftStore == nil else { return "isolated launch must not open the real draft folder" }
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("cmd3-inbox-check-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let store = DraftStore(root: tmp)
+        let ep = "https://example.invalid", user = "usr_a"
+        let png = samplePNG(), img = NSImage(data: png)!
+        func src(_ n: String) -> Source { Source(appName: n, windowTitle: "", captureKind: "region") }
+
+        // Two captures, both persisted.
+        let a = ComposerModel(image: img, png: png, source: src("A"), projectId: "p1")
+        let b = ComposerModel(image: img, png: png, source: src("B"), projectId: "p1")
+        do {
+            try store.save(a.snapshot(endpoint: ep, userId: user), png: png)
+            try store.save(b.snapshot(endpoint: ep, userId: user), png: png)
+        } catch { return "inbox save failed: \(error)" }
+        guard store.list(endpoint: ep, userId: user).count == 2 else { return "two captures not both listed" }
+
+        // Edits persist and reload exactly.
+        a.comment = "Checked the checkout contrast"
+        a.annotations = [Annotation(type: .rect, x: 0.1, y: 0.1, w: 0.2, h: 0.2, text: nil, color: "#F97066")]
+        a.fields.next = [.new("Gary to review")]
+        try? store.save(a.snapshot(endpoint: ep, userId: user), png: png)
+        guard let da = store.list(endpoint: ep, userId: user).first(where: { $0.id == a.draftId }),
+              let pa = store.png(for: da) else { return "edited draft not found" }
+        let ra = ComposerModel.restore(da, png: pa, image: img)
+        guard ra.comment == a.comment, ra.annotations.count == 1, ra.fields.next.first?.text == "Gary to review",
+              ra.commitId == a.commitId, ra.draftId == a.draftId else { return "edits did not survive reload" }
+        guard ra.primaryAction == .draftNow, ra.draftRequestsSent == 0 else { return "undrafted resume must not auto-request AI" }
+
+        // Scope isolation: other account / other server see nothing.
+        guard store.list(endpoint: ep, userId: "usr_b").isEmpty, store.list(endpoint: "http://other.invalid", userId: user).isEmpty
+        else { return "drafts leaked across account/server scope" }
+
+        // A drafted capture resumes review-ready without a new AI request; a changed note needs an update.
+        var f = Fields(); f.shipped = [.new("Contrast checked")]
+        let g = b.beginDraft()!
+        b.applyDraft(DraftResponse(summary: "Checkout ready", fields: f,
+                                   organizer: Provider(provider: "deepseek", status: "completed"), warnings: []), gen: g.gen, input: g.input)
+        try? store.save(b.snapshot(endpoint: ep, userId: user), png: png)
+        guard let db = store.list(endpoint: ep, userId: user).first(where: { $0.id == b.draftId }) else { return "drafted capture missing" }
+        let rb = ComposerModel.restore(db, png: png, image: img)
+        guard rb.reviewReady, rb.primaryAction == .commit, rb.draftRequestsSent == 0 else { return "drafted capture should resume review-ready, no AI" }
+        var changed = db; changed.comment = "a different note"
+        let rc = ComposerModel.restore(changed, png: png, image: img)
+        guard rc.needsUpdate, rc.primaryAction == .updateDraft else { return "changed note must need an update on resume" }
+
+        // Frozen identity: retry only, same id/payload, no AI.
+        var saved = 0
+        rb.onFrozen = { saved += 1; try? store.save(rb.snapshot(endpoint: ep, userId: user), png: png) }
+        let frozen = rb.freeze()
+        guard saved == 1, let df = store.list(endpoint: ep, userId: user).first(where: { $0.id == rb.draftId }), df.frozen?.id == frozen.id
+        else { return "freeze must persist before sending" }
+        let rf = ComposerModel.restore(df, png: png, image: img)
+        guard rf.isLocked, rf.primaryAction == .retryCommit, rf.frozen?.id == frozen.id, rf.frozen?.summary == frozen.summary,
+              rf.beginDraft() == nil else { return "restored frozen draft must only retry the same commit" }
+
+        // Corrupt / incomplete entries are skipped.
+        let scopeDir = tmp.appendingPathComponent(DraftStore.scopeKey(endpoint: ep, userId: user))
+        try? FileManager.default.createDirectory(at: scopeDir.appendingPathComponent("dr_bad"), withIntermediateDirectories: true)
+        try? Data("{not json".utf8).write(to: scopeDir.appendingPathComponent("dr_bad/draft.json"))
+        guard store.list(endpoint: ep, userId: user).count == 2 else { return "corrupt entry not skipped" }
+
+        // Controller: stashing saves and closes the open capture.
+        let ctrl = ComposerController.shared
+        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 10, height: 10), styleMask: [.titled, .closable], backing: .buffered, defer: true)
+        w.isReleasedWhenClosed = false
+        let c = ComposerModel(image: img, png: png, source: src("C"), projectId: "p1")
+        ctrl.adopt(w, model: c)
+        ctrl.attachStoreForChecks(store, endpoint: ep, userId: user)
+        c.comment = "stash me"
+        guard ctrl.stashCurrent(), !ctrl.isOpen,
+              store.list(endpoint: ep, userId: user).first(where: { $0.id == c.draftId })?.comment == "stash me"
+        else { return "stash must save and close" }
+
+        // Removal.
+        store.remove(da)
+        guard store.list(endpoint: ep, userId: user).count == 2 else { return "remove failed" }
         return nil
     }
 

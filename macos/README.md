@@ -58,6 +58,15 @@ build/CmdShift3.app/Contents/MacOS/CmdShift3 --preview-capture fixtures/preview-
 
 Opens the same editor on a neutral fixture with a visible *Preview* badge. The app runs on an in-memory state: it does not read the saved account or endpoint, makes no network requests, writes nothing to UserDefaults, and registers no hotkey (a running real app keeps ⌃⇧⌘2). Draft, Commit and sign-in are disabled. A missing path or unreadable file exits with code 2. This is for layout review only. It is not a real capture.
 
+## v0.5 Commit inbox (durable pre-commit captures)
+
+- Every CmdShift3 capture (⌃⇧⌘2, **New capture**, or **Import Screenshot…**) is saved immediately to `~/Library/Application Support/CmdShift3/Drafts/<hash(server|account)>/<draft>/` as `capture.png` + versioned `draft.json`, and every edit autosaves. No bearer token, Mac code or password is stored.
+- The **Commit** tab (first in the main window, also offered from the menu bar panel) lists this project's waiting captures: thumbnail, status, project, source and time; **Open** resumes the same capture, marks, note and draft. Other accounts/servers never see them.
+- Closing the editor (**Save for later** / Esc / ✕) keeps the capture in the inbox. **Discard…** deletes it and asks first. Only a successful Commit removes it.
+- Resuming never sends a new AI request by itself: a draft written for the same note is review-ready again; a changed note shows **Update draft**. A frozen (already submitted) capture can only be **retried** with the same commit id and content, so retries can't create duplicate Git records.
+- macOS's own ⌘⇧3 / ⌘⇧4 screenshots don't go to CmdShift3. Use **Import Screenshot…** to bring one in (explicit file choice; nothing is scanned automatically).
+- Selftest/preview launches never open the real Drafts folder (`--selftest --offline` checks this with a temporary directory).
+
 ## Headless acceptance test
 
 Checks session → draft → commit → idempotent retry → feed → evidence → state → catch-up → comment against a running server. It needs no screen permission.

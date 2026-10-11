@@ -5,10 +5,12 @@ extension Notification.Name {
     static let cmd3NeedsSignIn = Notification.Name("cmd3NeedsSignIn")
     /// Reopening the app (Dock/Finder) should bring up the full workspace.
     static let cmd3OpenWorkspace = Notification.Name("cmd3OpenWorkspace")
+    /// The durable capture inbox changed (saved, committed or discarded).
+    static let cmd3InboxChanged = Notification.Name("cmd3InboxChanged")
 }
 
 enum MainTab: String, Hashable {
-    case catchup, feed, progress, people, state, ask
+    case commit, catchup, feed, progress, people, state, ask
 }
 
 @MainActor
@@ -60,6 +62,16 @@ final class AppState: ObservableObject {
     @Published var signingIn = false
     @Published var capturing = false
     @Published var mainTab: MainTab = .catchup
+    /// Durable pre-commit captures. Isolated launches (selftest/preview) never touch the real folder.
+    let draftStore: DraftStore? = AppState.isIsolatedLaunch ? nil : DraftStore.live()
+    @Published var inbox: [StoredDraft] = []
+    var inboxForProject: [StoredDraft] { inbox.filter { $0.projectId == projectId } }
+
+    func reloadInbox() {
+        guard let draftStore, let user else { inbox = []; return }
+        inbox = draftStore.list(endpoint: endpoint, userId: user.id)
+    }
+
     /// Ask transcript, in memory only, scoped to project + account (reset on change).
     @Published var conversation: [ChatTurn] = []
     @Published var asking = false
@@ -108,6 +120,9 @@ final class AppState: ObservableObject {
             lastExternalApp = front
         }
         if client.token != nil && !isolated { Task { await restore() } }
+        NotificationCenter.default.addObserver(forName: .cmd3InboxChanged, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.reloadInbox() }
+        }
     }
 
     /// Opens the composer on a fixture PNG (see `previewCapturePath`).
@@ -195,6 +210,7 @@ final class AppState: ObservableObject {
         self.user = user
         self.projects = projects
         resetConversationIfScopeChanged()
+        reloadInbox()
         if projectId == nil || !projects.contains(where: { $0.id == projectId }) {
             projectId = projects.first?.id
         } else {
@@ -258,6 +274,7 @@ final class AppState: ObservableObject {
         if persists { UserDefaults.standard.removeObject(forKey: "token") }
         user = nil; projects = []; commits = []; state = nil; catchup = nil
         conversation = []; conversationScope = nil
+        inbox = []
         timer?.invalidate(); timer = nil
     }
 
@@ -353,7 +370,9 @@ final class AppState: ObservableObject {
     /// Hotkey / panel entry point: system region picker → composer window.
     func startCapture() {
         guard !capturing, !isPreview else { return }
-        if ComposerController.shared.isOpen {
+        // A capture in progress is saved to the inbox first (never silently dropped);
+        // while it is committing, it stays in front instead.
+        if ComposerController.shared.isOpen && ComposerController.shared.isCommitting {
             ComposerController.shared.bringToFront()
             return
         }
@@ -378,6 +397,7 @@ final class AppState: ObservableObject {
         let front = NSWorkspace.shared.frontmostApplication
         let app = (front?.processIdentifier == getpid()) ? (lastExternalApp ?? Capture.topmostOtherApp()) : front
         let source = Capture.source(for: app)
+        guard ComposerController.shared.stashCurrent() else { return }
         capturing = true
         closeMenuBarPanel()
         Task {
@@ -397,6 +417,49 @@ final class AppState: ObservableObject {
                 ComposerController.shared.open(image: image, png: png, source: source, app: self)
             }
         }
+    }
+
+    /// Brings an existing screenshot file into the inbox (explicit file choice only;
+    /// nothing is scanned automatically).
+    func importScreenshot() {
+        guard persists, isSignedIn, projectId != nil else {
+            lastError = "Sign in before importing a screenshot."
+            return
+        }
+        let panel = NSOpenPanel()
+        panel.title = "Import a screenshot"
+        panel.allowedContentTypes = [.png, .jpeg, .heic, .tiff]
+        panel.allowsMultipleSelection = false
+        NSApp.activate(ignoringOtherApps: true)
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard let raw = try? Data(contentsOf: url), let rep = NSBitmapImageRep(data: raw),
+              let pngData = rep.representation(using: .png, properties: [:]) else {
+            lastError = "That file isn't an image CmdShift3 can read."
+            return
+        }
+        let png = Capture.pngWithinLimit(pngData)
+        guard let image = NSImage(data: png) else { return }
+        let source = Source(appName: "Imported screenshot", windowTitle: url.lastPathComponent, captureKind: "upload")
+        ComposerController.shared.open(image: image, png: png, source: source, app: self)
+    }
+
+    func resumeDraft(_ d: StoredDraft) { ComposerController.shared.resume(d, app: self) }
+
+    /// Confirmed delete of a saved capture from the inbox list.
+    func discardDraft(_ d: StoredDraft) {
+        if ComposerController.shared.openDraftId == d.id {
+            ComposerController.shared.bringToFront()
+            return                                   // discard from its own window
+        }
+        let alert = NSAlert()
+        alert.messageText = "Discard this capture?"
+        alert.informativeText = "“\(d.title)” will be deleted from this Mac. Nothing was committed."
+        alert.addButton(withTitle: "Keep")
+        alert.addButton(withTitle: "Discard")
+        alert.buttons[1].hasDestructiveAction = true
+        guard alert.runModal() == .alertSecondButtonReturn else { return }
+        draftStore?.remove(d)
+        reloadInbox()
     }
 
     /// Toggle the status item instead of orderOut, so SwiftUI's MenuBarExtra

@@ -320,10 +320,16 @@ private struct ComposerFooter: View {
                 CommittedBanner(commit: r)
             }
             HStack(spacing: 8) {
-                Button("Cancel", action: requestClose)
+                Button(model.isPreview ? "Cancel" : "Save for later", action: requestClose)
                     .buttonStyle(QuietPillStyle())
                     .keyboardShortcut(.cancelAction)
                     .disabled(model.committing)
+                    .help(model.isPreview ? "Close the preview" : "Keep this capture in the Commit inbox and close")
+                if !model.isPreview && model.result == nil && !model.committing {
+                    Button("Discard…") { ComposerController.shared.requestDiscard(model) }
+                        .buttonStyle(QuietPillStyle())
+                        .help("Delete this capture from this Mac (asks first)")
+                }
                 if model.result == nil && !model.isLocked {
                     Text("AI drafts · you review · Commit publishes")
                         .font(.caption).foregroundStyle(.tertiary)

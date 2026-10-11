@@ -49,6 +49,17 @@ struct MenuPanel: View {
             .controlSize(.large)
             .disabled(app.capturing)
 
+            if !app.inboxForProject.isEmpty {
+                Button { open(.commit) } label: {
+                    HStack {
+                        Image(systemName: "tray.and.arrow.up")
+                        Text("\(app.inboxForProject.count) capture\(app.inboxForProject.count == 1 ? "" : "s") waiting to commit")
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                    }
+                }
+                .buttonStyle(.bordered)
+            }
             if app.unseenCount > 0 {
                 Button { open(.catchup) } label: {
                     HStack {
