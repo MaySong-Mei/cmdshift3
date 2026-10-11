@@ -211,6 +211,10 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   4. 文案改为 “Return adds a new line. Commit publishes your update.”；README 同步说明 Draft 只发送截图和 comment 用于生成草稿，Commit 才会发布。
   验证：offline（禁网沙箱）PASS；scratch 4399 完整 selftest PASS，跑完已关闭；未启动 GUI，未碰旧 app、4317 和云端。
 - **R21 交付 claude**：`7ba4831`，只改了这一处，没有扩大 review。`signIn` 在 `await client.session` 返回之后、`closeAll` / 设置 token / apply 之前，再检查一次 `isCommitting`：如果此时正在提交，就保持当前身份，显示同样的提示（“A commit is in progress — wait for it to finish before switching accounts.”），并用一个临时 client 把刚拿到的新 session `logout` 掉，避免留下孤立 token。`closeAll()` 增加了防御性 guard：正在 committing 时不关闭窗口。这只是兜底，会话动作本身的检查依然保留（signOut 和 signIn 的 await 前后都有）。offline 检查新增断言：committing 时调用 closeAll，窗口仍然打开。在禁网沙箱里跑 `--selftest --offline`：PASS，exit 0。包仍在 `/private/tmp/cmdshift3-experience/CmdShift3.app`（0.2.0，-Onone，strict 签名）。GUI、旧 app、4317、云端都没有动。
+- **T14 补充验证 claude（本会话代 worker 跑完未能运行的 integration，供 T15 参考）**：对 `/private/tmp/cmdshift3-ai-review/CmdShift3.app`（0.3.0，`codesign --verify --strict` 通过）：
+  - `sandbox-exec (deny network*)` 下 `--selftest --offline`：**PASS**，包括 AI-first review gating、generation/revision 守卫、失败/frozen、关闭守卫、preview 等检查。
+  - scratch server（4399，临时数据目录，未加载 .env，所以 AI 为 manual / not_configured）上跑完整 `--selftest`：**PASS**。原有链路全部通过（commit 1/2、同 id 重试、resolve 自建 blocker、feed、证据、state、catchup、comment），T14 新链路也全部通过：arrival 空 context 只 draft 一次 → draft 和未 review 前都不写 Git（feed 仍为 2）→ 无 AI 时必须明确 Continue manually → review 后 commit #3 带的是最新 context → frozen retry 得到同一个 SHA、没有新的 AI 请求、只多 1 条 commit → AI 不可达时保留材料并提供 Retry AI / Continue manually。scratch server 已关闭；4317、云端、GUI 都没有动。
+  - 未覆盖：真实 DeepSeek 下的 arrival draft，以及卡片/高光的目视效果。这两项需要 lead 用 preview fixture 和真实 4317 验收。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -478,3 +482,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | 认领 T14（R24）：只改 macos/ 与自己的 COLLAB 条目；新包仅输出 /private/tmp/cmdshift3-ai-review（0.3.0）；不做 GUI、不碰旧包/4317/云端/UserDefaults | — |
 | 2026-10-11 | claude | T14 交付 c5a83ad：AI-first 轻量卡片（arrival 自动 draft → review → 明确 Commit）、按需编辑器、generation/revision 守卫、失败/manual/frozen 规则、Codex 风格与 capture 高光；0.3.0 包 strict 签名，offline PASS。scratch integration 因本会话权限无法启动 server，未运行，命令已交给 lead。已收到 R25（只改后端），不碰 server/ | 见本行所在 Git 提交 |
 | 2026-10-11 | claude（本会话） | 发现 T14 已由 lead 启动的 headless Claude（~/Documents/Codex/cmdshift3，PID 76976）认领并开发，本会话**不重复开发 T14**，避免两边同时改 macos/。May 已确认顺序：T14 完成并验收后，用 0.3 + 本地 4317 录 real-case demo 视频，由本会话负责录制（需给 VS Code 授 Screen Recording）。本会话现在只做录制准备（脚本和自动化，不碰 macos/）；开录前会写 “video running”，请 lead 届时让出 GUI | — |
+| 2026-10-11 | claude（本会话） | 代跑 T14 integration：0.3 包禁网 offline PASS，scratch 完整 selftest（含 AI-first 新链路）PASS | 见本行所在 Git 提交 |
