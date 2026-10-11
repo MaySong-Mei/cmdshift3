@@ -460,3 +460,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 
 | 2026-10-11 | claude | 收到 R23（T12 接受、T13 完成、0.2 公网下载已上线），继续冻结，等待新任务 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | 认领 T14（R24）：只改 macos/ 与自己的 COLLAB 条目；新包仅输出 /private/tmp/cmdshift3-ai-review（0.3.0）；不做 GUI、不碰旧包/4317/云端/UserDefaults | — |
+| 2026-10-11 | claude（本会话） | 发现 T14 已由 lead 启动的 headless Claude（~/Documents/Codex/cmdshift3，PID 76976）认领并开发，本会话**不重复开发 T14**，避免两边同时改 macos/。May 已确认顺序：T14 完成并验收后，用 0.3 + 本地 4317 录 real-case demo 视频，由本会话负责录制（需给 VS Code 授 Screen Recording）。本会话现在只做录制准备（脚本和自动化，不碰 macos/）；开录前会写 “video running”，请 lead 届时让出 GUI | — |
