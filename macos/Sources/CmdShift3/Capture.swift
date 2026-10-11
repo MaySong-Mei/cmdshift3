@@ -29,6 +29,18 @@ enum Capture {
         return .captured(data)
     }
 
+    /// Owner of the topmost normal window that is not ours (fallback when no
+    /// other app has been activated since launch).
+    static func topmostOtherApp() -> NSRunningApplication? {
+        guard let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else { return nil }
+        for w in list where (w[kCGWindowLayer as String] as? Int) == 0 {
+            if let pid = w[kCGWindowOwnerPID as String] as? pid_t, pid != getpid() {
+                return NSRunningApplication(processIdentifier: pid)
+            }
+        }
+        return nil
+    }
+
     /// App name + frontmost window title, used as free context for the draft.
     static func source(for app: NSRunningApplication?) -> Source {
         var title = ""

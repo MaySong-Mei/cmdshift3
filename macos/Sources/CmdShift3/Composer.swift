@@ -64,8 +64,18 @@ final class ComposerModel: ObservableObject {
             let r = try await app.client.draft(DraftRequest(projectId: pid, comment: comment, source: source,
                                                             imageBase64: png.base64EncodedString()))
             guard pid == projectId, !isLocked else { return }
-            if let f = r.fields { fields = f }
-            if let s = r.summary, !s.isEmpty { summary = s }
+            // Merge, never overwrite what the user already typed or linked.
+            if let f = r.fields {
+                if fields.cleaned().isEmpty {
+                    fields = f
+                } else {
+                    for kind in FieldKind.allCases {
+                        let have = Set(fields[keyPath: kind.keyPath].map { $0.text.lowercased() })
+                        fields[keyPath: kind.keyPath] += f[keyPath: kind.keyPath].filter { !have.contains($0.text.lowercased()) }
+                    }
+                }
+            }
+            if let s = r.summary, !s.isEmpty, summary.trimmingCharacters(in: .whitespaces).isEmpty { summary = s }
             organizer = r.organizer
             warnings = r.warnings ?? []
         } catch {
@@ -118,13 +128,28 @@ final class ComposerController: NSObject, NSWindowDelegate {
     static let shared = ComposerController()
     private var window: NSWindow?
 
+    /// A composer is open: new captures must not silently replace its work.
+    var isOpen: Bool { window?.isVisible == true }
+
+    func bringToFront() {
+        window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// Used on sign-out so a draft cannot be committed under the next user.
+    func closeAll() { window?.close() }
+
     func open(image: NSImage, png: Data, source: Source, app: AppState) {
-        window?.close()
+        guard !isOpen else { bringToFront(); return }
         guard let pid = app.projectId else { return }
         let model = ComposerModel(image: image, png: png, source: source, projectId: pid)
-        let view = ComposerView(model: model, close: { [weak self] in self?.window?.close() })
+        // Each composer closes only its own window, never a newer one.
+        weak var own: NSWindow?
+        let view = ComposerView(model: model, close: { own?.close() })
             .environmentObject(app)
-        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1180, height: 760),
+        let visible = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let size = NSSize(width: min(1180, visible.width - 40), height: min(760, visible.height - 40))
+        let w = NSWindow(contentRect: NSRect(origin: .zero, size: size),
                          styleMask: [.titled, .closable, .resizable, .miniaturizable],
                          backing: .buffered, defer: false)
         w.title = "New Work Commit — \(source.appName)"
@@ -135,6 +160,7 @@ final class ComposerController: NSObject, NSWindowDelegate {
         w.center()
         w.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        own = w
         window = w
     }
 
@@ -158,7 +184,7 @@ struct ComposerView: View {
             Divider()
             formPane.frame(width: 400)
         }
-        .frame(minWidth: 960, minHeight: 620)
+        .frame(minWidth: 880, minHeight: 560)
         .task { await model.loadOpenItems(app) }
     }
 
@@ -190,8 +216,7 @@ struct ComposerView: View {
                 }
                 Spacer()
                 Button { _ = model.annotations.popLast() } label: { Image(systemName: "arrow.uturn.backward") }
-                    .help("Undo").disabled(model.annotations.isEmpty)
-                    .keyboardShortcut("z", modifiers: .command)
+                    .help("Undo last annotation").disabled(model.annotations.isEmpty)
                 Button("Clear") { model.annotations.removeAll() }.disabled(model.annotations.isEmpty)
             }
             AnnotationCanvas(image: model.image, annotations: $model.annotations, tool: tool, color: color, text: labelText)

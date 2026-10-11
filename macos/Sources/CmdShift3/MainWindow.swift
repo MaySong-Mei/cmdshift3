@@ -32,11 +32,11 @@ struct MainView: View {
                         .help("New Work Commit (\(HotKey.displayString))")
                 }
                 ToolbarItem {
-                    Button { Task { await app.refresh() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+                    Button { Task { await app.refresh(forceCatchup: true) } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
                 }
             }
         }
-        .task { await app.refresh() }
+        .task { await app.refresh(forceCatchup: true) }
     }
 }
 

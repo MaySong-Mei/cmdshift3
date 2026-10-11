@@ -64,6 +64,9 @@ final class AppState: ObservableObject {
             }
         }
 
+        if let front = NSWorkspace.shared.frontmostApplication, front.processIdentifier != getpid() {
+            lastExternalApp = front
+        }
         if client.token != nil { Task { await restore() } }
     }
 
@@ -118,6 +121,7 @@ final class AppState: ObservableObject {
     }
 
     private func clearSession() {
+        ComposerController.shared.closeAll()
         client.token = nil
         UserDefaults.standard.removeObject(forKey: "token")
         user = nil; projects = []; commits = []; state = nil; catchup = nil
@@ -133,17 +137,44 @@ final class AppState: ObservableObject {
 
     // MARK: Data
 
-    func refresh() async {
+    private var refreshing = false
+    private var pendingRefresh: (force: Bool, queued: Bool) = (false, false)
+
+    /// Commits + state on every tick. Catch-up (which may call the AI on the
+    /// server) only when the project's sequence moved, or when forced.
+    /// Calls arriving mid-flight are coalesced into one follow-up refresh.
+    func refresh(forceCatchup: Bool = false) async {
+        guard isSignedIn, projectId != nil else { return }
+        if refreshing {
+            pendingRefresh = (pendingRefresh.force || forceCatchup, true)
+            return
+        }
+        refreshing = true
+        await refreshOnce(forceCatchup: forceCatchup)
+        while pendingRefresh.queued {
+            let force = pendingRefresh.force
+            pendingRefresh = (false, false)
+            await refreshOnce(forceCatchup: force)
+        }
+        refreshing = false
+    }
+
+    private func refreshOnce(forceCatchup: Bool) async {
         guard isSignedIn, let pid = projectId else { return }
+        let token = client.token
         do {
             async let c = client.commits(project: pid)
             async let s = client.state(project: pid)
-            async let u = client.catchup(project: pid)
-            let (cr, sr, ur) = try await (c, s, u)
-            guard pid == projectId else { return }
+            let (cr, sr) = try await (c, s)
+            guard pid == projectId, token == client.token else { return }
             commits = cr.commits
             state = sr.state
-            catchup = ur
+            let moved = cr.throughSequence != nil && cr.throughSequence != catchup?.throughSequence
+            if forceCatchup || catchup == nil || moved {
+                let ur = try await client.catchup(project: pid)
+                guard pid == projectId, token == client.token else { return }
+                catchup = ur
+            }
             lastError = nil
         } catch let e as APIError where e.status == 401 {
             clearSession()
@@ -157,7 +188,7 @@ final class AppState: ObservableObject {
         guard let pid = projectId, let through = catchup?.throughSequence else { return }
         do {
             _ = try await client.seen(project: pid, through: through)
-            await refresh()
+            await refresh(forceCatchup: true)
         } catch {
             lastError = error.localizedDescription
         }
@@ -175,20 +206,29 @@ final class AppState: ObservableObject {
     /// Hotkey / panel entry point: system region picker → composer window.
     func startCapture() {
         guard !capturing else { return }
-        guard isSignedIn, projectId != nil else {
-            lastError = "Sign in from the menu bar before committing."
+        if ComposerController.shared.isOpen {
+            ComposerController.shared.bringToFront()
             return
         }
-        guard CGPreflightScreenCaptureAccess() || CGRequestScreenCaptureAccess() else {
-            showScreenRecordingAlert()
+        guard isSignedIn, projectId != nil else {
+            lastError = "Sign in before committing."
+            NotificationCenter.default.post(name: .cmd3NeedsSignIn, object: nil)
             return
+        }
+        if !CGPreflightScreenCaptureAccess() {
+            // First time: let the system prompt speak alone. Afterwards explain.
+            let asked = UserDefaults.standard.bool(forKey: "askedScreenRecording")
+            UserDefaults.standard.set(true, forKey: "askedScreenRecording")
+            if !CGRequestScreenCaptureAccess() {
+                if asked { showScreenRecordingAlert() }
+                return
+            }
         }
         let front = NSWorkspace.shared.frontmostApplication
-        let app = (front?.processIdentifier == getpid()) ? lastExternalApp : front
+        let app = (front?.processIdentifier == getpid()) ? (lastExternalApp ?? Capture.topmostOtherApp()) : front
         let source = Capture.source(for: app)
         capturing = true
-        // Close the menu bar panel so it is not in the screenshot.
-        for w in NSApp.windows where w.isVisible && w.className.contains("MenuBarExtra") { w.orderOut(nil) }
+        closeMenuBarPanel()
         Task {
             defer { capturing = false }
             try? await Task.sleep(for: .milliseconds(150))
@@ -206,6 +246,26 @@ final class AppState: ObservableObject {
                 ComposerController.shared.open(image: image, png: png, source: source, app: self)
             }
         }
+    }
+
+    /// Toggle the status item instead of orderOut, so SwiftUI's MenuBarExtra
+    /// state stays in sync and the next icon click opens the panel again.
+    private func closeMenuBarPanel() {
+        guard NSApp.windows.contains(where: { $0.isVisible && $0.className.contains("MenuBarExtra") }) else { return }
+        for w in NSApp.windows where w.className.contains("NSStatusBarWindow") {
+            if let button = Self.findStatusButton(in: w.contentView) {
+                button.performClick(nil)
+                return
+            }
+        }
+        for w in NSApp.windows where w.isVisible && w.className.contains("MenuBarExtra") { w.orderOut(nil) }
+    }
+
+    private static func findStatusButton(in view: NSView?) -> NSStatusBarButton? {
+        guard let view else { return nil }
+        if let b = view as? NSStatusBarButton { return b }
+        for sub in view.subviews { if let b = findStatusButton(in: sub) { return b } }
+        return nil
     }
 
     private func showScreenRecordingAlert() {
