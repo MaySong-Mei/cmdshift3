@@ -82,6 +82,10 @@ final class AppState: ObservableObject {
         defer { signingIn = false }
         do {
             let s = try await client.session(code: code.trimmingCharacters(in: .whitespaces))
+            if let previous = lastUserId ?? user?.id, previous != s.user.id {
+                ComposerController.shared.closeAll()
+            }
+            lastUserId = s.user.id
             client.token = s.token
             UserDefaults.standard.set(s.token, forKey: "token")
             apply(user: s.user, projects: s.projects)
@@ -105,6 +109,7 @@ final class AppState: ObservableObject {
     }
 
     func signOut() async {
+        ComposerController.shared.closeAll()
         await client.logout()
         clearSession()
     }
@@ -121,7 +126,9 @@ final class AppState: ObservableObject {
     }
 
     private func clearSession() {
-        ComposerController.shared.closeAll()
+        // An open composer survives an expired session (re-sign-in as the same
+        // user keeps the work); signIn closes it if a different user signs in.
+        if let id = user?.id { lastUserId = id }
         client.token = nil
         UserDefaults.standard.removeObject(forKey: "token")
         user = nil; projects = []; commits = []; state = nil; catchup = nil
@@ -138,6 +145,7 @@ final class AppState: ObservableObject {
     // MARK: Data
 
     private var refreshing = false
+    private var lastUserId: String?
     private var pendingRefresh: (force: Bool, queued: Bool) = (false, false)
 
     /// Commits + state on every tick. Catch-up (which may call the AI on the
@@ -150,13 +158,17 @@ final class AppState: ObservableObject {
             return
         }
         refreshing = true
-        await refreshOnce(forceCatchup: forceCatchup)
-        while pendingRefresh.queued {
-            let force = pendingRefresh.force
-            pendingRefresh = (false, false)
-            await refreshOnce(forceCatchup: force)
-        }
-        refreshing = false
+        // Unstructured so a cancelled caller (e.g. a view's .task) cannot
+        // cancel the shared loop or queued refreshes.
+        await Task { @MainActor in
+            await refreshOnce(forceCatchup: forceCatchup)
+            while pendingRefresh.queued {
+                let force = pendingRefresh.force
+                pendingRefresh = (false, false)
+                await refreshOnce(forceCatchup: force)
+            }
+            refreshing = false
+        }.value
     }
 
     private func refreshOnce(forceCatchup: Bool) async {
@@ -179,6 +191,7 @@ final class AppState: ObservableObject {
         } catch let e as APIError where e.status == 401 {
             clearSession()
             lastError = "Session expired — sign in again."
+            NotificationCenter.default.post(name: .cmd3NeedsSignIn, object: nil)
         } catch {
             lastError = error.localizedDescription
         }
@@ -220,7 +233,11 @@ final class AppState: ObservableObject {
             let asked = UserDefaults.standard.bool(forKey: "askedScreenRecording")
             UserDefaults.standard.set(true, forKey: "askedScreenRecording")
             if !CGRequestScreenCaptureAccess() {
-                if asked { showScreenRecordingAlert() }
+                if asked {
+                    showScreenRecordingAlert()
+                } else {
+                    lastError = "Allow Screen Recording for CmdShift3 in System Settings, then quit and reopen it. Press \(HotKey.displayString) again for help."
+                }
                 return
             }
         }

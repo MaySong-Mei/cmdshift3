@@ -31,6 +31,10 @@ final class ComposerModel: ObservableObject {
     @Published var committing = false
     @Published var error: String?
     @Published var result: WorkCommit?
+    /// What the last draft inserted (item id → text, and summary), so a
+    /// re-draft can replace it without touching the user's own edits.
+    private var drafted: [String: String] = [:]
+    private var draftedSummary: String?
 
     init(image: NSImage, png: Data, source: Source, projectId: String) {
         self.image = image
@@ -64,18 +68,27 @@ final class ComposerModel: ObservableObject {
             let r = try await app.client.draft(DraftRequest(projectId: pid, comment: comment, source: source,
                                                             imageBase64: png.base64EncodedString()))
             guard pid == projectId, !isLocked else { return }
-            // Merge, never overwrite what the user already typed or linked.
+            // Re-drafting replaces the previous draft's untouched items, but keeps
+            // anything the user typed or edited (and any resolves they linked).
             if let f = r.fields {
-                if fields.cleaned().isEmpty {
-                    fields = f
-                } else {
-                    for kind in FieldKind.allCases {
-                        let have = Set(fields[keyPath: kind.keyPath].map { $0.text.lowercased() })
-                        fields[keyPath: kind.keyPath] += f[keyPath: kind.keyPath].filter { !have.contains($0.text.lowercased()) }
+                for kind in FieldKind.allCases {
+                    let kept = fields[keyPath: kind.keyPath].filter { item in
+                        guard let original = drafted[item.id] else { return true }
+                        return item.text != original || !(item.resolves ?? []).isEmpty
                     }
+                    let have = Set(kept.map { $0.text.lowercased() })
+                    fields[keyPath: kind.keyPath] = kept + f[keyPath: kind.keyPath].filter { !have.contains($0.text.lowercased()) }
+                }
+                drafted = [:]
+                for kind in FieldKind.allCases {
+                    for item in f[keyPath: kind.keyPath] { drafted[item.id] = item.text }
                 }
             }
-            if let s = r.summary, !s.isEmpty, summary.trimmingCharacters(in: .whitespaces).isEmpty { summary = s }
+            if let s = r.summary, !s.isEmpty {
+                let current = summary.trimmingCharacters(in: .whitespaces)
+                if current.isEmpty || current == draftedSummary { summary = s }
+                draftedSummary = s
+            }
             organizer = r.organizer
             warnings = r.warnings ?? []
         } catch {
@@ -129,9 +142,11 @@ final class ComposerController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
 
     /// A composer is open: new captures must not silently replace its work.
-    var isOpen: Bool { window?.isVisible == true }
+    /// windowWillClose clears `window`, so this also covers a minimized composer.
+    var isOpen: Bool { window != nil }
 
     func bringToFront() {
+        if window?.isMiniaturized == true { window?.deminiaturize(nil) }
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -153,7 +168,11 @@ final class ComposerController: NSObject, NSWindowDelegate {
                          styleMask: [.titled, .closable, .resizable, .miniaturizable],
                          backing: .buffered, defer: false)
         w.title = "New Work Commit — \(source.appName)"
-        w.contentViewController = NSHostingController(rootView: view)
+        let host = NSHostingController(rootView: view)
+        host.sizingOptions = [.minSize]
+        w.contentViewController = host
+        // Attaching the controller resizes to SwiftUI's ideal size; re-apply ours.
+        w.setContentSize(size)
         w.isReleasedWhenClosed = false
         w.level = .floating
         w.delegate = self
