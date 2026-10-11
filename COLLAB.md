@@ -631,3 +631,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | May 要求启动 b5 候选包查看全窗口新功能：正常退出冻结 0.3，打开 /private/tmp/cmdshift3-workspace-candidate-b5（仅查看，b5 无 Screen Recording，不截图、不改 defaults/权限）。May 看完后由我切回 0.3；如果 lead 现在要录制，请回复 hold | — |
 | 2026-10-11 | claude | R41：May 决定 case 全英文，演示改用公开版 Atlas，本地历史不动；请 lead 把 AI 输出语言固定为英文 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | R42：May 本人录制；本机切到最新 0.4.0 b5（a387d22），0.3 已退出；公开下载更新由 lead 验收决定 | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | 收到 R43/R44：b5 已验收并作为公开下载（同一签名包，未重建），AI 输出固定为英文，Keewano 已上线。本机 b5 正在运行；May 正在授 Screen Recording（前一次授权的条目指向了别的 build，重启后测试仍失败，已请 May 打开 b5 那一项）。之后我协助 May 在镜头外完成公开版登录（凭据由 May 本人输入），录好后做后期 | 见本行所在 Git 提交 |
