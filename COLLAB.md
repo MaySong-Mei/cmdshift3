@@ -105,9 +105,9 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | ID | 任务 | owner | 状态 |
 |---|---|---|---|
 | T1 | 定稿首版技术栈与接口 v1 | codex | done |
-| T2 | macOS：菜单栏常驻 + 小面板 | claude | doing |
-| T3 | macOS：全局快捷键 + 框选截图；与 T2 连续交付 | claude | doing |
-| T4 | macOS：标注层 + 评论框 + 草稿编辑 + 提交 | claude | doing |
+| T2 | macOS：菜单栏常驻 + 小面板 | claude | done（待 T8 真机验收） |
+| T3 | macOS：全局快捷键 + 框选截图；与 T2 连续交付 | claude | done（待 T8 真机验收） |
+| T4 | macOS：标注层 + 评论框 + 草稿编辑 + 提交 | claude | done（待 T8 真机验收） |
 | T5 | Backend：API + 存储 + AI 草稿 | codex | done |
 | T6 | Dashboard：feed + 详情 + 评论 | codex | done |
 | T7 | Dashboard：Catch me up + last-seen | codex | done |
@@ -153,6 +153,14 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   3. **截图要不要放进 Git**：PNG 每张几百 KB 到几 MB，项目仓库会膨胀很快。建议仓库里只放 metadata 加图片的 content hash，图片放对象存储（或者用 Git LFS）。如果 demo 时想让“真实 Git commit 里看得到截图”，MVP 直接把图片放进仓库也可以接受，以后再迁走。
   4. **客户端需要的身份**：§9 写了“成员身份由登录会话确定”。客户端最简单的做法是首次启动时输入一个 project invite code 或 token，存进 Keychain。完整的 OAuth 登录流程不建议放进 MVP。
   5. **时间提醒**：§9 写着 #162 的现场提交截止是 **2026-10-11 17:00 PT**，现在大约是 11:45 PT，只剩约 5 小时。T2（菜单栏、面板、窗口的空壳）**不依赖 §4 和 §9 的任何决定**。建议 lead 允许 claude 在对齐期间先做 T2 和 T3（快捷键 + 框选截图，同样不依赖契约），对齐结束后只需要接上 API。是否开工由 lead 决定。
+- **R8/R9 回复 claude（native 修复完成）**：四项都已修复并 push：
+  (1) 首次 Submit 时冻结完整的 `CommitRequest`；重试原样重发同一 request 和 id；冻结后画布和表单禁用编辑，按钮显示 “Retry”；只有点 “Edit as new commit” 才解锁并生成新 `wc_` id。
+  (2) Screen Recording 未授权时停止截图，弹出 NSAlert，说明怎么开启，并提供 “Open System Settings” 按钮（直达 Privacy_ScreenCapture）。screencapture 启动失败、非 0 退出或 PNG 无法解码时也弹窗提示；用户按 Esc 取消则静默。
+  (3) Composer 切换项目时清空所有 shipped.resolves、organizer 和 warnings，重新加载 open items；draft 和 loadOpenItems 都以发请求时的 projectId 守卫，过期结果直接丢弃（锁定后 draft 结果也丢弃）。
+  (4) Commit 详情页显示期间每 4 秒拉一次评论，`.task` 在页面消失时自动取消；自己发的评论按 id 去重。
+- **T2–T4 交付 claude**：`macos/` 已 push。构建方式是 `macos/scripts/bundle.sh`，产出 `macos/build/CmdShift3.app`，需要 Xcode（脚本会自动使用 `/Applications/Xcode.app`）。**无界面验收**：`macos/build/CmdShift3.app/Contents/MacOS/CmdShift3 --selftest --endpoint http://127.0.0.1:4317`，依次跑 session → draft → commit → 同 id 重试（校验 SHA 相同）→ feed → evidence → state（自动 resolve 一个 open blocker）→ catchup → comment，最后输出 PASS。我用 Codex 的真实 server（独立端口 4399、scratch 数据目录）测过，PASS。
+  - ⚠️ **发现 Swift 6.4 -O 误编译**：release 优化版本会静默丢掉 async 函数里修改过的 fields，提交成功但 fields 为空。因此 bundle 一律用 `-Onone` 构建。如果 lead 在别处用 `swift build -c release` 自己构建，会碰到同样的问题。
+  - **尚未验证**：真实的 ⌃⇧⌘2 → 框选 → 标注 → Commit 交互流程需要 May 本人授予 Screen Recording 并手动操作，我无法代替完成。T8 需要 May 走一遍。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -287,3 +295,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | codex | 双用户浏览器验收通过：真实截图证据+annotations+SHA、Gary评论实时到May、Gary已读不影响May；20项后端/AItests通过。R8交Claude修native重试与权限提示 | 见本行所在 Git 提交 |
 
 | 2026-10-11 | codex | T6/T7浏览器验收完成：两位作者真实Git记录、实时评论、用户独立seen、显式resolve移除blocker、Research无串项目数据；截图保留给May。T8待native实际流程 | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | T2–T4 macOS 客户端 + selftest 交付；修复 R8/R9 四项；发现并绕过 Swift -O 误编译 | 见本行所在 Git 提交 |
