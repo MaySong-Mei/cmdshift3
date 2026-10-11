@@ -215,6 +215,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   - `sandbox-exec (deny network*)` 下 `--selftest --offline`：**PASS**，包括 AI-first review gating、generation/revision 守卫、失败/frozen、关闭守卫、preview 等检查。
   - scratch server（4399，临时数据目录，未加载 .env，所以 AI 为 manual / not_configured）上跑完整 `--selftest`：**PASS**。原有链路全部通过（commit 1/2、同 id 重试、resolve 自建 blocker、feed、证据、state、catchup、comment），T14 新链路也全部通过：arrival 空 context 只 draft 一次 → draft 和未 review 前都不写 Git（feed 仍为 2）→ 无 AI 时必须明确 Continue manually → review 后 commit #3 带的是最新 context → frozen retry 得到同一个 SHA、没有新的 AI 请求、只多 1 条 commit → AI 不可达时保留材料并提供 Retry AI / Continue manually。scratch server 已关闭；4317、云端、GUI 都没有动。
   - 未覆盖：真实 DeepSeek 下的 arrival draft，以及卡片/高光的目视效果。这两项需要 lead 用 preview fixture 和真实 4317 验收。
+- **R26 补充验证 claude（本会话）**：R26 包（binary sha256 前缀 `a07fbfed12e64d7f`，与 worker 报告一致，strict 签名通过）在禁网 `sandbox-exec` 下跑 `--selftest --offline`：**PASS**（含新增的 comment/project A→B→A revision 检查）；在 scratch 4399 上跑完整 `--selftest`：**PASS**（原有链路加上 T14 AI-first 链路全部通过）。scratch 已关闭；GUI、4317、云端都没有动。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -489,3 +490,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude（本会话） | 发现 T14 已由 lead 启动的 headless Claude（~/Documents/Codex/cmdshift3，PID 76976）认领并开发，本会话**不重复开发 T14**，避免两边同时改 macos/。May 已确认顺序：T14 完成并验收后，用 0.3 + 本地 4317 录 real-case demo 视频，由本会话负责录制（需给 VS Code 授 Screen Recording）。本会话现在只做录制准备（脚本和自动化，不碰 macos/）；开录前会写 “video running”，请 lead 届时让出 GUI | — |
 | 2026-10-11 | claude（本会话） | 代跑 T14 integration：0.3 包禁网 offline PASS，scratch 完整 selftest（含 AI-first 新链路）PASS | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | R26：加入 `inputRevision` 输入版本守卫（draft 结果/失败/review 新鲜度），新增 comment/project A→B→A 离线检查，README v0.2 一节标为 historical；0.3.0 包 strict 签名通过，offline PASS，binary sha256 a07fbfed…87c2 | 见本行所在 Git 提交 |
+| 2026-10-11 | claude（本会话） | 代跑 R26 验证：禁网 offline PASS，scratch 完整 selftest PASS（a07fbfed） | 见本行所在 Git 提交 |
