@@ -244,6 +244,11 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   - **离线导出验证（只用合成 clip）**：A 2560×1600 有音频 + B 1280×720 无音频 + C 旋转 90° 有音频 → 7.00s，1920×1200，avc1 30fps，1 条 AAC 音轨。逐帧检查：B 正确 letterbox；C 与 AVFoundation 自己按 transform 渲染出的源帧一致。缺失文件、非视频文件、输出已存在、poster 越界被夹紧、扩展名错误、全无音频输入、SRT 的错误输入，全部按预期处理。测试中修了三个问题：synth 写入死锁、asset 提前释放导致 -12780、AAC priming 偏移。
   - `captions-outline.md`：英文 90–180s 分镜、旁白、可直接输入的注释和剪辑规则。按公开版 take 写，任务树作为可选的结尾镜头，需 lead 确认发布后再用；不提 Keewano/agent，不写 tests passed。
   - 真实成片要等真实录好的 clip。继续不碰 GUI，等 lead 交接录制或拼接。
+- **T22 part 1 交付 claude（R35，Ask 等 T23）**：`4e5d844`，只改了 `macos/`。候选包在 `/private/tmp/cmdshift3-workspace-candidate/CmdShift3.app`（0.4.0 build 4，-Onone，strict 签名）；冻结的 0.3 binary 未变（a07fbfed…），GUI、权限、defaults、4317、云端都没有动。
+  - **Progress**：`ProgressTree.build` 是 web `progressTreeData` 的逐行移植。task 只来自 blocker/next；只有更早 commit 中 shipped 的显式 resolves 才算完成；无效或同 commit 的 resolve 会变成独立的 shipped task；decision/why 和无 task 的记录归为 supporting。`MemberColors` 使用与 web `progressMemberColors` 相同的调色板和 FNV-1a 哈希。界面包括：项目头部、Blocked/Up next/Completed 计数、成员图例、“Highlight my work”、可折叠的 task 卡片，以及按成员颜色画线的 evidence 行；点击 evidence 进入现有详情（截图、标注、SHA、discussion）。
+  - **People**：成员列表（颜色和记录数）→ 该成员的记录 → 详情。**Ask**：明确显示“尚未连接”，不做假聊天，等 T23 契约。成员来自 `GET /api/projects/:id/context`，失败时退回使用 commit 作者。主窗口导航：Catch me up / Work / Progress / People / Project state / Ask。menu bar 快速 capture 流程没有改动。
+  - **验证**：(1) **与 web 对拍 PASS**：同一个 fixture（显式 resolve、未知 id、重复 resolve、同 commit resolve、无字段记录、无 commit 的成员、其他项目的 commit）分别交给 Swift `--selftest --progress-fixture` 和 node 执行的 web `progressTreeData`/`progressMemberColors`（直接从 web/app.js 抽取），输出 JSON 完全一致。(2) 禁网 offline PASS。(3) scratch 4399 完整 selftest PASS，新增的 tree 检查：用真实 /context（2 个成员）加 feed，自建 blocker 显示为 completed 且有 2 条记录，成员颜色互不相同。scratch 已关闭。(4) 修了一个隐患：新视图如果命名为 `ProgressView` 会遮蔽 SwiftUI 的同名 spinner，已改名为 `ProjectProgressView`。
+  - **尚未做**：GUI 目视检查（lead 独占 GUI）；Ask 的接入（等 T23）。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -577,3 +582,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | 认领 T21（R34）：只在 scratchpad/video/t21/ 工作，原 clipcat 不动；不碰 GUI/TCC/冻结包/4317/云端 | — |
 | 2026-10-11 | claude | T21 ready：assemble/inspect/synth/mksrt + 英文 captions 大纲；合成 clip 离线导出和全部失败用例 PASS | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | 认领 T22（R35）：先做 Progress（现有 API），Ask 等 T23 契约；只改 macos/，候选包 /private/tmp/cmdshift3-workspace-candidate/，冻结 0.3 不动，不碰 GUI | — |
+| 2026-10-11 | claude | T22 part 1 4e5d844：原生 Progress/People（与 web 对拍 PASS），Ask 占位等 T23；候选包 0.4.0 禁网 offline 和 scratch selftest 均 PASS | 见本行所在 Git 提交 |
