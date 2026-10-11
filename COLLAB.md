@@ -117,7 +117,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T11 | 公开试用部署：独立账号、创建/邀请项目、Project Context Card、持久云端服务与验收 | codex | done |
 | T12 | macOS截图体验：捕获动效、持久标记/comment画布、友好审核与防误丢 | claude | done（lead R22 验收通过） |
 | T13 | T12 lead验收、独立新版Mac包与公开下载更新 | codex | done |
-| T14 | AI默认撰写→review→Commit：轻量捕获卡、可选编辑、Codex风格与高光 | claude | doing |
+| T14 | AI默认撰写→review→Commit：轻量捕获卡、可选编辑、Codex风格与高光 | claude | done（c5a83ad，待 T15 lead 验收；scratch integration 未能在本会话运行，见 T14 交付） |
 | T15 | T14 lead验收、AI默认流程验证及新版公开下载 | codex | doing |
 | D1 | 阅读双方协作说明并合并 Codex 产品理解，统一共享文档入口 | codex | done |
 | D2 | 核对 maymaymei #162 和 sponsor 官方接口，形成供 May 讨论的方案 | codex | done |
@@ -273,6 +273,17 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   5. AI未配置/不可用/HTTP429/网络异常明确状态，原材料保留，可Retry AI。保留manual fallback则必须明确Continue manually进入人工review后才能Commit，不静默绕过默认AI。首次write冻结payload/id后retry绝不重新AI，Edit as new仍重建work/item ids。保留window identity、dirty确认、committing/session前后守卫、最小化热键恢复；capture/AI草稿本身也算未提交材料。
   6. AI仍读取原PNG+comment+项目context；annotations随Commit保存，不声称AI已看未发送marks。0.3.0新包只输出/private/tmp/cmdshift3-ai-review/CmdShift3.app，-Onone/strict签名；不碰旧demo/T12包、UserDefaults、4317、云数据；不GUI、不kill，lead独占。preview中性fixture用于compact↔editor验收；若静态sample draft必须显著sample标识。编译+offline/new-state checks+scratch integration只对scratch endpoint（arrival空comment/无确认不写Git/最新comment/失败保留/frozen retry）。不扩大review。尽快push可验收UI/行为，补README和交接。
 
+
+- **T14 交付 claude（R24，待 T15 验收）**：`c5a83ad`，只改了 `macos/`，API 不变。包在 `/private/tmp/cmdshift3-ai-review/CmdShift3.app`（0.3.0 build 3，-Onone，bundle.sh 内 strict 签名校验通过）；旧 demo / T12 包、UserDefaults、4317、云端都没有动。
+  1. **流程**：capture 到达后 `ComposerModel.arrive` 自动 draft **一次**（PNG + 空 comment 也可以），不会自动 commit。`commit()` 只有在当前 AI 草稿 review 就绪时才会执行，或者用户明确点了 **Continue manually** 之后，或者是 frozen retry；否则直接 return，不会 freeze。Preview 不调 AI、不 commit。
+  2. **轻量卡片**：默认约 700 宽，同一个 window/model。卡片内容：带高光的缩略图（会显示已有 marks）、项目 pill（多项目时是菜单）、AI 状态行、正文字号的 summary、只列非空的 items（shipped 的 resolves 显示成小 pill）、可选的 “Add context for the AI” 输入框（Return 换行），以及唯一一个主按钮。**Edit screenshot / Edit draft** 会把同一个窗口围绕中心扩成画布加草稿编辑器（约 1200 宽），**Done editing** 回到卡片；marks、context、人工编辑都保留。编辑器里写明：marks 随 commit 保存，AI 只读截图和 context。
+  3. **风格**：暖白 / 深灰 surface（深色模式自动适配），细 hairline 边框，不用重阴影。主按钮是单色深色 pill，深色模式下反色，带箭头。次要按钮是浅灰 pill。工具栏是轻量 icon + label，选中时浅灰底；颜色是 12pt 小圆点。去掉了蓝色 segmented 控件和粗分隔线。**高光**：始终可见的淡 accent outline 加 glow，capture 到达时 pulse 一次（`arrivalPulsed` 保证每个 composer 只 pulse 一次，切换卡片/编辑器不会重复）。Reduce Motion 下只保留静态高光。高光只在视图层，不烧进 PNG。
+  4. **AI 结果守卫**：每次请求带单调递增的 `generation`，并记录请求时的 `DraftInput(project, trimmed comment)`。只有同时满足以下条件才应用结果：generation 是最新的、input 等于当前 input、未 frozen、token 未变。A→B→A、请求中途改 comment、请求重叠，都只会应用最新那一次。comment 或项目变化后标记 `needsUpdate`，主按钮变成 **Update draft**，它只重新 draft，绝不连带 commit。用户编辑过的 summary 和 items 在 update 时保留（沿用 drafted-id merge）。切换项目会清掉 resolves、AI 状态和 manual 状态，然后重新 draft。不会每次按键都调 AI。
+  5. **失败和降级**：HTTP 429、网络错误、401、`not_configured`、`ai_unavailable` 都有明确文案，截图、context、marks 全部保留。主按钮是 **Retry AI**，次按钮是 **Continue manually**；`not_configured` 时主按钮直接是 Continue manually。commit 首次 freeze 时 generation 加一，之后迟到的 draft 一律丢弃；frozen 状态下 `beginDraft` 返回 nil，**retry 绝不会重新调 AI**。Edit as new 仍会重建 work id 和 item id。
+  6. **保留的守卫**：window identity（每个窗口 weak 绑定）、dirty 确认（真实 capture 从打开起就算未提交材料，关闭一定会问 Keep Editing / Discard）、提交中禁止关闭和换身份、最小化后热键恢复同一份草稿。
+  7. **Preview**：`--preview-capture` 显示静态 sample draft，带橙色 **SAMPLE · not written by AI** 标识；AI、Commit、网络都关闭。可以在卡片和编辑器之间切换，用于验收布局。
+  - **验证**：编译通过；最终包上 `--selftest --offline` **PASS**。新增的离线检查覆盖：A→B→A 加请求重叠、中途改 comment 结果被丢弃 → Update draft、update 后保留人工 summary、切换项目清 resolves / AI / manual 状态、not_configured → Continue manually 才能 commit、429 和网络错误保留材料并提供 Retry AI / manual、ai_unavailable、freeze 后迟到的 draft 不应用且不能再 draft、preview sample、真实 capture 算 dirty，以及原有的窗口 / 关闭 / committing 守卫。
+  - ⚠️ **未完成，需要 lead 执行**：本会话**无法批准**的命令：启动 scratch server（后台 node 加环境变量）、用 `sandbox-exec` 禁网包装、单独的 `swift build`。所以 scratch integration **没有运行**，offline 也只是普通运行（isolated launch 本身不读 session，并且在任何网络请求之前就 exit）。`--selftest` 已经编译了 `composerFlow`：arrival 空 comment 只 draft 一次 → draft 和未 review 的 commit 都不写 Git（feed 计数不变）→ 改 comment 后 needsUpdate → Update draft → 没有 AI 时走 Continue manually → commit 带的是最新 comment → 模拟响应丢失后 retry，得到同一个 SHA，并且没有新的 AI 请求，feed 只多 1 条 → AI 不可达时保留材料并提供 Retry AI。请 lead 这样运行：`CMD3_PORT=4399 CMD3_DATA_DIR=/private/tmp/cmd3-t14-scratch node server/index.mjs`（不加载 .env），然后运行 `/private/tmp/cmdshift3-ai-review/CmdShift3.app/Contents/MacOS/CmdShift3 --selftest --endpoint http://127.0.0.1:4399 --code may-demo`。GUI（卡片、高光、编辑器往返）只在代码层面实现，**没有目视验收**，请用 preview fixture 验收。
 
 - **R25 codex -> claude (backend-only)**: Real screenshot-only AI validation currently returns a generic missing-comment summary. Codex owns a narrow organizer instruction update: describe visible evidence in the summary when comment is empty, keep absent structured facts empty, and never claim completion, author intent, decisions or resolved items from a screenshot alone. No API/schema changes; T14 scope and UI handoff stay unchanged. Claude should leave server/ and root docs untouched.
 
@@ -462,4 +473,5 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 
 | 2026-10-11 | claude | 收到 R23（T12 接受、T13 完成、0.2 公网下载已上线），继续冻结，等待新任务 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | 认领 T14（R24）：只改 macos/ 与自己的 COLLAB 条目；新包仅输出 /private/tmp/cmdshift3-ai-review（0.3.0）；不做 GUI、不碰旧包/4317/云端/UserDefaults | — |
+| 2026-10-11 | claude | T14 交付 c5a83ad：AI-first 轻量卡片（arrival 自动 draft → review → 明确 Commit）、按需编辑器、generation/revision 守卫、失败/manual/frozen 规则、Codex 风格与 capture 高光；0.3.0 包 strict 签名，offline PASS。scratch integration 因本会话权限无法启动 server，未运行，命令已交给 lead。已收到 R25（只改后端），不碰 server/ | 见本行所在 Git 提交 |
 | 2026-10-11 | claude（本会话） | 发现 T14 已由 lead 启动的 headless Claude（~/Documents/Codex/cmdshift3，PID 76976）认领并开发，本会话**不重复开发 T14**，避免两边同时改 macos/。May 已确认顺序：T14 完成并验收后，用 0.3 + 本地 4317 录 real-case demo 视频，由本会话负责录制（需给 VS Code 授 Screen Recording）。本会话现在只做录制准备（脚本和自动化，不碰 macos/）；开录前会写 “video running”，请 lead 届时让出 GUI | — |
