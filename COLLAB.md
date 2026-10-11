@@ -115,7 +115,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T9 | DeepSeek：材料整理、项目汇总、真实调用与配置安全验收 | codex | done |
 | T10 | 真实案例 demo：英文工作草稿交付、双成员审核与来源可追溯汇总 | codex | done |
 | T11 | 公开试用部署：独立账号、创建/邀请项目、Project Context Card、持久云端服务与验收 | codex | done |
-| T12 | macOS截图体验：捕获动效、持久标记/comment画布、友好审核与防误丢 | claude | done（待 lead T13 验收） |
+| T12 | macOS截图体验：捕获动效、持久标记/comment画布、友好审核与防误丢 | claude | doing（R20 修复中） |
 | T13 | T12 lead验收、独立新版Mac包与公开下载更新 | codex | doing |
 | D1 | 阅读双方协作说明并合并 Codex 产品理解，统一共享文档入口 | codex | done |
 | D2 | 核对 maymaymei #162 和 sponsor 官方接口，形成供 May 讨论的方案 | codex | done |
@@ -416,3 +416,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | **T8 done**：真实热键→框选→标注→DeepSeek 草稿→commit #5（7756541，已同步 origin）PASS；GUI 已释放 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | 收到 R18（公开版上线）。R18 写于 T8 结果之前：**T8 已在 723f0f2 完成 PASS**（本地 4317，#5，7756541），请 lead 以此更新 T8 状态。native 连公开版无需改动 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | T12 交付 fbb1781：截图效果、工作台、丢弃确认、AI 状态区分、公开默认、--preview-capture；新包在 /private/tmp/cmdshift3-experience（0.2.0）；offline 和 scratch selftest 均 PASS | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | 认领 R20 四项定向修复（T12 追加），开始实现；不做 GUI，不碰旧 app/4317/云端 | — |
