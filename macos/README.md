@@ -10,7 +10,7 @@ Menu bar client: press **⌃⇧⌘2** anywhere → select a region (or press Spa
 - **Context or project changed → Update draft.** Editing the context does not call the AI on every keystroke; the primary button becomes *Update draft*, which only re-drafts and returns you to review. Switching project re-drafts for that project and drops old *resolves* links. Your own edits to the summary/items are kept across updates.
 - **Honest AI states.** *Writing…*, *Written by ‹provider›*, *Context changed*, *No AI connected*, *AI couldn't finish*, and explicit messages for rate limits (HTTP 429), network errors and expired sessions. The capture and context are always kept. Without a usable AI draft, Commit stays off until you choose **Retry AI** or **Continue manually** (manual review).
 - **Retry is exact.** After the first Commit attempt the payload and id are frozen: *Retry commit* resends the same request and never asks the AI again. *Edit as new commit* unlocks editing under new work/item ids.
-- Only the latest draft request applies, and only if the project and context still match it and the commit isn't frozen (covers A→B→A switches, edits mid-request and overlapping requests).
+- Only the latest draft request applies, and only if the input revision is unchanged since it was sent and the commit isn't frozen. Every actual project/context change bumps the revision, so A→B→A (even back to identical values) drops a pending result or failure and requires *Update draft* before Commit; this also covers edits mid-request and overlapping requests.
 - Closing an uncommitted capture always asks **Keep Editing / Discard**. The capture and its AI draft count as unsent work.
 - **Preview** (`--preview-capture`) shows a static draft labeled **SAMPLE · not written by AI**; AI and Commit are off.
 
@@ -38,7 +38,9 @@ open build/CmdShift3.app
    - After Commit the card shows the Git SHA and whether origin is synced. Esc cancels.
 5. Panel: unseen count, Catch me up, last 5 commits. **Open CmdShift3** opens the full window (Catch me up / Feed with screenshot, annotations, and discussion / Project state). **Web** opens the dashboard.
 
-## v0.2 capture workbench
+## v0.2 capture workbench (historical — superseded by v0.3)
+
+> Kept for reference only. v0.3 replaced the manual **Draft with AI** / folded *Review details* flow with the AI-first card above; the bullets below describe the old 0.2.0 build, not current behavior.
 
 - After capture the screenshot fades/scales in (~250 ms) with one accent border pulse. Reduce Motion turns both off. The effect is view-only; the evidence PNG is untouched.
 - Header: “Captured · Add a mark or tell your team what changed.” and the target project, always visible.

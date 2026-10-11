@@ -242,6 +242,50 @@ enum SelfTest {
         guard m.summary == "fresh A", m.fields.shipped.map(\.text) == ["z"] else { return "applied content" }
         guard m.reviewReady, m.primaryAction == .commit else { return "a current AI draft is ready to review/commit" }
 
+        // R26: A→B→A with no replacement request. Equal values are still a new
+        // input revision: the pending A result/failure must not apply.
+        for (label, flip) in [("comment", { (c: ComposerModel) in c.comment = "B"; c.comment = "A" }),
+                              ("project", { (c: ComposerModel) in c.projectId = "B"; c.projectId = "A" })] {
+            let r = composer("A", false)
+            r.comment = "A"
+            guard let pending = r.beginDraft() else { return "\(label) round trip: draft" }
+            let rev = r.inputRevision
+            flip(r)
+            guard r.inputRevision == rev + 2, r.currentInput.projectId == "A", r.currentInput.comment == "A" else {
+                return "\(label) A→B→A must bump inputRevision twice (values equal again)"
+            }
+            guard !r.applyDraft(ai("pending A", "p"), gen: pending.gen, input: pending.input) else {
+                return "\(label) A→B→A: pending A response applied without a new request"
+            }
+            guard !r.drafting, r.appliedInput == nil, r.summary.isEmpty, r.draftRequestsSent == 0 else {
+                return "\(label) A→B→A: dropped response changed state"
+            }
+            guard !r.reviewReady, r.primaryAction == .draftNow else { return "\(label) A→B→A: must re-draft before Commit" }
+            let f = composer("A", false)
+            guard let pf = f.beginDraft() else { return "\(label) failure: draft" }
+            flip(f)
+            guard !f.failDraft(APIError(status: 0, code: "network", message: "x"), gen: pf.gen, input: pf.input),
+                  f.aiFailure == nil, !f.drafting else {
+                return "\(label) A→B→A: pending A failure applied"
+            }
+
+            // Applied draft, then A→B→A: review is stale → Update draft, never Commit.
+            let s = composer("A", false)
+            guard let g = s.beginDraft(), s.applyDraft(ai("A", "a"), gen: g.gen, input: g.input), s.reviewReady else {
+                return "\(label) review: draft"
+            }
+            flip(s)
+            guard s.needsUpdate, !s.reviewReady, s.primaryAction == .updateDraft, !s.isLocked else {
+                return "\(label) A→B→A after a draft must require Update draft"
+            }
+        }
+        // Back to the drafted (empty) context still counts as stale: commit()'s
+        // `isLocked || reviewReady` gate stays closed.
+        let st = composer("A", false)
+        guard let gs = st.beginDraft(), st.applyDraft(ai("A", "a"), gen: gs.gen, input: gs.input) else { return "stale commit: draft" }
+        st.comment = "B"; st.comment = ""
+        guard st.needsUpdate, !st.reviewReady, !st.isLocked else { return "stale review must block Commit" }
+
         // Context edited mid-flight: the result is for old input → dropped.
         guard let g4 = m.beginDraft() else { return "update draft" }
         m.comment = "typed while drafting"

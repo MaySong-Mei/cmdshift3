@@ -10,10 +10,13 @@ struct OpenItem: Identifiable, Hashable {
 }
 
 /// What the AI was asked to organize. A draft result only applies while the
-/// composer's input still matches it (A→B→A switches, mid-flight edits).
+/// composer's input revision is unchanged: equal values reached by A→B→A are
+/// still a different input.
 struct DraftInput: Equatable {
     let projectId: String
     let comment: String
+    /// `ComposerModel.inputRevision` when the request was made.
+    let revision: Int
 }
 
 /// Light review card by default; the full canvas + draft editor on demand.
@@ -39,10 +42,17 @@ final class ComposerModel: ObservableObject {
     /// `--preview-capture`: layout review only — no network, no AI, no Commit.
     let isPreview: Bool
 
-    @Published var projectId: String
+    @Published var projectId: String {
+        didSet { if projectId != oldValue { inputRevision += 1 } }
+    }
     @Published var annotations: [Annotation] = []
     /// Optional context for the AI ("comment" in API v1).
-    @Published var comment = ""
+    @Published var comment = "" {
+        didSet { if comment != oldValue { inputRevision += 1 } }
+    }
+    /// Monotonic: bumped synchronously on every actual project/comment change.
+    /// Separate from the request `generation`.
+    @Published private(set) var inputRevision = 0
     @Published var summary = ""
     @Published var fields = Fields()
     @Published var openItems: [OpenItem] = []
@@ -88,15 +98,16 @@ final class ComposerModel: ObservableObject {
     // MARK: Derived state
 
     var currentInput: DraftInput {
-        DraftInput(projectId: projectId, comment: comment.trimmingCharacters(in: .whitespacesAndNewlines))
+        DraftInput(projectId: projectId, comment: comment.trimmingCharacters(in: .whitespacesAndNewlines),
+                   revision: inputRevision)
     }
 
     var hasAIDraft: Bool { appliedInput != nil && organizer?.mode == .ai }
 
-    /// Context or project changed since the shown draft was written.
+    /// Context or project changed since the shown draft was written (by revision).
     var needsUpdate: Bool {
         guard let appliedInput else { return false }
-        return appliedInput != currentInput
+        return appliedInput.revision != inputRevision
     }
 
     /// Commit is allowed only on a current AI draft, or after an explicit manual choice.
@@ -190,13 +201,13 @@ final class ComposerModel: ObservableObject {
         if gen == generation { drafting = false }
     }
 
-    /// Applies a draft only if it is the latest request, its input still
-    /// matches (project + context) and nothing is frozen. Returns whether it applied.
+    /// Applies a draft only if it is the latest request, the input revision is
+    /// unchanged since it was sent and nothing is frozen. Returns whether it applied.
     @discardableResult
     func applyDraft(_ r: DraftResponse, gen: Int, input: DraftInput) -> Bool {
         guard gen == generation else { return false }
         drafting = false
-        guard input == currentInput, !isLocked else { return false }
+        guard input.revision == inputRevision, input == currentInput, !isLocked else { return false }
         // Replace the previous draft's untouched items; keep anything the person
         // typed or edited (and any resolves they linked).
         if let f = r.fields {
@@ -227,13 +238,13 @@ final class ComposerModel: ObservableObject {
         return true
     }
 
-    /// Records an AI failure for the latest request. The capture, context,
-    /// marks and any earlier draft all stay.
+    /// Records an AI failure for the latest request while its input revision is
+    /// still current. The capture, context, marks and any earlier draft all stay.
     @discardableResult
     func failDraft(_ error: Error, gen: Int, input: DraftInput) -> Bool {
         guard gen == generation else { return false }
         drafting = false
-        guard !isLocked else { return false }
+        guard input.revision == inputRevision, !isLocked else { return false }
         aiFailure = Self.describeAIFailure(error)
         return true
     }
