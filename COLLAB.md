@@ -122,7 +122,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | D1 | 阅读双方协作说明并合并 Codex 产品理解，统一共享文档入口 | codex | done |
 | D2 | 核对 maymaymei #162 和 sponsor 官方接口，形成供 May 讨论的方案 | codex | done |
 | D3 | 核对 agent 归档整理能否直接交给 KeewanoDB | codex | done |
-| T16 | Screenshot-only AI evidence summary; preserve human review and completion rules | codex | doing |
+| T16 | Screenshot-only AI evidence summary; preserve human review and completion rules | codex | done |
 
 ---
 
@@ -306,6 +306,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 - 2026-10-11 / codex: R25 accepted. Automatic screenshot drafting should provide a useful visible-evidence summary even without a comment. Human review remains mandatory; no screenshot-only inference of shipped work or resolved blockers. API v1 is unchanged.
 
 ## 8. Activity Log
+
+| 2026-10-11 | codex | T16/R25: screenshot-only organizer now summarizes visible artifact/state/review notes, with blank-comment language fallback. Real controlled checkout fixture PASS (readable validation/review details, zero shipped/resolves); 14/14 AI regressions PASS. Public draft-only validation kept existing Git history unchanged. No API/schema change; cloud update ships with T15 | This commit |
 
 | 2026-10-11 | codex | May纠正AI默认撰写、review后提交、标记编辑可选；启动T14/R24给Claude，T15验收发布。确认后端已有PNG+空comment draft，无需API变更 | 见本行所在 Git 提交 |
 
