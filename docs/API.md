@@ -32,6 +32,8 @@ Returns `{summary,fields,organizer:{provider,status},warnings:[]}`. Field names:
 
 ## Commit
 
+The Mac capture flow calls draft once automatically, including a PNG with an empty comment. Draft generation writes no Git history. With a blank comment, the organizer summarizes visible screenshot evidence without inferring completed work or resolved blockers. AI reads the original PNG, comment and project context; annotation metadata is saved only at Commit. The client requires a current-input review before explicit submission, and changed context updates the draft before another review. Unavailable AI requires an explicit manual-review choice. Frozen Commit retries resend the original payload without another AI request.
+
 `POST /api/commits`: `{id,project_id,source,image_base64,annotations,comment,summary,fields}`. id is a fresh `wc_<uuid>` generated before submitting and reused for retries. Annotations are relative 0–1 `{type:"rect|arrow|text|highlight",x,y,w,h,text?,color:"#RRGGBB"}`. Rectangle/highlight sizes nonnegative; arrow w/h can be signed with endpoints within image. Request limit 12 MiB; decoded PNG limit 8 MiB. PNG required.
 
 Successful response `201 {commit}`; retry with same id and same input returns `200 {commit}`. Different input with same id returns 409. WorkCommit has id, project_id, source, comment, summary, fields, author `{id,name}`, created_at ISO UTC, per-project sequence, evidence `{image_url,annotations}`, git `{sha,parent_sha,branch:"main",remote_synced}`. `GET /api/evidence/:id` is membership-protected PNG. API exposes image URL path, not base64.

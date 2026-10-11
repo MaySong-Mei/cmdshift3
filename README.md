@@ -2,7 +2,7 @@
 
 **Commit your work. Everyone stays caught up.**
 
-A Mac menu bar app turns a screenshot, annotations and a short comment into a project Work Commit. Each confirmed update creates a real Git commit. Teammates share a live dashboard, discuss the evidence and catch up from their own last checkpoint.
+A Mac menu bar app turns a screenshot into an AI-written project Work Commit for you to review. Annotations and context are optional; each confirmed update creates a real Git commit. Teammates share a live dashboard, discuss the evidence and catch up from their own last checkpoint.
 
 ## Run the core demo
 
@@ -32,7 +32,7 @@ Open **[CmdShift3](https://cmdshift3-web-production.up.railway.app/)** to create
 
 The public deployment uses independent username/password accounts and private projects. Create a project, save its background in the Project Context Card, invite teammates, and generate a personal access code to connect the Mac capture workbench. Each confirmed Work Commit still creates a real Git commit. Public mode uses separate persistent cloud data and rejects the published local demo codes.
 
-The v0.2 Mac workbench keeps the capture open for Box, Arrow, Highlight and Text annotations plus a comment. A gentle arrival effect respects Reduce Motion. AI details stay folded until needed; closing unsaved work asks whether to keep editing, and failed submissions retain the original material for retry.
+The v0.3 Mac app opens a compact review card with a highlighted screenshot and automatically asks AI to write the draft, even without a comment. Read the result and choose Commit to publish. Edit screenshot and Edit draft expand only when needed, preserving marks and edits when you return. Changed context requires Update draft and another review. A brief arrival pulse respects Reduce Motion; the static highlight stays visible. Closing unsent work asks whether to keep editing, and failed submissions retain the original request for an identical retry.
 
 See [deployment and onboarding](docs/DEPLOYMENT.md) for hosting, Mac setup, access controls and release checks. Vercel and Supabase are not required for this initial single-server release. The first release has no password recovery; keep your account password.
 

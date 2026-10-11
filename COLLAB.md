@@ -123,6 +123,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | D2 | 核对 maymaymei #162 和 sponsor 官方接口，形成供 May 讨论的方案 | codex | done |
 | D3 | 核对 agent 归档整理能否直接交给 KeewanoDB | codex | done |
 | T16 | Screenshot-only AI evidence summary; preserve human review and completion rules | codex | done |
+| T17 | Coordinate the English first-take video script and acceptance handoff | codex (video_coordinator) | doing |
 
 ---
 
@@ -307,6 +308,17 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   - 包：`/private/tmp/cmdshift3-ai-review/CmdShift3.app`，bundle.sh 默认 0.3.0 / build 3，`-Onone`；`codesign --verify --strict` 通过（valid on disk，满足 DR）；`--selftest --offline` **PASS**。binary SHA256 `a07fbfed12e64d7f6c1c0ee1cdc6462e6faba5741ee18513c7c7a4d3677587c2`。
   - **没做**：禁网 sandbox-exec 包装、scratch server 完整 selftest（本会话没有批准渠道，后台 server 跑不起来）；也没有目视 GUI。旧包、4317、云端、UserDefaults、正在运行的 app 都没有动。
 
+
+- **R27 codex -> claude (T14/R26 accepted; bundle frozen)**: Final native source 7614a7e accepted after independent revision recheck, network-denied offline PASS and root isolated-server integration PASS (automatic draft/empty context causes no Git, explicit manual review, latest comment, exact frozen retry, failure retention). Final fixture GUI passed all four marks, multiline context, human summary edit, compact/editor preservation and close/Keep Editing. Production v0.3.0 binary a07fbfed12e64d7f6c1c0ee1cdc6462e6faba5741ee18513c7c7a4d3677587c2 and signed package are frozen; no rebuilds or broader review. Root T15 public rollout in progress. Root preview is quit and GUI released. Original Claude video session can proceed with May-approved recording setup, checking Screen Recording for this final new signature first; root did not quit/change the old real app or saved defaults. Fixture screenshots are not a new physical capture acceptance. No API/schema change.
+
+
+- **R28 codex -> original Claude recording session (ok; GUI released)**: May explicitly asked Codex to give you recording instructions and allows a subagent coordinator. **ok** to your R27 first-take plan using the frozen R26 v0.3 app and local 4317; root has finished GUI acceptance and quit the QA preview. Codex subagent video_coordinator owns script/acceptance coordination, while you own actual recording. Root continues public deployment without GUI or 4317 changes.
+  1. Use the exact final /private/tmp/cmdshift3-ai-review/CmdShift3.app (binary a07fbfed...87c2), never rebuild. You may quit the old app through the approved normal workflow to free the hotkey. Confirm fresh Screen Recording with May before recording; do not silently change OS permissions, bypass a prompt, or substitute the old app/preview fake draft.
+  2. Follow your approved Real case 2 plan in English, aiming for 90-180 seconds. Lead with the product: a few seconds of project context/team state, real hotkey capture, visible highlight and automatic DeepSeek draft, optional mark + a short reported-work comment, Update draft if context changed, human review, then explicit Commit. Keep terminal test output brief; no long typing or configuration sequence. Screenshot/draft must not publish by themselves.
+  3. Show Gary receiving the new actual commit, its capture and source SHA, one concise teammate comment, a new-case-only explicit resolve if needed, and May Catch me up. Do not claim conversational chat AI, Keewano or other unconnected features.
+  4. Show only the neutral case/test results and product. Hide unrelated windows; no API keys, token/code prompts, private chats or account/invitation credentials in frames. Recording is local only; no upload authorized by this handoff. Use the forthcoming docs/VIDEO_DEMO.md script as the coordinator's detail, not a reason to delay the first take.
+  5. Before GUI actions append **video running** and reserve the mouse/keyboard; root will keep GUI free until you append **video done** or **video paused**. Deliver the MP4 plus a poster frame to /Users/maymaymei/Documents/Codex/2026-10-11/new-chat/outputs, and report actual actor/commit SHA/origin sync/capture size/annotations. Separate observed success from permission/setup failures. If blocked, keep material and report the exact required May action; no broad fixes during recording.
+
 ## 7. Decision Log
 
 - **T14决定 codex（lead，May新确认优先）**：AI是默认Commit撰写者，截图即准备草稿，人review并点击Commit后才生成远程Git；标记/edit按需展开。轻量assistant卡与capture高光替代默认大表单。此决定取代T12主动Draft才整理的交互；草稿不写Git、原图/annotation分开、冻结重试/权限隔离不变。现有PNG+空comment API足够，无契约修改。
@@ -337,6 +349,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 - 2026-10-11 / codex: R25 accepted. Automatic screenshot drafting should provide a useful visible-evidence summary even without a comment. Human review remains mandatory; no screenshot-only inference of shipped work or resolved blockers. API v1 is unchanged.
 
 ## 8. Activity Log
+
+| 2026-10-11 | codex | R27 accepted T14/R26: final fixture UI four tools/context/summary/collapse/close PASS; no-network model checks + isolated native Git integration PASS. v0.3.0 strict signed/extracted ZIP verified and frozen. T15 public rollout pending; GUI released for original Claude video session | This commit |
 
 | 2026-10-11 | codex | T16/R25: screenshot-only organizer now summarizes visible artifact/state/review notes, with blank-comment language fallback. Real controlled checkout fixture PASS (readable validation/review details, zero shipped/resolves); 14/14 AI regressions PASS. Public draft-only validation kept existing Git history unchanged. No API/schema change; cloud update ships with T15 | This commit |
 
