@@ -127,6 +127,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T18 | Prepare public video demo actors, project and private off-camera sign-in handoff | codex | done |
 | T19 | Task progress tree with distinct member-colored contribution lines | codex | doing |
 | T20 | Recover public off-camera sign-in and frozen-app recording setup after R31 handoff | codex | doing |
+| T21 | Recording post-production toolkit, English captions and offline export verification | claude | todo |
 
 ---
 
@@ -340,6 +341,13 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 - **R32 codex -> original Claude (R31 accepted; root takes GUI/setup)**: May explicitly asked lead to help you and allows subagents. Received your video paused handoff. Root owns GUI now to diagnose the frozen v0.3 Screen Recording identity and prepare dedicated public demo login off-camera through ordinary UI. No app rebuild/re-sign, TCC database edit/reset or permission bypass. Please remain GUI-free. Your credential-entry restriction remains respected; root handles sign-in using its own authorized tools. Keep your recording/clipcat tools available and await a concrete recording/assembly handoff. No video or native physical v0.3 PASS claimed yet.
 - **R33 codex (T19 start; May confirmed task tree and member colors)**: Dashboard scope only: project -> real work items/tasks -> contribution/evidence records. Give each actual member a stable distinct line color plus name/legend, show open/blocked/completed status only from recorded fields and explicit resolves, and open existing evidence/SHA detail. Do not invent milestone dependencies, ownership assignments, AI completion or percentages. Preserve Feed view and current collaboration/session behavior. Codex subagent edits web/app.js, web/styles.css and focused semantic tests; root owns canonical COLLAB/Git/release. No API/schema change and no GUI conflict with T20.
 
+- **R34 codex -> original Claude (T21 assigned; non-GUI work while lead repairs setup)**: May asked whether lead will assign you work. Please take T21 now: improve the local video post-production toolkit and prepare English captions/verification so recording can finish quickly after setup. This is authorized local, reversible work; no credentials or remote site sign-in required.
+  1. Work only in your existing scratchpad video directory, or a new clearly named subdirectory there. Keep the original `clipcat`/source intact. New assembly helper should preserve source audio when present, apply preferred video transforms, handle/validate clip geometry and duration, clamp the poster timestamp, and fail clearly on missing/invalid video instead of silently skipping. Use unique output names; do not overwrite a prior clip or app bundle.
+  2. Verify export offline with labeled synthetic clips (not product demo evidence). Inspect exported MP4 duration/dimensions/codec/audio tracks and representative frames. No synthetic source can be called the final product recording. Deliver helper/source paths and a concise secret-free test report; real final MP4 waits for actual recorded clips.
+  3. Prepare a 90-180s English caption/narration outline using `docs/VIDEO_DEMO.md`. Include the task tree as an optional final dashboard shot only after lead verifies its release: project -> actual task -> colored member contribution/evidence, no invented ownership/progress. Keep captions separate from footage until actual timings are known; no claims of Keewano/agent execution. Existing helper issues were independently audited in `/Users/maymaymei/Documents/Codex/2026-10-11/new-chat/outputs/CmdShift3-recording-recovery.md`.
+  4. Root keeps GUI exclusive and handles ordinary public demo sign-in and app permission repair. Root found the enabled Screen Recording entry points to your old `/Users/maymaymei/coding/cmdshift3/macos/build/CmdShift3.app` v0.1, not frozen v0.3. May explicitly approved correcting v0.3 permission; macOS is waiting for her Touch ID/system password. Both public demo accounts are now signed in in separate Codex IAB tabs. Do not use synthetic GUI `demo1`, edit TCC, touch frozen native code/binary/defaults, restart 4317/cloud, or operate the screen now.
+  5. Update only your T21 status and activity/handoff entries in COLLAB, commit/push after pulling; do not change root's tree files or docs. Mark ready with actual helper/export evidence, then wait for root's recording handoff. No upload/submission.
+
 ## 7. Decision Log
 
 - **T14决定 codex（lead，May新确认优先）**：AI是默认Commit撰写者，截图即准备草稿，人review并点击Commit后才生成远程Git；标记/edit按需展开。轻量assistant卡与capture高光替代默认大表单。此决定取代T12主动Draft才整理的交互；草稿不写Git、原图/annotation分开、冻结重试/权限隔离不变。现有PNG+空comment API足够，无契约修改。
@@ -370,6 +378,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 - 2026-10-11 / codex: R25 accepted. Automatic screenshot drafting should provide a useful visible-evidence summary even without a comment. Human review remains mandatory; no screenshot-only inference of shipped work or resolved blockers. API v1 is unchanged.
 
 ## 8. Activity Log
+
+| 2026-10-11 | codex | R34 assigns original Claude T21 local video assembly/captions/export verification; GUI remains with lead. Read-only Finder proof confirms enabled permission is old v0.1 at coding checkout. May approved exact v0.3 repair; OS authentication pending. Public owner/reviewer signed in through normal UI off-camera | This commit |
 
 | 2026-10-11 | codex | Accepted original Claude R31 paused recording handoff; root claims T20 GUI/public sign-in and exact Screen Recording diagnosis. Started T19 task-based tree with stable member colors per May; web-only delegated implementation, no native rebuild or API changes | This commit |
 
