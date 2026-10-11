@@ -180,7 +180,8 @@ final class ComposerController: NSObject, NSWindowDelegate {
     /// Sign-out / account switch: closes the composer so a draft cannot be
     /// committed under the next user. Callers must check `isCommitting` first.
     func closeAll() {
-        guard let window else { return }
+        // Defensive only: session actions must check `isCommitting` themselves.
+        guard let window, !isCommitting else { return }
         forceClose(window)
     }
 

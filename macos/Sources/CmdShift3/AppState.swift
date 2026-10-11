@@ -117,14 +117,24 @@ final class AppState: ObservableObject {
             return
         }
         // Switching identity mid-commit would orphan or misattribute the request.
+        let busy = "A commit is in progress — wait for it to finish before switching accounts."
         guard !ComposerController.shared.isCommitting else {
-            lastError = "A commit is in progress — wait for it to finish before switching accounts."
+            lastError = busy
             return
         }
         signingIn = true
         defer { signingIn = false }
         do {
             let s = try await client.session(code: code.trimmingCharacters(in: .whitespaces))
+            // Re-check after the await: the user may have pressed Commit while the
+            // sign-in request was in flight. Then keep the current identity and
+            // revoke the session we just obtained instead of applying it.
+            guard !ComposerController.shared.isCommitting else {
+                lastError = busy
+                let unused = APIClient(baseURL: client.baseURL, token: s.token)
+                Task { await unused.logout() }
+                return
+            }
             if let previous = lastUserId ?? user?.id, previous != s.user.id {
                 ComposerController.shared.closeAll()
             }

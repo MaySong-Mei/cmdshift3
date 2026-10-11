@@ -149,6 +149,8 @@ enum SelfTest {
         guard controller.windowShouldClose(older) else { return "a stale window must not be guarded as current" }
         newerModel.committing = true
         guard controller.isCommitting, !controller.windowShouldClose(newer) else { return "close must be blocked while committing" }
+        controller.closeAll()                              // sign-in/out path while committing
+        guard controller.isOpen else { return "closeAll must not close a composer that is committing" }
         newerModel.committing = false
         controller.forceClose(newer)
         guard !controller.isOpen else { return "forceClose(current) must close it" }
