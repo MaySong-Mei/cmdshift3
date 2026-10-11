@@ -10,7 +10,7 @@ import { createApp } from '../server/app.mjs';
 
 // A complete one-pixel PNG: exercise real evidence storage, not a PNG header stub.
 const PNG = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jFfkAAAAASUVORK5CYII=',
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=',
   'base64',
 );
 const PROJECT = 'proj_cmdshift3';
@@ -462,6 +462,34 @@ test('PNG and relative annotation validation reject malformed evidence before co
     annotations: [{ type: 'arrow', x: 0.8, y: 0.8, w: -0.5, h: -0.5, color: '#FFFFFF' }],
   }));
   assert.equal(valid.sequence, 1);
+});
+
+test('incomplete PNG chunk streams, missing image data and corrupt checksums never become commits', async (t) => {
+  const f = await fixture(t);
+  const corruptChecksum = Buffer.from(PNG);
+  corruptChecksum[52] ^= 1;
+  const invalidCaptures = [
+    PNG.subarray(0, 33), // Complete IHDR is insufficient: no image data or IEND.
+    PNG.subarray(0, PNG.length - 1), // IEND itself is truncated.
+    PNG.subarray(0, PNG.length - 12), // IDAT exists but there is no terminal IEND.
+    Buffer.concat([PNG.subarray(0, 33), PNG.subarray(PNG.length - 12)]), // IHDR + IEND without IDAT.
+    Buffer.concat([PNG, Buffer.from('trailing bytes')]),
+    corruptChecksum,
+  ];
+  for (const capture of invalidCaptures) await f.json('POST', '/api/commits', f.may.token, deliverable({ image_base64: capture.toString('base64') }), 400);
+  assert.equal((await f.json('GET', `/api/projects/${PROJECT}/commits`, f.may.token)).commits.length, 0);
+  assert.equal(git(path.join(f.dataDir, 'projects', PROJECT, 'repo'), 'for-each-ref', '--format=%(refname)', 'refs/heads'), '');
+  assert.equal((await f.submit(f.may.token, deliverable())).sequence, 1);
+});
+
+test('deeply nested JSON returns a client error without overflowing the idempotency hash or creating work', async (t) => {
+  const f = await fixture(t);
+  let nested = {};
+  for (let depth = 0; depth < 70; depth++) nested = { nested };
+  const response = await f.json('POST', '/api/commits', f.may.token, deliverable({ fields: nested }), 400);
+  assert.match(response.error.message, /nesting/);
+  assert.equal((await f.json('GET', `/api/projects/${PROJECT}/commits`, f.may.token)).commits.length, 0);
+  assert.equal((await f.submit(f.may.token, deliverable())).sequence, 1);
 });
 
 test('draft requires membership and explicitly reports manual organization without inventing shipped work', async (t) => {
