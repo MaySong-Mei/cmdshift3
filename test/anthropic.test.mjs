@@ -239,3 +239,86 @@ test('Anthropic workspace ID is optional, trimmed and never forwarded to other p
     assert.ok(!request.url.includes('wrkspc_test_only'));
   }
 });
+
+const reasoningBlocks = [
+  { type: 'thinking', thinking: 'private-reasoning-test', signature: 'signature-must-not-leak' },
+  { type: 'redacted_thinking', data: 'opaque-reasoning-test' }
+];
+const mixedMessage = (output, blocks = reasoningBlocks) => ({ ...message(output), content: [...blocks, ...message(output).content] });
+const assertNoReasoning = value => {
+  const serialized = JSON.stringify(value);
+  for (const marker of ['private-reasoning-test', 'signature-must-not-leak', 'opaque-reasoning-test']) assert.ok(!serialized.includes(marker));
+};
+
+test('Anthropic thinking and redacted thinking alongside final text are accepted across draft, catch-up and question', async t => {
+  const source = commit();
+  let output, blocks;
+  const requests = fakeProvider(t, () => mixedMessage(output, blocks));
+  for (const block of reasoningBlocks) {
+    blocks = [block];
+    output = draft();
+    const organized = await organizeDeliverable({ comment: 'Reviewed login' });
+    assert.deepEqual(organized.organizer, { provider: 'anthropic', status: 'completed' });
+    assertNoReasoning(organized);
+    output = { summary: 'May reviewed login.' };
+    const summary = await summarizeProject({ commits: [source] });
+    assert.deepEqual(summary.analyzer, { provider: 'anthropic', status: 'completed' });
+    assert.equal(summary.summary, output.summary);
+    assertNoReasoning(summary);
+    output = { answer: 'May reviewed login.', source_commit_ids: [source.id] };
+    const answer = await answerProjectQuestion({ question: 'What changed?', commits: [source] });
+    assert.deepEqual(answer.analyzer, { provider: 'anthropic', status: 'completed' });
+    assert.deepEqual(answer.evidence, [{ commit_id: source.id, git_sha: source.git.sha }]);
+    assertNoReasoning(answer);
+  }
+  assert.equal(requests.length, 6);
+  for (const request of requests) assertNoReasoning(request.body);
+});
+
+test('Anthropic mixed reasoning preserves strict text repair and unknown-citation rejection without echoing reasoning', async t => {
+  const requests = fakeProvider(t, (_request, count) => mixedMessage(count === 1 ? '{invalid-json' : count === 2 ? draft() : { answer: 'Unsupported claim', source_commit_ids: ['wc_fabricated'] }));
+  const organized = await organizeDeliverable({ comment: 'Reviewed login' });
+  assert.deepEqual(organized.organizer, { provider: 'anthropic', status: 'completed' });
+  assert.equal(requests.length, 2);
+  const draftRepair = JSON.parse(requests[1].body.messages[1].content[0].text.split('\n').at(-1));
+  assert.deepEqual(draftRepair.validation_error, { type: 'invalid_json', path: '$' });
+  assert.equal(draftRepair.untrusted_previous_output, '{invalid-json');
+  assertNoReasoning(organized);
+  assertNoReasoning(requests[1].body);
+  const source = commit();
+  const answer = await answerProjectQuestion({ question: 'What changed?', commits: [source] });
+  assert.deepEqual(answer.analyzer, { provider: 'manual', status: 'ai_unavailable' });
+  assert.equal(requests.length, 4);
+  assert.deepEqual(answer.evidence, [{ commit_id: source.id, git_sha: source.git.sha }]);
+  const citationRepair = JSON.parse(requests[3].body.messages[1].content[0].text.split('\n').at(-1));
+  assert.deepEqual(citationRepair.validation_error, { type: 'unknown_source', path: '$.source_commit_ids' });
+  assertNoReasoning(answer);
+  assertNoReasoning(requests[3].body);
+});
+
+test('Anthropic mixed reasoning never permits tools, unknown blocks, refusal, truncation or reasoning-only output', async t => {
+  const cases = [
+    { ...mixedMessage(draft()), content: [...mixedMessage(draft()).content, { type: 'tool_use', name: 'never-run', input: {} }] },
+    { ...mixedMessage(draft()), content: [...mixedMessage(draft()).content, { type: 'refusal', text: 'Refused' }] },
+    { ...mixedMessage(draft()), content: [...mixedMessage(draft()).content, { type: 'unknown_content', data: 'unsupported' }] },
+    { ...mixedMessage(draft()), stop_reason: 'max_tokens' },
+    { ...mixedMessage(draft()), stop_reason: 'refusal' },
+    { ...mixedMessage(draft()), stop_details: { type: 'refusal' } },
+    { ...message(draft()), content: [reasoningBlocks[0]] },
+    { ...message(draft()), content: [reasoningBlocks[1]] },
+    { ...message(draft()), content: reasoningBlocks }
+  ];
+  let reply;
+  const requests = fakeProvider(t, () => reply);
+  for (const value of cases) {
+    reply = value;
+    let charged = 0;
+    const before = requests.length;
+    const result = await organizeDeliverable({ comment: 'next: Review manually', beforeModelCall: () => { charged++; } });
+    assert.deepEqual(result.organizer, { provider: 'manual', status: 'ai_unavailable' });
+    assert.equal(result.fields.next[0].text, 'Review manually');
+    assert.equal(requests.length - before, 1);
+    assert.equal(charged, 1);
+    assertNoReasoning(result);
+  }
+});

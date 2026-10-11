@@ -164,8 +164,11 @@ async function modelResponse({ instruction, content, schema, name, config, valid
     const result = await response.json();
     let text;
     if (anthropic) {
-      if (result.type !== 'message' || result.role !== 'assistant' || result.stop_reason !== 'end_turn' || result.stop_details?.type === 'refusal' || !Array.isArray(result.content) || !result.content.length || result.content.some(item => item?.type !== 'text' || typeof item.text !== 'string')) throw new Error('provider_incomplete');
-      text = result.content.map(item => item.text).join('');
+      if (result.type !== 'message' || result.role !== 'assistant' || result.stop_reason !== 'end_turn' || result.stop_details?.type === 'refusal' || !Array.isArray(result.content) || !result.content.length || result.content.some(item => !['text', 'thinking', 'redacted_thinking'].includes(item?.type))) throw new Error('provider_incomplete');
+      // Reasoning blocks are never surfaced, parsed as JSON or echoed into a repair.
+      const chunks = result.content.filter(item => item.type === 'text');
+      if (!chunks.length || chunks.some(item => typeof item.text !== 'string')) throw new Error('provider_invalid_output');
+      text = chunks.map(item => item.text).join('');
     } else if (deepseek) {
       if (!Array.isArray(result.choices) || result.choices.length !== 1 || result.choices[0]?.finish_reason !== 'stop') throw new Error('provider_incomplete');
       const message = result.choices[0].message;
