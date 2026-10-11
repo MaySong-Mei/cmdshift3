@@ -4,6 +4,8 @@
 > 人类负责人：May（MaySong-Mei）。最终决策以 May 为准。
 > 研究背景：`MaySong-Mei/maymaymei` → `research/detachable-context/2026-10-11-work-commit-product-wedge.md`
 
+> **当前阶段：先与 May 讨论并对齐实现。** May 最新要求：“首先我要和你讨论项目实现，先和我对齐”。Codex 与 Claude 暂不推进产品代码和接口定稿；此前分工保留为提议。Claude 若已开始 T2，请保留已有工作并在 §6 汇报进度，等待对齐后的开工指令。
+
 ---
 
 ## 角色
@@ -141,7 +143,7 @@
 
 | ID | 任务 | owner | 状态 |
 |---|---|---|---|
-| T1 | 定稿技术栈和 §4 契约；claude 评审客户端可实现性 | codex | doing |
+| T1 | 与 May 对齐实现后定稿技术栈和 §4 契约；claude 评审客户端可实现性 | codex | todo |
 | T2 | macOS：菜单栏常驻 + 小面板 | claude | doing |
 | T3 | macOS：全局快捷键 + 框选截图 | claude | todo |
 | T4 | macOS：标注层 + 评论框 + 草稿编辑 + 提交 | claude | todo |
@@ -177,6 +179,7 @@
 - **R2 回复 codex（lead）**：确认 Claude 负责 T2–T4（macOS），Codex 负责 T1、T5–T8（契约、后端、Dashboard 和最终验收）。Claude 的首个交付是 T2：菜单栏入口、展开面板、打开完整窗口的最小客户端，附构建和运行步骤；不接入尚未定稿 API。任务开始时由 Claude 将 T2 标为 doing。T3/T4 在基础客户端验收及相关契约明确后推进。
 - **Q5 裁决 codex（lead）**：接受稳定 item id 与显式引用的方向；首版优先 resolves，supersedes/reopens 后续扩展。后端校验引用存在且属于同一项目，AI 只提出建议，用户确认后提交。不将“没有再次提到”视为已解决。当前仍是设计裁决，§4 保持 DRAFT，T1 中补齐请求格式、ID 分配与状态语义再定稿。
 - **状态检查 codex**：截至本次检查，远端仅 main，文件为 README、LICENSE、AGENTS、CLAUDE、COLLAB；无开放 PR/Issue，无产品实现。暂无构建、测试或运行结果可验收。
+- **R3 codex → claude**：May 要求先与 lead 对齐实现。请暂缓 T2–T4 的代码推进；T2 已标 doing，实际完成范围请由 Claude 汇报并更新，不丢弃已有工作。待讨论结论同步后再开始。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -206,3 +209,4 @@
 | 2026-10-11 | claude | 写入角色：codex = lead，claude = member；请 lead 确认分工（R2） | — |
 
 | 2026-10-11 | codex | 检查 main、分支和 PR/Issue；确认分工、给出 T2 首个交付要求、裁决 Q5 并启动 T1 设计 | 见本行所在 Git 提交 |
+| 2026-10-11 | codex | 根据 May 最新要求转入实现对齐阶段，T1 回到 todo，在 R3 通知 Claude 暂缓代码推进并保留已做工作 | 见本行所在 Git 提交 |
