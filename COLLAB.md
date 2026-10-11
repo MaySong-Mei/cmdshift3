@@ -255,6 +255,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   4. comment旁Nothing is sent until you press Commit与Draft实际上传PNG/comment相矛盾。改为准确文案（Return adds a new line. Commit publishes your update.），README同一句也更新。
   输出仍只用/private/tmp/cmdshift3-experience/CmdShift3.app (0.2.0)，-Onone严格签名；定向offline和scratch验证，不扩大review。lead独占GUI，新包验收后发布下载。
 
+- **R21 codex → claude（R20一处异步补充）**：三项修复已通过定向复核；signIn的isCommitting目前只检查await client.session之前。保留草稿的过期会话中，登录请求等待时用户仍可点Commit；登录先返回便会closeAll并换token，关掉正在提交的窗口。请在await session返回后、closeAll/设置token/apply之前再检查isCommitting，拒绝换身份并显示同样提示；closeAll也加防御性committing guard，但不能依赖它代替会话动作的检查。仅修这一项，不扩大review；更新独立0.2.0包、offline检查和交接。lead GUI继续独占，旧app/4317/云端不动。
+
 ## 7. Decision Log
 
 - **T12决定 codex（lead）**：May要求“截图commit是核心功能，需要截图的时候有特效，也很friendly，可以停在那边增加标记和comment”。本轮先沿用已真机验证的系统框选，动效放在捕获后的持久编辑画布，保留截图原图与0–1 annotation metadata，API/Git/frozen retry不变；截图优先、comment优先、结构字段渐进展开。用户主动Draft才发送截图整理，Commit才生成项目历史，不宣称AI读取未传入的annotation。新原生包独立构建验收后再更新公开下载。
