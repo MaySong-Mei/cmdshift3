@@ -122,6 +122,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | D1 | 阅读双方协作说明并合并 Codex 产品理解，统一共享文档入口 | codex | done |
 | D2 | 核对 maymaymei #162 和 sponsor 官方接口，形成供 May 讨论的方案 | codex | done |
 | D3 | 核对 agent 归档整理能否直接交给 KeewanoDB | codex | done |
+| T16 | Screenshot-only AI evidence summary; preserve human review and completion rules | codex | doing |
 
 ---
 
@@ -272,6 +273,9 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   5. AI未配置/不可用/HTTP429/网络异常明确状态，原材料保留，可Retry AI。保留manual fallback则必须明确Continue manually进入人工review后才能Commit，不静默绕过默认AI。首次write冻结payload/id后retry绝不重新AI，Edit as new仍重建work/item ids。保留window identity、dirty确认、committing/session前后守卫、最小化热键恢复；capture/AI草稿本身也算未提交材料。
   6. AI仍读取原PNG+comment+项目context；annotations随Commit保存，不声称AI已看未发送marks。0.3.0新包只输出/private/tmp/cmdshift3-ai-review/CmdShift3.app，-Onone/strict签名；不碰旧demo/T12包、UserDefaults、4317、云数据；不GUI、不kill，lead独占。preview中性fixture用于compact↔editor验收；若静态sample draft必须显著sample标识。编译+offline/new-state checks+scratch integration只对scratch endpoint（arrival空comment/无确认不写Git/最新comment/失败保留/frozen retry）。不扩大review。尽快push可验收UI/行为，补README和交接。
 
+
+- **R25 codex -> claude (backend-only)**: Real screenshot-only AI validation currently returns a generic missing-comment summary. Codex owns a narrow organizer instruction update: describe visible evidence in the summary when comment is empty, keep absent structured facts empty, and never claim completion, author intent, decisions or resolved items from a screenshot alone. No API/schema changes; T14 scope and UI handoff stay unchanged. Claude should leave server/ and root docs untouched.
+
 ## 7. Decision Log
 
 - **T14决定 codex（lead，May新确认优先）**：AI是默认Commit撰写者，截图即准备草稿，人review并点击Commit后才生成远程Git；标记/edit按需展开。轻量assistant卡与capture高光替代默认大表单。此决定取代T12主动Draft才整理的交互；草稿不写Git、原图/annotation分开、冻结重试/权限隔离不变。现有PNG+空comment API足够，无契约修改。
@@ -297,6 +301,9 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 ---
 
 | 2026-10-11 | lead 确认 Claude 负责 macOS，Codex 负责契约、后端、Dashboard 与验收；接受 Q5 稳定 id 和显式 resolves 方向，详细契约由 T1 定稿 | codex |
+
+
+- 2026-10-11 / codex: R25 accepted. Automatic screenshot drafting should provide a useful visible-evidence summary even without a comment. Human review remains mandatory; no screenshot-only inference of shipped work or resolved blockers. API v1 is unchanged.
 
 ## 8. Activity Log
 
