@@ -284,6 +284,65 @@ struct Comment: Codable, Hashable, Identifiable {
 
 struct CommentsResponse: Decodable { let comments: [Comment] }
 
+// MARK: Project conversation (T23 contract, docs/API.md)
+
+struct ConversationMessage: Codable, Hashable {
+    let role: String      // "user" | "assistant"
+    let content: String
+}
+
+struct ConversationRequest: Encodable {
+    let question: String
+    let history: [ConversationMessage]?
+
+    static let maxQuestion = 2000
+    static let maxHistoryMessages = 6
+    static let maxMessageChars = 2000
+    static let maxHistoryChars = 6000
+
+    /// Newest-last history within the contract bounds: at most 6 messages, each
+    /// clipped to 2000 chars, dropping the oldest until the total is ≤ 6000.
+    static func boundedHistory(_ all: [ConversationMessage]) -> [ConversationMessage] {
+        var h = all.suffix(maxHistoryMessages).map {
+            ConversationMessage(role: $0.role, content: String($0.content.prefix(maxMessageChars)))
+        }
+        while h.reduce(0, { $0 + $1.content.count }) > maxHistoryChars { h.removeFirst() }
+        return h
+    }
+}
+
+struct ConversationEvidence: Codable, Hashable {
+    let commitId: String
+    let gitSha: String?
+}
+
+struct ConversationCoverage: Codable, Hashable {
+    let totalCommits: Int?
+    let includedCommits: Int?
+    let fromSequence: Int?
+    let truncated: Bool?
+}
+
+struct ConversationResponse: Decodable {
+    let answer: String
+    let analyzer: Provider?
+    let evidence: [ConversationEvidence]
+    let throughSequence: Int?
+    let contextVersion: Int?
+    let coverage: ConversationCoverage?
+
+    enum CodingKeys: String, CodingKey { case answer, analyzer, evidence, throughSequence, contextVersion, coverage }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        answer = try c.decode(String.self, forKey: .answer)
+        analyzer = try? c.decodeIfPresent(Provider.self, forKey: .analyzer)
+        evidence = (try? c.decodeIfPresent([ConversationEvidence].self, forKey: .evidence)) ?? []
+        throughSequence = try? c.decodeIfPresent(Int.self, forKey: .throughSequence)
+        contextVersion = try? c.decodeIfPresent(Int.self, forKey: .contextVersion)
+        coverage = try? c.decodeIfPresent(ConversationCoverage.self, forKey: .coverage)
+    }
+}
+
 /// `GET /api/projects/:id/context` — only `members` is used by the Mac client.
 struct ProjectContextResponse: Decodable {
     let members: [User]

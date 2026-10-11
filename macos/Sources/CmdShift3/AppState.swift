@@ -46,6 +46,7 @@ final class AppState: ObservableObject {
             if persists { UserDefaults.standard.set(projectId, forKey: "projectId") }
             if oldValue != projectId {
                 commits = []; state = nil; catchup = nil; members = []; membersLoadedFor = nil
+                resetConversationIfScopeChanged()
                 Task { await refresh() }
             }
         }
@@ -57,6 +58,11 @@ final class AppState: ObservableObject {
     @Published var signingIn = false
     @Published var capturing = false
     @Published var mainTab: MainTab = .catchup
+    /// Ask transcript, in memory only, scoped to project + account (reset on change).
+    @Published var conversation: [ChatTurn] = []
+    @Published var asking = false
+    private var conversationScope: String?
+
     /// Project members from the context API (falls back to commit authors).
     @Published var members: [User] = []
     let memberColors = MemberColors()
@@ -186,12 +192,60 @@ final class AppState: ObservableObject {
     private func apply(user: User, projects: [Project]) {
         self.user = user
         self.projects = projects
+        resetConversationIfScopeChanged()
         if projectId == nil || !projects.contains(where: { $0.id == projectId }) {
             projectId = projects.first?.id
         } else {
             Task { await refresh() }
         }
         startPolling()
+    }
+
+    struct ChatTurn: Identifiable, Hashable {
+        let id = UUID()
+        let role: String                 // "user" | "assistant" | "error"
+        let text: String
+        var analyzer: Provider? = nil
+        var evidence: [ConversationEvidence] = []
+        var coverage: ConversationCoverage? = nil
+    }
+
+    /// History is untrusted dialogue context: clear it whenever project or account changes.
+    func resetConversationIfScopeChanged() {
+        let scope = "\(user?.id ?? "-")|\(projectId ?? "-")"
+        if scope != conversationScope {
+            conversation = []
+            conversationScope = scope
+        }
+    }
+
+    func ask(_ raw: String) async {
+        let question = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard persists, !asking, let pid = projectId, !question.isEmpty, question.count <= ConversationRequest.maxQuestion else { return }
+        resetConversationIfScopeChanged()
+        let scope = conversationScope
+        let history = ConversationRequest.boundedHistory(conversation.compactMap {
+            $0.role == "error" ? nil : ConversationMessage(role: $0.role, content: $0.text)
+        })
+        conversation.append(ChatTurn(role: "user", text: question))
+        asking = true
+        defer { asking = false }
+        do {
+            let r = try await client.conversation(project: pid, question: question, history: history)
+            guard scope == conversationScope else { return }   // project/account changed mid-flight
+            conversation.append(ChatTurn(role: "assistant", text: r.answer, analyzer: r.analyzer, evidence: r.evidence, coverage: r.coverage))
+        } catch let e as APIError {
+            guard scope == conversationScope else { return }
+            let msg: String = switch e.status {
+            case 429: "Too many questions right now — wait a minute and ask again."
+            case 404: "Project questions aren't available on this server yet."
+            case 401: "Your session expired — sign in again."
+            default: e.localizedDescription
+            }
+            conversation.append(ChatTurn(role: "error", text: msg))
+        } catch {
+            conversation.append(ChatTurn(role: "error", text: error.localizedDescription))
+        }
     }
 
     private func clearSession() {
@@ -201,6 +255,7 @@ final class AppState: ObservableObject {
         client.token = nil
         if persists { UserDefaults.standard.removeObject(forKey: "token") }
         user = nil; projects = []; commits = []; state = nil; catchup = nil
+        conversation = []; conversationScope = nil
         timer?.invalidate(); timer = nil
     }
 

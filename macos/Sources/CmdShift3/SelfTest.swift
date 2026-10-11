@@ -90,6 +90,21 @@ enum SelfTest {
             let colors = MemberColors().assign(tree.members)
             guard Set(colors.values).count == colors.count else { throw APIError(status: 0, code: "progress", message: "member colors not distinct") }
             log("✓ progress tree: own task completed with 2 records; \(tree.members.count) member(s) via /context=\(!ctxMembers.isEmpty), distinct colors")
+            do {
+                let feedBefore = try await client.commits(project: project).commits.count
+                let r = try await client.conversation(project: project, question: "What did this selftest change?", history: [])
+                let latest = try await client.commits(project: project).commits
+                for e in r.evidence {
+                    guard let c = latest.first(where: { $0.id == e.commitId }),
+                          e.gitSha == nil || e.gitSha == c.git?.sha else {
+                        throw APIError(status: 0, code: "ask", message: "cited \(e.commitId) does not match a real record/SHA")
+                    }
+                }
+                guard latest.count == feedBefore else { throw APIError(status: 0, code: "ask", message: "asking changed the project history") }
+                log("✓ ask: \(r.analyzer?.provider ?? "?")/\(r.analyzer?.status ?? "?"), \(r.evidence.count) cited record(s) verified, read-only")
+            } catch let e as APIError where e.status == 404 {
+                log("· ask: endpoint not on this server yet (T23 pending) — client handles 404")
+            }
 
             let feed = try await client.commits(project: project)
             guard feed.commits.contains(where: { $0.id == c.id }) else { throw APIError(status: 0, code: "feed", message: "commit missing from feed") }
@@ -144,6 +159,22 @@ enum SelfTest {
         guard pv.isSample, !pv.summary.isEmpty, pv.beginDraft() == nil, !pv.reviewReady else { return "preview: labeled sample, no AI, no commit" }
 
         if let failure = aiFlowChecks(composer) { return failure }
+
+        // T22 Ask: history bounds and contract-shaped response decoding.
+        let longMsg = String(repeating: "x", count: 2500)
+        let seven = (0..<7).map { ConversationMessage(role: $0 % 2 == 0 ? "user" : "assistant", content: $0 == 6 ? longMsg : "m\($0)") }
+        let bounded = ConversationRequest.boundedHistory(seven)
+        guard bounded.count <= 6, bounded.allSatisfy({ $0.content.count <= 2000 }),
+              bounded.reduce(0, { $0 + $1.content.count }) <= 6000, bounded.last?.content.count == 2000 else { return "history bounds" }
+        let big = (0..<6).map { _ in ConversationMessage(role: "user", content: String(repeating: "y", count: 1900)) }
+        guard ConversationRequest.boundedHistory(big).reduce(0, { $0 + $1.content.count }) <= 6000 else { return "history total bound" }
+        let sample = #"{"answer":"Gary approved it.","analyzer":{"provider":"deepseek","status":"completed"},"evidence":[{"commit_id":"wc_1","git_sha":"abc1234def"}],"through_sequence":4,"context_version":3,"coverage":{"total_commits":4,"included_commits":4,"from_sequence":1,"truncated":false}}"#
+        let dec = JSONDecoder(); dec.keyDecodingStrategy = .convertFromSnakeCase
+        guard let r = try? dec.decode(ConversationResponse.self, from: Data(sample.utf8)), r.evidence.first?.commitId == "wc_1",
+              r.evidence.first?.gitSha == "abc1234def", r.coverage?.includedCommits == 4, r.analyzer?.mode == .ai else { return "conversation decode" }
+        let enc = JSONEncoder(); enc.keyEncodingStrategy = .convertToSnakeCase
+        let body = String(data: try! enc.encode(ConversationRequest(question: "q", history: nil)), encoding: .utf8)!
+        guard body == #"{"question":"q"}"# else { return "conversation request shape: \(body)" }
 
         // Isolation: selftest/preview never use the saved account or endpoint.
         let app = AppState.shared

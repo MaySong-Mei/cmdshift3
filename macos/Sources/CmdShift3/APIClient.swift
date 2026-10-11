@@ -97,6 +97,12 @@ final class APIClient: @unchecked Sendable {
         try await send("GET", "/api/projects/\(project)/state")
     }
 
+    /// Read-only grounded project question (no Git/comment/seen writes).
+    func conversation(project: String, question: String, history: [ConversationMessage]) async throws -> ConversationResponse {
+        try await send("POST", "/api/projects/\(project)/conversation",
+                       body: ConversationRequest(question: question, history: history.isEmpty ? nil : history))
+    }
+
     func context(project: String) async throws -> ProjectContextResponse {
         try await send("GET", "/api/projects/\(project)/context")
     }

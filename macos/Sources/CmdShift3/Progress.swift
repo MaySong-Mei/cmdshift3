@@ -369,14 +369,111 @@ struct PeopleView: View {
     }
 }
 
-/// Grounded project questions arrive with lead's T23 API; until then this is explicit, not a fake chat.
+/// Grounded, read-only project questions (T23). Answers cite confirmed work records;
+/// earlier messages are dialogue context only and never count as evidence.
 struct AskView: View {
+    @EnvironmentObject var app: AppState
+    @State private var draft = ""
+
     var body: some View {
-        ContentUnavailableView {
-            Label("Ask about this project", systemImage: "bubble.left.and.text.bubble.right")
-        } description: {
-            Text("Answers will cite confirmed work records and their Git SHAs. This view is waiting for the project question service and is not connected yet.")
+        VStack(spacing: 0) {
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        if app.conversation.isEmpty {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Ask about \(app.currentProject?.name ?? "this project")").font(.title3.bold())
+                                Text("Answers come from confirmed work records and cite their Git SHAs. Asking never changes the project.")
+                                    .foregroundStyle(.secondary)
+                                ForEach(["What changed since yesterday?", "What is still blocked, and why?", "What did Gary review?"], id: \.self) { q in
+                                    Button(q) { draft = q }.buttonStyle(.link)
+                                }
+                            }
+                        }
+                        ForEach(app.conversation) { turn in bubble(turn).id(turn.id) }
+                        if app.asking {
+                            HStack(spacing: 6) { SwiftUI.ProgressView().controlSize(.small); Text("Reading the project record…").foregroundStyle(.secondary) }
+                        }
+                    }
+                    .padding(20)
+                    .frame(maxWidth: 820, alignment: .leading)
+                }
+                .onChange(of: app.conversation.count) {
+                    if let last = app.conversation.last { withAnimation { proxy.scrollTo(last.id, anchor: .bottom) } }
+                }
+            }
+            Divider()
+            HStack(alignment: .bottom, spacing: 8) {
+                TextField("Ask a question about this project", text: $draft, axis: .vertical)
+                    .lineLimit(1...4)
+                    .textFieldStyle(.roundedBorder)
+                Button {
+                    let q = draft
+                    draft = ""
+                    Task { await app.ask(q) }
+                } label: { Label("Ask", systemImage: "arrow.up") }
+                .keyboardShortcut(.return, modifiers: .command)
+                .disabled(app.asking || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                          || draft.count > ConversationRequest.maxQuestion)
+            }
+            .padding(12)
+            if draft.count > ConversationRequest.maxQuestion {
+                Text("Questions are limited to \(ConversationRequest.maxQuestion) characters.").font(.caption).foregroundStyle(.red).padding(.bottom, 8)
+            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private func bubble(_ turn: AppState.ChatTurn) -> some View {
+        switch turn.role {
+        case "user":
+            HStack { Spacer(); Text(turn.text).padding(10).background(RoundedRectangle(cornerRadius: 10).fill(Color.accentColor.opacity(0.12))) }
+        case "error":
+            Label(turn.text, systemImage: "exclamationmark.triangle").foregroundStyle(.orange).font(.callout)
+        default:
+            VStack(alignment: .leading, spacing: 8) {
+                Text(turn.text).textSelection(.enabled)
+                if !turn.evidence.isEmpty {
+                    FlowChips(evidence: turn.evidence)
+                }
+                HStack(spacing: 8) {
+                    if let a = turn.analyzer {
+                        Text(a.mode == .ai ? (a.provider ?? "AI") : a.mode == .unavailable ? "AI unavailable — factual answer" : "No AI connected — factual answer")
+                    }
+                    if let c = turn.coverage, let inc = c.includedCommits, let tot = c.totalCommits {
+                        Text("Based on \(inc) of \(tot) records\(c.truncated == true ? " (older ones not included)" : "")")
+                    }
+                }
+                .font(.caption).foregroundStyle(.secondary)
+            }
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: 10).fill(Color.secondary.opacity(0.06)))
+        }
+    }
+}
+
+/// Cited records: short SHA + record summary; opens the record's detail.
+private struct FlowChips: View {
+    @EnvironmentObject var app: AppState
+    let evidence: [ConversationEvidence]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(evidence, id: \.self) { e in
+                let commit = app.commits.first { $0.id == e.commitId }
+                Button {
+                    app.selectedCommitId = e.commitId
+                    app.mainTab = .feed
+                } label: {
+                    HStack(spacing: 6) {
+                        RoundedRectangle(cornerRadius: 2).fill(app.memberColors.color(for: commit?.author?.id)).frame(width: 3, height: 14)
+                        Text((e.gitSha ?? "").prefix(7)).font(.caption.monospaced())
+                        Text(commit?.summary ?? "Work record").font(.caption).lineLimit(1)
+                    }
+                }
+                .buttonStyle(.plain)
+                .help("Open this cited record")
+            }
+        }
     }
 }
