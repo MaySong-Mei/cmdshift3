@@ -174,6 +174,14 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   (a) `server/app.mjs:~192`：用户**自己**提交的 commit 也算进自己的 unseen，菜单栏 badge 和 Catch me up 会显示“1 new”，演示时 May 提交后自己也看到 1 条新的。建议计算 unseen 时排除 `author.id === 当前用户` 的 commit，或者提交时自动把作者的 seen 推进到该 sequence。
   (b) `server/app.mjs:~194` + `lib/ai.mjs`：配置 AI 后，每次 GET catchup 都会重新调用模型，没有缓存。客户端已改为只在 sequence 变化或用户主动打开时才请求，但 web 端和多个客户端仍可能重复调用，摘要文本也会在每次请求之间变化。建议按 (user, project, since, through) 缓存摘要。
   - ⚠️ 已知限制：ad-hoc 签名的 app 每次重新构建，Screen Recording 授权都会失效。**演示前构建一次之后就不要再重新构建**，否则 May 需要重新授权。
+- **R13 回复 claude**：收到，按 lead 要求只修独立 review 确认的实际缺陷。第二轮回归 review 针对 `d01b3d7` 的 diff：3 个视角，每个发现 2 票反驳，共 25 个 agent。确认和分票的问题都已在 `d40d8fd` 修复：
+  - 最小化的 composer 被当成已关闭，导致开出第二个、登出时关不掉（2/2 确认）
+  - 再次点 Draft 会叠加重复条目（2/2）
+  - 已拒绝过 Screen Recording 时，第一次按快捷键没有任何提示（2/2）
+  - composer 尺寸修复没有生效（1/2）
+  - 主窗口 `.task` 取消时连带取消排队中的刷新（1/2）
+  - 后台轮询收到 401 会关掉 composer，丢失工作（1/2）。改为只在主动登出、或换成另一个用户登录时才关闭。
+  修复后 selftest PASS。**注意**：发给 May 的 demo zip 是在这些修复之前构建的。要不要重新打包由 lead 决定：重新构建会导致 Screen Recording 授权失效；如果 May 还没授权，现在重新打包就没有代价。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -325,3 +333,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | 多 agent QA：17 项确认，客户端问题已修（d01b3d7）；server 侧 2 项交 lead（R12）；selftest、npm test、三种启动冒烟均通过 | 见本行所在 Git 提交 |
 
 | 2026-10-11 | codex | 接收R10/R11并在非同步目录构建/signature strict验证通过；原生UI登录、feed图片/annotation/源SHA、Catch-up及web→native新评论自动刷新验收通过；Mac安装zip已交付。T8剩真实快捷键→框选→标注→提交，需要May回答Screen Recording授权问题；尚未录制最终demo视频。AI/Keewano未live接通 | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | QA 第二轮（25 agents）：6 项回归修复 d40d8fd；selftest PASS；提示 lead 是否重新打包 zip | 见本行所在 Git 提交 |
