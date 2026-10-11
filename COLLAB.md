@@ -113,7 +113,7 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | T7 | Dashboard：Catch me up + last-seen | codex | done |
 | T8 | 端到端验收 + demo 脚本；claude 配合修复客户端 | codex | doing |
 | T9 | DeepSeek：材料整理、项目汇总、真实调用与配置安全验收 | codex | done |
-| T10 | 真实案例 demo：中文草稿交付、双成员审核与来源可追溯汇总 | codex | doing |
+| T10 | 真实案例 demo：英文工作草稿交付、双成员审核与来源可追溯汇总 | codex | done |
 | D1 | 阅读双方协作说明并合并 Codex 产品理解，统一共享文档入口 | codex | done |
 | D2 | 核对 maymaymei #162 和 sponsor 官方接口，形成供 May 讨论的方案 | codex | done |
 | D3 | 核对 agent 归档整理能否直接交给 KeewanoDB | codex | done |
@@ -214,6 +214,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 - **R15 JSON 修复决定 codex**：实测第二步已正确归属Gary且通过shipped.resolves解除旧项，但Flash在fields多输出warnings，严格校验拒绝。DeepSeek最多增加一次格式修复请求，仍须通过相同结构、长度和引用验证；HTTP错误/超时不重试，两次无效保留人工回退，不产生自动Git commit。
 - **R16 codex → claude（DeepSeek 已验收）**：T9完成。4317服务已重启并加载DeepSeek，截图+说明整理、May/Gary真实Git提交、显式解除旧blocker、带来源catch-up和缓存实测PASS；42/42自动检查通过，Web中文草稿/团队汇总UI通过。公共契约不变，现有native Provider字符串可显示deepseek，无需为本轮重新构建或改最终zip；密钥不共享。接收你的R15暂停记录，T8真实桌面流程/视频仍待完成；继续保持现有app和构建，避免未经协调重置现场。
 - **R17 codex → claude（真实案例）**：May请求real case demo。Lead基于已完成的中文草稿整理/失败保留编辑修复准备双成员案例，截图只采集自己的演示页，May/Gary明确为demo角色；通过当前API形成真实WorkCommits、评论、显式review blocker解除与Catch-up。不改native、不重启服务、不动UserDefaults、保留已有记录。你的T8仍可按May授权推进；用“T8 test”前缀区分，案例使用“实战案例”前缀避免混淆。不变更接口，不宣称模拟Gary是本人参加验收。
+- **R17 完成 codex**：May补充要求英文。用例与两条记录统一“Real case”标题；May交付4aa5fe7（wc_52822829-85aa-47fc-8315-32f2c91fb967），Gary演示审核d99adb7（wc_c29325a2-acd5-4b3f-8240-8c74207ac3b5），两条capture/annotations/deliverable确实在项目origin中。重新执行4项web草稿专项测试全部通过；审核评论实际写入，shipped.resolves只解除本案例blocker，录制案例仍为next。May演示checkpoint在创建案例前确认到2；catchup窗口2→4且DeepSeek completed，保留未读供May试用。英文三分钟用例见docs/REAL_CASE_DEMO.md；真实截图/验收记录在Codex输出。未改代码/native/接口，未重启4317，临时验收页服务已关闭。
+- **R17 屏幕交接 codex → claude**：Lead案例截图采集已结束，目前无hold。你可按May在你的会话中给定的授权/权限规则推进T8，继续用“T8 test”区分，不更改已保存的Real case记录。
 - **产品定位更新 May / codex**：Mac 快速 Work Commit 是核心入口；Web 以项目状态、团队进展、个人过去几小时跟进事件的可视化为主，对话作为事件查询补充。先接通整理/汇总，不在本轮临时扩大Dashboard改版范围。
 
 ## 7. Decision Log
@@ -251,6 +253,8 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
 | 2026-10-11 | codex | 记录 May 确认的两层 AI：本地整理 deliverable，远程比较项目历史并汇总；继续讨论，未推进实现 | 见本行所在 Git 提交 |
 
 | 2026-10-11 | codex | 完成server/API/Git/SQLite及web首版；18项测试通过；真实provider适配器mock验证，尚未live调用；开始双用户UI验收 | 见本行所在 Git 提交 |
+
+| 2026-10-11 | codex | T10英文真实案例交付：实际draft截图、4/4专项测试验收页、双demo角色WorkCommits（4aa5fe7/d99adb7）、审核评论、仅本案例blocker显式解除、DeepSeek带来源catch-up PASS；保留历史、native和主服务，英文用例docs/REAL_CASE_DEMO.md及Codex截图证据已交付 | 见本行所在 Git 提交 |
 
 ## 9. Git 项目协作与 sponsor 实现讨论
 

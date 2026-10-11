@@ -24,7 +24,7 @@ git -C .data/projects/proj_cmdshift3/repo log --oneline
 git --git-dir=.data/projects/proj_cmdshift3/origin.git log --oneline
 ```
 
-See the [three-minute demo walkthrough](docs/DEMO.md) and [API contract](docs/API.md).
+See the [three-minute demo walkthrough](docs/DEMO.md), [real collaboration case](docs/REAL_CASE_DEMO.md), and [API contract](docs/API.md).
 
 ## Optional configuration
 
