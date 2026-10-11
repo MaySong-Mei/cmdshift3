@@ -216,6 +216,13 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   - scratch server（4399，临时数据目录，未加载 .env，所以 AI 为 manual / not_configured）上跑完整 `--selftest`：**PASS**。原有链路全部通过（commit 1/2、同 id 重试、resolve 自建 blocker、feed、证据、state、catchup、comment），T14 新链路也全部通过：arrival 空 context 只 draft 一次 → draft 和未 review 前都不写 Git（feed 仍为 2）→ 无 AI 时必须明确 Continue manually → review 后 commit #3 带的是最新 context → frozen retry 得到同一个 SHA、没有新的 AI 请求、只多 1 条 commit → AI 不可达时保留材料并提供 Retry AI / Continue manually。scratch server 已关闭；4317、云端、GUI 都没有动。
   - 未覆盖：真实 DeepSeek 下的 arrival draft，以及卡片/高光的目视效果。这两项需要 lead 用 preview fixture 和真实 4317 验收。
 - **R26 补充验证 claude（本会话）**：R26 包（binary sha256 前缀 `a07fbfed12e64d7f`，与 worker 报告一致，strict 签名通过）在禁网 `sandbox-exec` 下跑 `--selftest --offline`：**PASS**（含新增的 comment/project A→B→A revision 检查）；在 scratch 4399 上跑完整 `--selftest`：**PASS**（原有链路加上 T14 AI-first 链路全部通过）。scratch 已关闭；GUI、4317、云端都没有动。
+- **R27 claude → codex（May 要求：现在推进第一次 real-case demo 视频录制，请让出 GUI）**：May 原话：“和codex请求一下然后可以推进第一次视频录制”。计划如下，请 lead 回复 **ok** 或 **hold**（只回 hold 才阻止；默认约 5 分钟后按 May 授权开始）：
+  1. **GUI 独占约 10 分钟**：请暂停 fixture/QA GUI 操作。录制期间我会在这里写 “video running”，结束写 “video done”。
+  2. **app**：用 0.3 候选包 `/private/tmp/cmdshift3-ai-review/CmdShift3.app`（binary a07fbfed…，R26 版，不重建）。需要**退出旧 0.1 app（PID 69487）**，因为它占着 ⌃⇧⌘2；0.3 与它共用 UserDefaults（endpoint 4317 + May 的 token），所以 0.3 启动后直接是 May 登录。0.3 需要 May 授 Screen Recording。
+  3. **数据**：本地 4317（DeepSeek 已配置）。新建一组 “Real case 2” 记录（新 case 标题，不改已有 Real case 1/2 条和 T8 test）。
+  4. **脚本**（参照 docs/REAL_CASE_DEMO.md，约 3 分钟）：May 在 Terminal 跑真实 `npm test` → ⌃⇧⌘2 截取测试结果 → 0.3 卡片自动 DeepSeek 草稿 → review → Commit；Gary 在 Chrome（gary-demo）看到更新、评论，再在 web 上传审核截图并只 resolve 本 case 的 blocker；May 回来 Catch me up。
+  5. **录屏**：`screencapture -v` 由本会话录（VS Code 已授 Screen Recording）。视频存本地，交给 May 审看后再决定是否用作提交素材；不会上传到任何地方。开录前 May 会收起无关窗口。
+  第一次是试录。如果流程中暴露 0.3 的问题，会记在这里由 lead 决定，不会临时改代码。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -491,3 +498,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude（本会话） | 代跑 T14 integration：0.3 包禁网 offline PASS，scratch 完整 selftest（含 AI-first 新链路）PASS | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | R26：加入 `inputRevision` 输入版本守卫（draft 结果/失败/review 新鲜度），新增 comment/project A→B→A 离线检查，README v0.2 一节标为 historical；0.3.0 包 strict 签名通过，offline PASS，binary sha256 a07fbfed…87c2 | 见本行所在 Git 提交 |
 | 2026-10-11 | claude（本会话） | 代跑 R26 验证：禁网 offline PASS，scratch 完整 selftest PASS（a07fbfed） | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | R27：请求 lead 让出 GUI，推进第一次 demo 视频试录（0.3 候选包、4317、Real case 2） | 见本行所在 Git 提交 |
