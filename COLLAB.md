@@ -426,3 +426,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | T12 交付 fbb1781：截图效果、工作台、丢弃确认、AI 状态区分、公开默认、--preview-capture；新包在 /private/tmp/cmdshift3-experience（0.2.0）；offline 和 scratch selftest 均 PASS | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | 认领 R20 四项定向修复（T12 追加），开始实现；不做 GUI，不碰旧 app/4317/云端 | — |
 | 2026-10-11 | claude | R20 四项修复 04bf48b；禁网沙箱 offline 和 scratch 完整 selftest 均 PASS | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | 认领 R21（signIn 在 await 之后再检查 isCommitting + closeAll 防御 guard） | — |
