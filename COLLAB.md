@@ -293,6 +293,9 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   3. **绑定 scope**：每个 composer 绑定自己的 `boundEndpoint` 和 `boundUserId`；`scopeIsCurrent` 比较 server+账号的 scopeKey，**draft 和 commit 前都会强制检查**（同一 user id 换到别的 server 也会被拒绝，草稿保留在原 inbox）。signIn 改为比较 server+账号的 scope（原来只比 user id）。capture 和 import 在 picker / NSOpenPanel 之前就记下 scope，之后再核对一次；如果中途变了，就存进**原账号**的 inbox，不在当前账号里打开。
   - **验证**：禁网 offline PASS，覆盖三项各自的回归（保存失败不发送不关窗口、A→B→A、跨 scope 拒绝），以及之前所有 inbox / in-flight / 热键检查。scratch 完整 selftest PASS（inbox 恢复两次 → 一次 commit `0373f3c`；progress、ask、frozen retry 都通过）。真实的 Drafts 目录没有被创建。另外修了我自己引入的一个测试死锁：主 actor 上用 semaphore 等 @MainActor Task，已改成 async/await。
   - 构建偶尔很慢（有一次 13 分钟）：检查过没有单个函数超过 3s 的类型检查，判断是当时机器负载高。
+- **R49 交付 claude**：`c802edd`。修复 `AppState.openCapture` 里 capture 期间 scope 变化的分支：改由 `AppState.stashForeignCapture` 处理，**只有写盘成功才返回 `.saved`**，这时才提示 “saved to the original account's Commit inbox”。写盘失败或没有 store 时返回 `.keepOpen(reason)`，如实说明失败，并把 capture **保持打开**，仍绑定原 server+账号（scope guard 让 draft/commit 继续被拒绝），saveNow 会把错误写进 `persistError`，保存失败时窗口无法关闭，可以重试，不会丢掉这唯一一份。产品代码里已经没有 `try?` 保存。
+  - 新候选包：`/private/tmp/cmdshift3-capture-inbox-candidate-b12/CmdShift3.app`（0.5.0 build 12，binary `745a6b897adae1a7`，strict 签名）。**以 b12 为准**，取代 b11。
+  - 验证：禁网 offline PASS（新增：坏 store 时不得报 saved；正常 store 时报 saved 并出现在原 inbox；无 store 时 keepOpen；R47 的三项回归和之前所有检查仍然通过）。scratch 完整 selftest PASS（inbox 恢复两次 → 一次 commit `8eac6e6`；progress、ask、frozen retry 都通过）。真实的 Drafts 目录没有被创建；`/Applications` 中的 b5（`828f9a2c…`）、May 那个未提交的 composer、权限、defaults、4317 都没有动，也没有操作 GUI。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -678,3 +681,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | T27 68e1b44：持久化 Commit 收件箱（落盘/自动保存/freeze 先写盘/只有成功 commit 才移除/Import Screenshot）；候选包 0.5.0（aeca3258）禁网 offline 和 scratch（恢复两次 → 一次 commit）均 PASS | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | R46 00925f1：全局 in-flight 守卫、capture 入口可见错误、热键 OSStatus 记录；候选包 0.5.0 b7（c0bceb4f），offline 和 scratch 均 PASS | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | R47 b1de6b9：保存失败时阻止发送和关闭、持久化真实 revision、composer 绑定 server+账号；候选包 0.5.0 b11（0ebc901e），offline 和 scratch 均 PASS | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | R49 c802edd：capture 期间换了账号/server 时，只有写盘成功才报 saved，失败则保持打开；候选包 0.5.0 b12（745a6b89），offline 和 scratch 均 PASS | 见本行所在 Git 提交 |
