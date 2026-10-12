@@ -44,9 +44,16 @@ final class ComposerModel: ObservableObject {
     /// Stable inbox id of this capture (survives edits, restarts and Edit-as-new).
     let draftId: String
     let createdAt: Date
-    /// Called right after the payload freezes so the frozen id/content hit disk
-    /// before the request is sent (a retry after a crash can't change it).
-    var onFrozen: (() -> Void)?
+    /// Must succeed before anything leaves the Mac (AI draft request or Commit):
+    /// the capture — and, for Commit, its frozen id/content — is on disk first.
+    var persistBeforeSend: (() throws -> Void)?
+    /// The server + account this capture was taken for. Draft and Commit refuse
+    /// to run under any other session (same user id on another server included).
+    var boundEndpoint: String?
+    var boundUserId: String?
+    var scopeIsCurrent: (() -> Bool)?
+    /// Last local save failure; the editor stays open and shows it.
+    @Published var persistError: String?
 
     @Published var projectId: String {
         didSet { if projectId != oldValue { inputRevision += 1 } }
@@ -181,8 +188,20 @@ final class ComposerModel: ObservableObject {
         openItems = s.blockers.map { OpenItem(item: $0, kind: "BLOCKER") } + s.next.map { OpenItem(item: $0, kind: "NEXT") }
     }
 
+    var scopeMessage: String {
+        "This capture belongs to another account or server (\(boundEndpoint ?? "unknown")). Sign back in there to continue — it stays in that Commit inbox."
+    }
+
     /// Re-organizes for the current input. Only drafts — never posts a commit.
     func draft(_ client: APIClient) async {
+        guard !isPreview else { return }
+        guard scopeIsCurrent?() ?? true else { aiFailure = scopeMessage; return }
+        if let persist = persistBeforeSend {
+            do { try persist() } catch {
+                aiFailure = "Couldn't save this capture on your Mac, so it wasn't sent to AI: \(error.localizedDescription)"
+                return
+            }
+        }
         guard let (gen, input) = beginDraft() else { return }
         let token = client.token
         draftRequestsSent += 1
@@ -305,7 +324,6 @@ final class ComposerModel: ObservableObject {
         generation += 1
         drafting = false
         frozen = req
-        onFrozen?()
         return req
     }
 
@@ -319,11 +337,21 @@ final class ComposerModel: ObservableObject {
     func commit(_ client: APIClient) async -> Bool {
         guard !isPreview, !committing, result == nil else { return false }
         guard isLocked || reviewReady else { return false }
+        guard scopeIsCurrent?() ?? true else { error = scopeMessage; return false }
         committing = true
         Self.committingDrafts.insert(draftId)
         error = nil
         defer { committing = false; Self.committingDrafts.remove(draftId) }
+        let wasFrozen = isLocked
         let req = freeze()
+        // The frozen id/content must be durable before the request is sent.
+        if let persist = persistBeforeSend {
+            do { try persist() } catch {
+                if !wasFrozen { frozen = nil }
+                self.error = "Couldn't save this capture on your Mac, so it was not sent: \(error.localizedDescription)"
+                return false
+            }
+        }
         do {
             result = try await client.commit(req)
             return true
@@ -372,7 +400,8 @@ extension ComposerModel {
                     aiFailure: aiFailure, manualReview: manualReview,
                     appliedProjectId: appliedInput?.projectId, appliedComment: appliedInput?.comment,
                     drafted: drafted, draftedSummary: draftedSummary,
-                    frozen: frozen.map(FrozenCommit.init), lastError: error)
+                    frozen: frozen.map(FrozenCommit.init), lastError: error,
+                    inputRevision: inputRevision, appliedRevision: appliedInput?.revision)
     }
 
     /// Rebuilds a composer from disk without sending an AI request. A draft written
@@ -394,10 +423,13 @@ extension ComposerModel {
         m.drafted = d.drafted
         m.draftedSummary = d.draftedSummary
         m.error = d.lastError
+        m.boundEndpoint = d.endpoint
+        m.boundUserId = d.userId
+        // Restore the real revisions (setting comment above bumped the counter).
+        if let r = d.inputRevision { m.inputRevision = r }
         if let p = d.appliedProjectId, let c = d.appliedComment {
-            let same = p == m.projectId && c == m.comment.trimmingCharacters(in: .whitespacesAndNewlines)
-            // Same input → current revision (ready); otherwise an older revision (needs update).
-            m.appliedInput = DraftInput(projectId: p, comment: c, revision: same ? m.inputRevision : m.inputRevision - 1)
+            // v2: exact applied revision. v1 had none: treat as stale (needs update).
+            m.appliedInput = DraftInput(projectId: p, comment: c, revision: d.appliedRevision ?? (m.inputRevision - 1))
         }
         if let f = d.frozen { m.frozen = f.request(png: png) }
         return m
@@ -433,11 +465,14 @@ final class ComposerController: NSObject, NSWindowDelegate {
     /// Sign-out / account switch: saves the open capture to its owner's inbox and
     /// closes it, so it can't be committed under the next user. Callers must check
     /// `isCommitting` first.
-    func closeAll() {
+    @discardableResult
+    func closeAll() -> Bool {
         // Defensive only: session actions must check `isCommitting` themselves.
-        guard let window, !isCommitting else { return }
-        saveNow()
+        guard let window else { return true }
+        guard !isCommitting else { return false }
+        guard saveNow() else { bringToFront(); return false }
         forceClose(window)
+        return true
     }
 
     /// The draft currently open (if any) — lets the inbox avoid opening it twice.
@@ -445,16 +480,31 @@ final class ComposerController: NSObject, NSWindowDelegate {
 
     // MARK: Durable inbox
 
-    /// Persists the open capture now. A committed capture is removed instead.
-    func saveNow() {
-        guard let model, let store, let scope, !model.isPreview else { return }
-        let snap = model.snapshot(endpoint: scope.endpoint, userId: scope.userId)
-        if model.result != nil {
+    /// Writes `m` to its own (bound) inbox; a committed capture is removed instead.
+    func persist(_ m: ComposerModel) throws {
+        guard let store, !m.isPreview, let endpoint = m.boundEndpoint, let userId = m.boundUserId else { return }
+        let snap = m.snapshot(endpoint: endpoint, userId: userId)
+        if m.result != nil {
             store.remove(snap)
         } else {
-            try? store.save(snap, png: model.png)
+            try store.save(snap, png: m.png)
         }
         NotificationCenter.default.post(name: .cmd3InboxChanged, object: nil)
+    }
+
+    /// Persists the open capture now; on failure the error is shown in the editor
+    /// and callers keep it open (returns false).
+    @discardableResult
+    func saveNow() -> Bool {
+        guard let model else { return true }
+        do {
+            try persist(model)
+            model.persistError = nil
+            return true
+        } catch {
+            model.persistError = "Couldn't save this capture on your Mac (\(error.localizedDescription)). It stays open — fix disk space/permissions and try again."
+            return false
+        }
     }
 
     /// Saves and closes the open capture so a new one can start. Refused while committing.
@@ -462,7 +512,7 @@ final class ComposerController: NSObject, NSWindowDelegate {
     func stashCurrent() -> Bool {
         guard let window else { return true }
         guard !isCommitting else { bringToFront(); return false }
-        saveNow()
+        guard saveNow() else { bringToFront(); return false }
         forceClose(window)
         return true
     }
@@ -478,8 +528,8 @@ final class ComposerController: NSObject, NSWindowDelegate {
         alert.buttons[1].hasDestructiveAction = true
         alert.beginSheetModal(for: window) { [weak self] response in
             guard response == .alertSecondButtonReturn, let self, self.window === window, self.model === target else { return }
-            if let store = self.store, let scope = self.scope {
-                store.remove(target.snapshot(endpoint: scope.endpoint, userId: scope.userId))
+            if let store = self.store, let e = target.boundEndpoint, let u = target.boundUserId {
+                store.remove(target.snapshot(endpoint: e, userId: u))
             }
             self.model = nil                         // don't re-save on close
             self.forceClose(window)
@@ -491,7 +541,8 @@ final class ComposerController: NSObject, NSWindowDelegate {
     func resume(_ d: StoredDraft, app: AppState) {
         if openDraftId == d.id { bringToFront(); return }
         guard stashCurrent(), let store = app.draftStore, let png = store.png(for: d), let image = NSImage(data: png) else { return }
-        show(ComposerModel.restore(d, png: png, image: image), app: app, preview: false, arrive: false)
+        show(ComposerModel.restore(d, png: png, image: image), app: app, preview: false, arrive: false,
+             scope: (d.endpoint, d.userId))
     }
 
     /// Closes exactly `target` without the discard prompt. A stale caller (an
@@ -510,15 +561,19 @@ final class ComposerController: NSObject, NSWindowDelegate {
         }
     }
 
-    func open(image: NSImage, png: Data, source: Source, app: AppState, preview: Bool = false) {
+    /// `scope` is the server + account captured *before* any async step (picker,
+    /// file panel); the composer is bound to it for its whole life.
+    func open(image: NSImage, png: Data, source: Source, app: AppState, preview: Bool = false,
+              scope: (endpoint: String, userId: String)? = nil, projectId: String? = nil) {
         guard stashCurrent() else { return }
-        guard let pid = preview ? (app.projectId ?? "preview") : app.projectId else { return }
+        guard let pid = preview ? (app.projectId ?? "preview") : (projectId ?? app.projectId) else { return }
         let model = ComposerModel(image: image, png: png, source: source, projectId: pid, isPreview: preview)
         if preview { model.loadSample() }
-        show(model, app: app, preview: preview, arrive: !preview)
+        show(model, app: app, preview: preview, arrive: !preview, scope: scope)
     }
 
-    private func show(_ model: ComposerModel, app: AppState, preview: Bool, arrive: Bool) {
+    private func show(_ model: ComposerModel, app: AppState, preview: Bool, arrive: Bool,
+                      scope bound: (endpoint: String, userId: String)? = nil) {
         let source = model.source
         // Each composer's buttons act on its own window only, never `self.window`
         // at call time (which may already be a newer capture).
@@ -548,18 +603,29 @@ final class ComposerController: NSObject, NSWindowDelegate {
         NSApp.activate(ignoringOtherApps: true)
         own = w
         adopt(w, model: model)
-        // Persist the capture before anything else can happen to it, then on every edit.
-        if !preview, let user = app.user {
+        // Bind to its server + account, persist before anything else, then on every edit.
+        var savedOnArrival = true
+        if !preview, let scope = bound ?? app.user.map({ (app.endpoint, $0.id) }) {
             store = app.draftStore
-            scope = (app.endpoint, user.id)
-            model.onFrozen = { [weak self] in self?.saveNow() }
-            saveNow()
+            self.scope = scope
+            model.boundEndpoint = scope.endpoint
+            model.boundUserId = scope.userId
+            let key = DraftStore.scopeKey(endpoint: scope.endpoint, userId: scope.userId)
+            model.scopeIsCurrent = { [weak app] in
+                guard let app, let u = app.user else { return false }
+                return DraftStore.scopeKey(endpoint: app.endpoint, userId: u.id) == key
+            }
+            model.persistBeforeSend = { [weak self, weak model] in
+                guard let self, let model else { return }
+                try self.persist(model)
+            }
+            savedOnArrival = saveNow()
             saveSink = model.objectWillChange
                 .debounce(for: .milliseconds(400), scheduler: RunLoop.main)
                 .sink { [weak self] in self?.saveNow() }
         } else {
             store = nil
-            scope = nil
+            self.scope = nil
             saveSink = nil
         }
         // Card ↔ editor is the same window and model: just resize around its center.
@@ -569,8 +635,9 @@ final class ComposerController: NSObject, NSWindowDelegate {
                 Self.resize(w, to: Self.contentSize(for: mode))
             }
         }
-        // The AI writes the first draft as soon as a new capture arrives (not on resume).
-        if arrive { Task { await model.arrive(app.client) } }
+        // The AI writes the first draft as soon as a new capture arrives (not on resume),
+        // and only once the capture is durably saved.
+        if arrive && savedOnArrival { Task { await model.arrive(app.client) } }
     }
 
     private static func resize(_ w: NSWindow, to content: NSSize) {
@@ -587,6 +654,8 @@ final class ComposerController: NSObject, NSWindowDelegate {
     func attachStoreForChecks(_ store: DraftStore, endpoint: String, userId: String) {
         self.store = store
         scope = (endpoint, userId)
+        model?.boundEndpoint = endpoint
+        model?.boundUserId = userId
     }
 
     /// Makes `w` the current composer window (also used by the offline guard checks).
@@ -604,9 +673,16 @@ final class ComposerController: NSObject, NSWindowDelegate {
             return false
         }
         // Real captures are durable: closing saves them back to the Commit inbox.
+        // If the save fails, the editor stays open with the error.
         if !model.isPreview {
-            saveNow()
-            return true
+            if saveNow() { return true }
+            if !AppState.isIsolatedLaunch {
+                let alert = NSAlert()
+                alert.messageText = "Couldn't save this capture"
+                alert.informativeText = model.persistError ?? "It stays open so nothing is lost."
+                alert.beginSheetModal(for: sender) { _ in }
+            }
+            return false
         }
         guard model.isDirty else { return true }
         let alert = NSAlert()
@@ -628,7 +704,7 @@ final class ComposerController: NSObject, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         if (notification.object as? NSWindow) === window {
-            saveNow()                 // last edits (or removal after a successful Commit)
+            _ = saveNow()             // last edits (or removal after a successful Commit)
             window = nil
             model = nil
             modeSink = nil

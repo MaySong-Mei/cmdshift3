@@ -307,6 +307,10 @@ private struct ComposerFooter: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            if let p = model.persistError {
+                Label(p, systemImage: "externaldrive.badge.exclamationmark").font(.caption).foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             if let e = model.error {
                 Label(e, systemImage: "xmark.octagon").font(.caption).foregroundStyle(.red)
                     .textSelection(.enabled)

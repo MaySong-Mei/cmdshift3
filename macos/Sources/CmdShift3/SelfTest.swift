@@ -21,7 +21,7 @@ enum SelfTest {
         let endpoint = arg("--endpoint") ?? AppState.localEndpoint
         let client = APIClient(baseURL: URL(string: endpoint)!, token: nil)
         func log(_ s: String) { print(s); fflush(stdout) }
-        if let failure = modelChecks() {
+        if let failure = await modelChecks() {
             log("FAIL: model check — \(failure)")
             exit(1)
         }
@@ -100,8 +100,10 @@ enum SelfTest {
                 m.comment = "T27 inbox check \(runTag)"
                 m.continueManually()
                 m.fields.shipped = [.new("Inbox restore check \(runTag)")]
-                m.onFrozen = { try? store.save(m.snapshot(endpoint: endpoint, userId: session.user.id), png: png) }
+                m.persistBeforeSend = { try store.save(m.snapshot(endpoint: endpoint, userId: session.user.id), png: png) }
+                try m.persistBeforeSend?()
                 _ = m.freeze()
+                try m.persistBeforeSend?()
                 guard let d = store.list(endpoint: endpoint, userId: session.user.id).first else {
                     throw APIError(status: 0, code: "inbox", message: "frozen draft not on disk") }
                 let before = try await client.commits(project: project).commits.count
@@ -155,7 +157,7 @@ enum SelfTest {
     }
 
     /// Pure, network-free checks of composer/model state. Returns the first failure.
-    static func modelChecks() -> String? {
+    static func modelChecks() async -> String? {
         func provider(_ p: String?, _ st: String?) -> Provider.Mode { Provider(provider: p, status: st).mode }
         guard provider("manual", "not_configured") == .notConfigured else { return "manual/not_configured" }
         guard provider("manual", "ai_unavailable") == .unavailable else { return "ai_unavailable must not read as 'no AI connected'" }
@@ -187,7 +189,7 @@ enum SelfTest {
         if let failure = aiFlowChecks(composer) { return failure }
 
         // T27 durable inbox (temporary directory only; the real Drafts folder is untouched).
-        if let failure = inboxChecks() { return failure }
+        if let failure = await inboxChecks() { return failure }
 
         // T22 Ask: history bounds and contract-shaped response decoding.
         let longMsg = String(repeating: "x", count: 2500)
@@ -424,7 +426,7 @@ enum SelfTest {
         return nil
     }
 
-    static func inboxChecks() -> String? {
+    static func inboxChecks() async -> String? {
         guard AppState.shared.draftStore == nil else { return "isolated launch must not open the real draft folder" }
         let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("cmd3-inbox-check-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: tmp) }
@@ -467,15 +469,19 @@ enum SelfTest {
         guard let db = store.list(endpoint: ep, userId: user).first(where: { $0.id == b.draftId }) else { return "drafted capture missing" }
         let rb = ComposerModel.restore(db, png: png, image: img)
         guard rb.reviewReady, rb.primaryAction == .commit, rb.draftRequestsSent == 0 else { return "drafted capture should resume review-ready, no AI" }
-        var changed = db; changed.comment = "a different note"
+        // A real edit bumps the input revision (snapshot after typing a new note).
+        var changed = db; changed.comment = "a different note"; changed.inputRevision = (db.inputRevision ?? 0) + 1
         let rc = ComposerModel.restore(changed, png: png, image: img)
         guard rc.needsUpdate, rc.primaryAction == .updateDraft else { return "changed note must need an update on resume" }
 
         // Frozen identity: retry only, same id/payload, no AI.
+        // Commit persists the frozen payload *before* the request (unreachable server here).
         var saved = 0
-        rb.onFrozen = { saved += 1; try? store.save(rb.snapshot(endpoint: ep, userId: user), png: png) }
-        let frozen = rb.freeze()
-        guard saved == 1, let df = store.list(endpoint: ep, userId: user).first(where: { $0.id == rb.draftId }), df.frozen?.id == frozen.id
+        rb.persistBeforeSend = { saved += 1; try store.save(rb.snapshot(endpoint: ep, userId: user), png: png) }
+        let dead = APIClient(baseURL: URL(string: "http://127.0.0.1:9")!, token: nil)
+        let sent = await rb.commit(dead)
+        guard !sent, saved >= 1, let frozen = rb.frozen,
+              let df = store.list(endpoint: ep, userId: user).first(where: { $0.id == rb.draftId }), df.frozen?.id == frozen.id
         else { return "freeze must persist before sending" }
         let rf = ComposerModel.restore(df, png: png, image: img)
         guard rf.isLocked, rf.primaryAction == .retryCommit, rf.frozen?.id == frozen.id, rf.frozen?.summary == frozen.summary,
@@ -499,6 +505,50 @@ enum SelfTest {
               store.list(endpoint: ep, userId: user).first(where: { $0.id == c.draftId })?.comment == "stash me"
         else { return "stash must save and close" }
 
+        // R47-1: a failed save never sends and never closes.
+        let blockerFile = tmp.appendingPathComponent("not-a-dir")
+        try? Data("x".utf8).write(to: blockerFile)
+        let badStore = DraftStore(root: blockerFile)          // createDirectory under a file fails
+        let e = ComposerModel(image: img, png: png, source: src("E"), projectId: "p1")
+        e.continueManually()
+        e.persistBeforeSend = { try badStore.save(e.snapshot(endpoint: ep, userId: user), png: png) }
+        let sent2 = await e.commit(dead)
+        guard !sent2, e.frozen == nil, e.error?.contains("not sent") == true else { return "save failure must block the commit request" }
+        let w2 = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 10, height: 10), styleMask: [.titled, .closable], backing: .buffered, defer: true)
+        w2.isReleasedWhenClosed = false
+        let e2 = ComposerModel(image: img, png: png, source: src("E2"), projectId: "p1")
+        ctrl.adopt(w2, model: e2)
+        ctrl.attachStoreForChecks(badStore, endpoint: ep, userId: user)
+        guard !ctrl.windowShouldClose(w2), e2.persistError != nil, !ctrl.stashCurrent(), ctrl.isOpen
+        else { return "save failure must keep the editor open" }
+        ctrl.attachStoreForChecks(store, endpoint: ep, userId: user)
+        guard ctrl.stashCurrent(), !ctrl.isOpen else { return "editor should close once saving works again" }
+
+        // R47-2: reviewed A -> B -> A, saved and reopened, is NOT review-ready.
+        let h = ComposerModel(image: img, png: png, source: src("H"), projectId: "p1")
+        h.comment = "A"
+        let gh = h.beginDraft()!
+        h.applyDraft(DraftResponse(summary: "S", fields: f, organizer: Provider(provider: "deepseek", status: "completed"), warnings: []),
+                     gen: gh.gen, input: gh.input)
+        guard h.reviewReady else { return "draft for A should be ready" }
+        h.comment = "B"; h.comment = "A"
+        guard h.needsUpdate else { return "A->B->A must need an update in memory" }
+        try? store.save(h.snapshot(endpoint: ep, userId: user), png: png)
+        guard let dh = store.list(endpoint: ep, userId: user).first(where: { $0.id == h.draftId }) else { return "A->B->A draft missing" }
+        let rh = ComposerModel.restore(dh, png: png, image: img)
+        guard rh.needsUpdate, !rh.reviewReady, rh.primaryAction == .updateDraft, dh.statusLabel == "Needs update"
+        else { return "A->B->A must stay stale after save/reopen" }
+
+        // R47-3: a composer bound to another server/account cannot draft or commit.
+        let k = ComposerModel(image: img, png: png, source: src("K"), projectId: "p1")
+        k.boundEndpoint = "https://server-a.invalid"; k.boundUserId = "usr_same"
+        k.scopeIsCurrent = { false }                     // e.g. same user id, different server
+        k.continueManually()
+        await k.draft(dead)
+        let sent3 = await k.commit(dead)
+        guard !sent3, k.draftRequestsSent == 0, k.frozen == nil, k.error == k.scopeMessage, k.aiFailure == k.scopeMessage
+        else { return "foreign-scope composer must not draft or commit" }
+
         // Any retained in-flight commit blocks capture/switching, even with no open composer.
         ComposerModel.committingDrafts.insert("dr_inflight_check")
         let blocked = ctrl.isCommitting && !ctrl.isOpen
@@ -512,8 +562,10 @@ enum SelfTest {
         }
 
         // Removal.
+        let beforeRemove = store.list(endpoint: ep, userId: user).count
         store.remove(da)
-        guard store.list(endpoint: ep, userId: user).count == 2 else { return "remove failed" }
+        guard store.list(endpoint: ep, userId: user).count == beforeRemove - 1,
+              !store.list(endpoint: ep, userId: user).contains(where: { $0.id == da.id }) else { return "remove failed" }
         return nil
     }
 

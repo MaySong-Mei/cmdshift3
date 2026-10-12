@@ -27,7 +27,7 @@ struct FrozenCommit: Codable, Hashable {
 /// One pre-commit capture on disk: `capture.png` + this metadata (`draft.json`).
 /// Never contains a bearer token, Mac code or password.
 struct StoredDraft: Codable, Identifiable, Hashable {
-    static let currentVersion = 1
+    static let currentVersion = 2
 
     var version = StoredDraft.currentVersion
     let id: String                 // stable inbox id (independent of commitId)
@@ -53,6 +53,11 @@ struct StoredDraft: Codable, Identifiable, Hashable {
     var draftedSummary: String?
     var frozen: FrozenCommit?
     var lastError: String?
+    /// v2: the model's actual input revision and the revision the shown AI draft
+    /// was written for. Freshness comes from these, never from comparing values
+    /// (A → B → A is still a changed input). Missing (v1) = treat as stale.
+    var inputRevision: Int?
+    var appliedRevision: Int?
 
     /// Short status for the inbox list.
     var statusLabel: String {
@@ -60,8 +65,7 @@ struct StoredDraft: Codable, Identifiable, Hashable {
         if aiFailure != nil || organizer?.mode == .unavailable { return "AI couldn't write — review" }
         if manualReview { return "Manual review" }
         if appliedComment != nil, organizer?.mode == .ai {
-            let current = comment.trimmingCharacters(in: .whitespacesAndNewlines)
-            return (appliedComment == current && appliedProjectId == projectId) ? "Ready to review" : "Needs update"
+            return (appliedRevision != nil && appliedRevision == inputRevision) ? "Ready to review" : "Needs update"
         }
         if organizer?.mode == .notConfigured { return "No AI — review manually" }
         return "Not drafted yet"

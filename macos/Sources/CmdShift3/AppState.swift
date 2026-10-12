@@ -174,10 +174,18 @@ final class AppState: ObservableObject {
                 Task { await unused.logout() }
                 return
             }
-            if let previous = lastUserId ?? user?.id, previous != s.user.id {
-                ComposerController.shared.closeAll()
+            // Compare server + account (same user id on another server is a different scope).
+            let newScope = DraftStore.scopeKey(endpoint: endpoint, userId: s.user.id)
+            let previousScope = lastScopeKey ?? user.map { DraftStore.scopeKey(endpoint: endpoint, userId: $0.id) }
+            if let previousScope, previousScope != newScope {
+                guard ComposerController.shared.closeAll() else {
+                    lastError = "Couldn't save the open capture, so the account wasn't switched."
+                    let unused = APIClient(baseURL: client.baseURL, token: s.token)
+                    Task { await unused.logout() }
+                    return
+                }
             }
-            lastUserId = s.user.id
+            lastScopeKey = newScope
             client.token = s.token
             UserDefaults.standard.set(s.token, forKey: "token")
             apply(user: s.user, projects: s.projects)
@@ -205,7 +213,10 @@ final class AppState: ObservableObject {
             lastError = "A commit is in progress — wait for it to finish before signing out."
             return
         }
-        ComposerController.shared.closeAll()
+        guard ComposerController.shared.closeAll() else {
+            lastError = "Couldn't save the open capture, so you weren't signed out."
+            return
+        }
         await client.logout()
         clearSession()
     }
@@ -273,7 +284,7 @@ final class AppState: ObservableObject {
     private func clearSession() {
         // An open composer survives an expired session (re-sign-in as the same
         // user keeps the work); signIn closes it if a different user signs in.
-        if let id = user?.id { lastUserId = id }
+        if let id = user?.id { lastScopeKey = DraftStore.scopeKey(endpoint: endpoint, userId: id) }
         client.token = nil
         if persists { UserDefaults.standard.removeObject(forKey: "token") }
         user = nil; projects = []; commits = []; state = nil; catchup = nil
@@ -292,7 +303,8 @@ final class AppState: ObservableObject {
     // MARK: Data
 
     private var refreshing = false
-    private var lastUserId: String?
+    /// Server + account of the last session (drafts and composers are bound to it).
+    private var lastScopeKey: String?
     private var pendingRefresh: (force: Bool, queued: Bool) = (false, false)
 
     /// Commits + state on every tick. Catch-up (which may call the AI on the
@@ -403,6 +415,8 @@ final class AppState: ObservableObject {
         let app = (front?.processIdentifier == getpid()) ? (lastExternalApp ?? Capture.topmostOtherApp()) : front
         let source = Capture.source(for: app)
         guard ComposerController.shared.stashCurrent() else { return }
+        guard let boundUser = user, let boundProject = projectId else { return }
+        let bound = (endpoint: endpoint, userId: boundUser.id)
         captureProblem = nil
         capturing = true
         closeMenuBarPanel()
@@ -420,9 +434,25 @@ final class AppState: ObservableObject {
                     showAlert(title: "Screenshot failed", message: "The captured image could not be decoded as PNG.")
                     return
                 }
-                ComposerController.shared.open(image: image, png: png, source: source, app: self)
+                openCapture(image: image, png: png, source: source, bound: bound, projectId: boundProject)
             }
         }
+    }
+
+    /// Opens a capture under the scope taken before the async step. If the session
+    /// changed meanwhile, the capture goes to the original account's inbox instead.
+    private func openCapture(image: NSImage, png: Data, source: Source,
+                             bound: (endpoint: String, userId: String), projectId pid: String) {
+        let now = user.map { DraftStore.scopeKey(endpoint: endpoint, userId: $0.id) }
+        if now != DraftStore.scopeKey(endpoint: bound.endpoint, userId: bound.userId) {
+            if let draftStore {
+                let m = ComposerModel(image: image, png: png, source: source, projectId: pid)
+                try? draftStore.save(m.snapshot(endpoint: bound.endpoint, userId: bound.userId), png: png)
+            }
+            captureProblem = "The account or server changed during the capture, so it was saved to the original account's Commit inbox instead of opening here."
+            return
+        }
+        ComposerController.shared.open(image: image, png: png, source: source, app: self, scope: bound, projectId: pid)
     }
 
     /// Brings an existing screenshot file into the inbox (explicit file choice only;
@@ -432,6 +462,8 @@ final class AppState: ObservableObject {
             lastError = "Sign in before importing a screenshot."
             return
         }
+        guard let boundUser = user, let boundProject = projectId else { return }
+        let bound = (endpoint: endpoint, userId: boundUser.id)
         let panel = NSOpenPanel()
         panel.title = "Import a screenshot"
         panel.allowedContentTypes = [.png, .jpeg, .heic, .tiff]
@@ -446,7 +478,7 @@ final class AppState: ObservableObject {
         let png = Capture.pngWithinLimit(pngData)
         guard let image = NSImage(data: png) else { return }
         let source = Source(appName: "Imported screenshot", windowTitle: url.lastPathComponent, captureKind: "upload")
-        ComposerController.shared.open(image: image, png: png, source: source, app: self)
+        openCapture(image: image, png: png, source: source, bound: bound, projectId: boundProject)
     }
 
     func resumeDraft(_ d: StoredDraft) { ComposerController.shared.resume(d, app: self) }
