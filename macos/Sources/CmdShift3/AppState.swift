@@ -445,14 +445,33 @@ final class AppState: ObservableObject {
                              bound: (endpoint: String, userId: String), projectId pid: String) {
         let now = user.map { DraftStore.scopeKey(endpoint: endpoint, userId: $0.id) }
         if now != DraftStore.scopeKey(endpoint: bound.endpoint, userId: bound.userId) {
-            if let draftStore {
-                let m = ComposerModel(image: image, png: png, source: source, projectId: pid)
-                try? draftStore.save(m.snapshot(endpoint: bound.endpoint, userId: bound.userId), png: png)
+            let m = ComposerModel(image: image, png: png, source: source, projectId: pid)
+            switch Self.stashForeignCapture(m, store: draftStore, bound: bound) {
+            case .saved:
+                captureProblem = "The account or server changed during the capture, so it was saved to the original account's Commit inbox instead of opening here."
+                return
+            case .keepOpen(let reason):
+                // Never drop the only copy: keep it open, bound to its original
+                // account (draft/commit stay refused there) so saving can be retried.
+                captureProblem = "The account or server changed during the capture and it couldn't be saved (\(reason)). It's kept open so you can retry."
             }
-            captureProblem = "The account or server changed during the capture, so it was saved to the original account's Commit inbox instead of opening here."
-            return
         }
         ComposerController.shared.open(image: image, png: png, source: source, app: self, scope: bound, projectId: pid)
+    }
+
+    enum ForeignCaptureOutcome: Equatable { case saved, keepOpen(String) }
+
+    /// Saves a capture whose session changed mid-capture into its original inbox.
+    /// Reports success only when the write actually succeeded.
+    static func stashForeignCapture(_ m: ComposerModel, store: DraftStore?,
+                                    bound: (endpoint: String, userId: String)) -> ForeignCaptureOutcome {
+        guard let store else { return .keepOpen("no local draft folder") }
+        do {
+            try store.save(m.snapshot(endpoint: bound.endpoint, userId: bound.userId), png: m.png)
+            return .saved
+        } catch {
+            return .keepOpen(error.localizedDescription)
+        }
     }
 
     /// Brings an existing screenshot file into the inbox (explicit file choice only;

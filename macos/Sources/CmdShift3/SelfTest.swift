@@ -524,6 +524,16 @@ enum SelfTest {
         ctrl.attachStoreForChecks(store, endpoint: ep, userId: user)
         guard ctrl.stashCurrent(), !ctrl.isOpen else { return "editor should close once saving works again" }
 
+        // R49: a capture whose session changed mid-capture is only reported saved when it was.
+        let fc = ComposerModel(image: img, png: png, source: src("F"), projectId: "p1")
+        guard AppState.stashForeignCapture(fc, store: badStore, bound: (ep, user)) != .saved
+        else { return "foreign capture reported saved although the write failed" }
+        guard AppState.stashForeignCapture(fc, store: store, bound: (ep, user)) == .saved,
+              store.list(endpoint: ep, userId: user).contains(where: { $0.id == fc.draftId })
+        else { return "foreign capture not saved to its original inbox" }
+        guard AppState.stashForeignCapture(fc, store: nil, bound: (ep, user)) != .saved
+        else { return "foreign capture with no store must be kept open" }
+
         // R47-2: reviewed A -> B -> A, saved and reopened, is NOT review-ready.
         let h = ComposerModel(image: img, png: png, source: src("H"), projectId: "p1")
         h.comment = "A"
