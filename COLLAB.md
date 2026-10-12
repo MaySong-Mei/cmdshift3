@@ -287,6 +287,12 @@ Lead 已定稿首版接口。完整可执行约定见 [docs/API.md](docs/API.md)
   2. **在 capture 入口可见的错误**：Screen Recording 被拒绝时，会把 `captureProblem` 显示在 **Commit tab 顶部横幅**（附 Open System Settings 按钮）和 **menu bar 面板**里；文案带上当前运行 bundle 的路径，方便判断授权到底是哪一份 app。开始新的 capture 时清除。
   3. **热键状态**：`HotKey` 记录 `InstallEventHandler` / `RegisterEventHotKey` 返回的 OSStatus，提供 `isRegistered`。注册失败时 `hotKeyProblem` 会显示在同样两个位置（提示改用 New capture），并写入 NSLog。不会在没核实的情况下声称热键可用。
   - 验证：禁网 offline PASS，新增：集合里有 draft 时，即使没有打开的 composer 也 `isCommitting`；用不冲突的 ⌃⌥⇧⌘F19 实际注册一次，`isRegistered` 与 OSStatus 一致；之前的 inbox 检查全部仍然通过。scratch 完整 selftest PASS（inbox 恢复两次 → 一次 commit `79f95b2`，progress、ask 都通过）。真实的 Drafts 目录没有被创建。
+- **R47 交付 claude（T27 三个 release blocker 已修）**：`b1de6b9`，只改了 `macos/`。新候选包：`/private/tmp/cmdshift3-capture-inbox-candidate-b11/CmdShift3.app`（0.5.0 build 11，binary `0ebc901e801c6a8c`，strict 签名）。`/Applications/CmdShift3.app`（b5，`828f9a2c…`）**未动**，May 正在用的那个未提交的 b5 composer 也没碰。b6/b7/b8/b9/b10 是中间产物，以 b11 为准（b8 和 b10 都没有通过测试，b9 的离线 selftest 卡死）。
+  1. **保存失败**：`persist()` 会 throw。`saveNow()` 失败时把错误写进 `persistError`，在编辑器 footer 里显示，返回 false，**窗口保持打开**（windowShouldClose 返回 false 并弹提示；stash / closeAll 也会拒绝；sign out 和换账号会被取消并说明原因）。**AI draft 和 Commit 都必须先保存成功才发请求**：Commit 先 freeze，再同步落盘，失败就撤销这次新冻结的状态，显示 “not sent”，不发 POST。capture 到达时如果首次保存失败，不会自动起草。
+  2. **真实的 freshness**：`StoredDraft` 升到 v2，新增 `inputRevision` 和 `appliedRevision`；恢复时按这两个 revision 判断，不再比较字段值。v1 的旧数据一律当作过期（需要 update）。已加回归：review 过的 A→B→A，保存再打开后 `needsUpdate` 为 true，`reviewReady` 为 false，主按钮是 Update draft，列表状态是 “Needs update”。
+  3. **绑定 scope**：每个 composer 绑定自己的 `boundEndpoint` 和 `boundUserId`；`scopeIsCurrent` 比较 server+账号的 scopeKey，**draft 和 commit 前都会强制检查**（同一 user id 换到别的 server 也会被拒绝，草稿保留在原 inbox）。signIn 改为比较 server+账号的 scope（原来只比 user id）。capture 和 import 在 picker / NSOpenPanel 之前就记下 scope，之后再核对一次；如果中途变了，就存进**原账号**的 inbox，不在当前账号里打开。
+  - **验证**：禁网 offline PASS，覆盖三项各自的回归（保存失败不发送不关窗口、A→B→A、跨 scope 拒绝），以及之前所有 inbox / in-flight / 热键检查。scratch 完整 selftest PASS（inbox 恢复两次 → 一次 commit `0373f3c`；progress、ask、frozen retry 都通过）。真实的 Drafts 目录没有被创建。另外修了我自己引入的一个测试死锁：主 actor 上用 semaphore 等 @MainActor Task，已改成 async/await。
+  - 构建偶尔很慢（有一次 13 分钟）：检查过没有单个函数超过 3s 的类型检查，判断是当时机器负载高。
 - **协作路径 codex**：Codex checkout 位于 `/Users/maymaymei/Documents/Codex/cmdshift3`。如果双方 checkout 不同，开工前拉取远端，交接时提交并推送 `COLLAB.md`；仅修改各自任务及记录。
 
 ---
@@ -671,3 +677,4 @@ Keewano 是远程历史与分析能力的候选底座；托管 agent 的可调�
 | 2026-10-11 | claude | 更正“丢稿”结论（May 用的是系统截图）；b5 原样安装到 /Applications，旧 0.1 repo build 已归档；T27 ETA 约 45 分钟，候选包 /private/tmp/cmdshift3-capture-inbox-candidate（0.5.0） | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | T27 68e1b44：持久化 Commit 收件箱（落盘/自动保存/freeze 先写盘/只有成功 commit 才移除/Import Screenshot）；候选包 0.5.0（aeca3258）禁网 offline 和 scratch（恢复两次 → 一次 commit）均 PASS | 见本行所在 Git 提交 |
 | 2026-10-11 | claude | R46 00925f1：全局 in-flight 守卫、capture 入口可见错误、热键 OSStatus 记录；候选包 0.5.0 b7（c0bceb4f），offline 和 scratch 均 PASS | 见本行所在 Git 提交 |
+| 2026-10-11 | claude | R47 b1de6b9：保存失败时阻止发送和关闭、持久化真实 revision、composer 绑定 server+账号；候选包 0.5.0 b11（0ebc901e），offline 和 scratch 均 PASS | 见本行所在 Git 提交 |
